@@ -1,0 +1,11 @@
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Domain\bin\Debug\net8.0\CasaAndina.Domain.deps.json
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Domain\bin\Debug\net8.0\CasaAndina.Domain.dll
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Domain\bin\Debug\net8.0\CasaAndina.Domain.pdb
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Domain\obj\Debug\net8.0\CasaAndina.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Domain\obj\Debug\net8.0\CasaAndina.Domain.AssemblyInfoInputs.cache
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Domain\obj\Debug\net8.0\CasaAndina.Domain.AssemblyInfo.cs
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Domain\obj\Debug\net8.0\CasaAndina.Domain.csproj.CoreCompileInputs.cache
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Domain\obj\Debug\net8.0\CasaAndina.Domain.dll
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Domain\obj\Debug\net8.0\refint\CasaAndina.Domain.dll
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Domain\obj\Debug\net8.0\CasaAndina.Domain.pdb
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Domain\obj\Debug\net8.0\ref\CasaAndina.Domain.dll

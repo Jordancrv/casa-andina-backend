@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "CasaAndina.Api": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:51140;http://localhost:51141"
+    }
+  }
+}

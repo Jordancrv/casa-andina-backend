@@ -1,0 +1,15 @@
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Application\obj\Debug\net8.0\CasaAndina.Application.csproj.AssemblyReference.cache
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Application\obj\Debug\net8.0\CasaAndina.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Application\obj\Debug\net8.0\CasaAndina.Application.AssemblyInfoInputs.cache
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Application\obj\Debug\net8.0\CasaAndina.Application.AssemblyInfo.cs
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Application\obj\Debug\net8.0\CasaAndina.Application.csproj.CoreCompileInputs.cache
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Application\bin\Debug\net8.0\CasaAndina.Application.deps.json
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Application\bin\Debug\net8.0\CasaAndina.Application.dll
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Application\bin\Debug\net8.0\CasaAndina.Application.pdb
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Application\bin\Debug\net8.0\CasaAndina.Domain.dll
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Application\bin\Debug\net8.0\CasaAndina.Domain.pdb
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Application\obj\Debug\net8.0\CasaAndi.D4BE8E8E.Up2Date
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Application\obj\Debug\net8.0\CasaAndina.Application.dll
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Application\obj\Debug\net8.0\refint\CasaAndina.Application.dll
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Application\obj\Debug\net8.0\CasaAndina.Application.pdb
+C:\Users\Liz\Documents\UNIVERSIDAD\AdmiProyecto\CasaAndina\Backend\casa-andina-backend\src\CasaAndina.Application\obj\Debug\net8.0\ref\CasaAndina.Application.dll
