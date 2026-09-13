@@ -51,8 +51,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-app.UseHttpsRedirection();
+else
+{
+    // Solo en producción: en desarrollo el frontend usa HTTP y
+    // UseHttpsRedirection devuelve 307 que rompe CORS en preflight OPTIONS.
+    app.UseHttpsRedirection();
+}
 
 app.UseCors("FrontendPolicy");
 

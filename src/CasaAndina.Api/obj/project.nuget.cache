@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "7HfnPuC+4mo=",
+  "dgSpecHash": "SjH9qZA/86I=",
   "success": true,
-  "projectFilePath": "C:\\Users\\Liz\\Documents\\UNIVERSIDAD\\AdmiProyecto\\CasaAndina\\Backend\\casa-andina-backend\\src\\CasaAndina.Api\\CasaAndina.Api.csproj",
+  "projectFilePath": "C:\\Users\\Liz\\Documents\\Universidad\\AdmiProyecto\\CasaAndina\\casa-andina-backend\\src\\CasaAndina.Api\\CasaAndina.Api.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Liz\\.nuget\\packages\\azure.core\\1.35.0\\azure.core.1.35.0.nupkg.sha512",
     "C:\\Users\\Liz\\.nuget\\packages\\azure.identity\\1.10.3\\azure.identity.1.10.3.nupkg.sha512",

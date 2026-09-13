@@ -1,13 +1,16 @@
 using CasaAndina.Application.Chatbot.Queries;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CasaAndina.Api.Controllers;
 
-/// <summary>RF05/RF06: expuesto al Portal Cliente (login de Cliente requerido en el guard del frontend).</summary>
+/// <summary>RF05/RF06: expuesto al Portal Cliente (requiere JWT de cliente).</summary>
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class ChatbotController : ControllerBase
+
 {
     private readonly ISender _mediator;
 

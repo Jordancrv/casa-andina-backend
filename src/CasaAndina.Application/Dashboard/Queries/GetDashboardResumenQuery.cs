@@ -1,6 +1,5 @@
 using CasaAndina.Application.Common.Interfaces;
 using CasaAndina.Application.Dashboard.DTOs;
-using CasaAndina.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,22 +17,29 @@ public class GetDashboardResumenQueryHandler
     public async Task<DashboardResumenDto> Handle(
         GetDashboardResumenQuery request, CancellationToken cancellationToken)
     {
-        var totalHabitaciones = await _context.Habitaciones.CountAsync(h => h.Activo, cancellationToken);
+        var totalHabitaciones = await _context.Habitaciones
+            .CountAsync(h => h.Activo, cancellationToken);
 
+        // Reservas activas = Pendiente o Confirmada
         var reservasActivas = await _context.Reservas
-            .CountAsync(r => r.Estado == EstadoReserva.Activa, cancellationToken);
+            .CountAsync(r => r.Estado == "Pendiente" || r.Estado == "Confirmada", cancellationToken);
 
-        var habitacionesOcupadas = await _context.ReservaHabitaciones
-            .Where(rh => rh.Reserva.Estado == EstadoReserva.Activa)
-            .Select(rh => rh.HabitacionId)
+        // Habitaciones ocupadas = las que tienen reserva Confirmada en curso hoy
+        var hoy = DateTime.UtcNow.Date;
+        var habitacionesOcupadas = await _context.Reservas
+            .Where(r => r.Estado == "Confirmada"
+                     && r.FechaCheckIn.Date <= hoy
+                     && r.FechaCheckOut.Date > hoy)
+            .Select(r => r.HabitacionId)
             .Distinct()
             .CountAsync(cancellationToken);
 
+        // Ingresos del mes actual (excluyendo canceladas)
         var ingresosMes = await _context.Reservas
             .Where(r => r.FechaCreacion.Month == DateTime.UtcNow.Month
                      && r.FechaCreacion.Year == DateTime.UtcNow.Year
-                     && r.Estado != EstadoReserva.Cancelada)
-            .SumAsync(r => (decimal?)r.MontoTotal, cancellationToken) ?? 0;
+                     && r.Estado != "Cancelada")
+            .SumAsync(r => (decimal?)r.PrecioTotal, cancellationToken) ?? 0;
 
         return new DashboardResumenDto(
             habitacionesOcupadas,

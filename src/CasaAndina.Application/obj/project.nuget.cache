@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "II1sEb0pjCk=",
+  "dgSpecHash": "ujDEjJKwc8c=",
   "success": true,
-  "projectFilePath": "C:\\Users\\Liz\\Documents\\UNIVERSIDAD\\AdmiProyecto\\CasaAndina\\Backend\\casa-andina-backend\\src\\CasaAndina.Application\\CasaAndina.Application.csproj",
+  "projectFilePath": "C:\\Users\\Liz\\Documents\\Universidad\\AdmiProyecto\\CasaAndina\\casa-andina-backend\\src\\CasaAndina.Application\\CasaAndina.Application.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Liz\\.nuget\\packages\\fluentvalidation\\11.9.2\\fluentvalidation.11.9.2.nupkg.sha512",
     "C:\\Users\\Liz\\.nuget\\packages\\fluentvalidation.dependencyinjectionextensions\\11.9.2\\fluentvalidation.dependencyinjectionextensions.11.9.2.nupkg.sha512",

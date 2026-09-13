@@ -14,11 +14,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Liz\\Documents\\UNIVERSIDAD\\AdmiProyecto\\CasaAndina\\Backend\\casa-andina-backend\\src\\CasaAndina.Domain\\CasaAndina.Domain.csproj",
+      "projectUniqueName": "C:\\Users\\Liz\\Documents\\Universidad\\AdmiProyecto\\CasaAndina\\casa-andina-backend\\src\\CasaAndina.Domain\\CasaAndina.Domain.csproj",
       "projectName": "CasaAndina.Domain",
-      "projectPath": "C:\\Users\\Liz\\Documents\\UNIVERSIDAD\\AdmiProyecto\\CasaAndina\\Backend\\casa-andina-backend\\src\\CasaAndina.Domain\\CasaAndina.Domain.csproj",
+      "projectPath": "C:\\Users\\Liz\\Documents\\Universidad\\AdmiProyecto\\CasaAndina\\casa-andina-backend\\src\\CasaAndina.Domain\\CasaAndina.Domain.csproj",
       "packagesPath": "C:\\Users\\Liz\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Liz\\Documents\\UNIVERSIDAD\\AdmiProyecto\\CasaAndina\\Backend\\casa-andina-backend\\src\\CasaAndina.Domain\\obj\\",
+      "outputPath": "C:\\Users\\Liz\\Documents\\Universidad\\AdmiProyecto\\CasaAndina\\casa-andina-backend\\src\\CasaAndina.Domain\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
