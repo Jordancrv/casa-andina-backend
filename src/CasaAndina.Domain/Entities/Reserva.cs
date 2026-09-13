@@ -1,19 +1,32 @@
 using CasaAndina.Domain.Common;
-using CasaAndina.Domain.Enums;
 
 namespace CasaAndina.Domain.Entities;
 
-/// <summary>RF07: código único (CA-XXXXX), comprobante digital, filtro activa/histórica.</summary>
+/// <summary>
+/// RF07: reserva de habitación. Columna BD: ReservaId, CodigoReserva,
+/// ClienteId, HabitacionId, CreadoPorUsuarioId, FechaCheckIn,
+/// FechaCheckOut, NumAdultos, NumNinos, Estado, Canal, PrecioTotal, FechaCreacion.
+/// La BD vincula Reserva→Habitacion directamente (1:1), no hay tabla puente.
+/// </summary>
 public class Reserva : BaseEntity
 {
-    public string Codigo { get; set; } = default!; // formato CA-XXXXX
+    public string CodigoReserva { get; set; } = default!;   // → columna CodigoReserva (CA-XXXXX)
+
+    public int ClienteId { get; set; }
+    public Cliente Cliente { get; set; } = default!;
+
+    public int HabitacionId { get; set; }
+    public Habitacion Habitacion { get; set; } = default!;
+
+    public int? CreadoPorUsuarioId { get; set; }            // NULL si el cliente lo creó solo
+    public Usuario? CreadoPorUsuario { get; set; }
+
     public DateTime FechaCheckIn { get; set; }
     public DateTime FechaCheckOut { get; set; }
-    public decimal MontoTotal { get; set; }
-    public EstadoReserva Estado { get; set; } = EstadoReserva.Activa;
+    public int NumAdultos { get; set; } = 1;
+    public int NumNinos { get; set; } = 0;
 
-    public int UsuarioId { get; set; }
-    public Usuario Usuario { get; set; } = default!;
-
-    public ICollection<ReservaHabitacion> Habitaciones { get; set; } = new List<ReservaHabitacion>();
+    public string Estado { get; set; } = "Pendiente";       // Pendiente/Confirmada/Bloqueada/Completada/Cancelada
+    public string Canal { get; set; } = "Directo";          // Directo / OTA
+    public decimal PrecioTotal { get; set; }                // → columna PrecioTotal en BD
 }

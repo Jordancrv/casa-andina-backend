@@ -5,7 +5,10 @@ public record HabitacionDto(
     string Numero,
     int Piso,
     decimal PrecioNoche,
-    int Capacidad,
+    string Estado,
     string? FotoUrl,
     string SedeNombre,
+    string TipoHabitacionNombre,
+    byte CapacidadAdultos,
+    byte CapacidadNinos,
     IReadOnlyList<string> Comodidades);

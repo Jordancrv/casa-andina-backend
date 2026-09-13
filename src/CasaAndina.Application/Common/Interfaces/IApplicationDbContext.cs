@@ -11,12 +11,13 @@ namespace CasaAndina.Application.Common.Interfaces;
 public interface IApplicationDbContext
 {
     DbSet<Sede> Sedes { get; }
+    DbSet<TipoHabitacion> TiposHabitacion { get; }
     DbSet<Habitacion> Habitaciones { get; }
     DbSet<Comodidad> Comodidades { get; }
     DbSet<Servicio> Servicios { get; }
     DbSet<Usuario> Usuarios { get; }
+    DbSet<Cliente> Clientes { get; }
     DbSet<Reserva> Reservas { get; }
-    DbSet<ReservaHabitacion> ReservaHabitaciones { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -4,5 +4,8 @@ namespace CasaAndina.Domain.Enums;
 public enum RolUsuario
 {
     Administrador = 1,
-    Cliente = 2
+    Recepcion     = 2,
+    Operaciones   = 3,
+    Mantenimiento = 4,
+    Cliente       = 5   // Portal cliente (tabla Cliente, no Usuario)
 }
