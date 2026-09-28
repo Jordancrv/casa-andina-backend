@@ -27,7 +27,21 @@ public class SedeConfiguration : IEntityTypeConfiguration<Sede>
         // ServicioSede es la tabla puente (no SedeServicio)
         builder.HasMany(s => s.Servicios)
             .WithMany(sv => sv.Sedes)
-            .UsingEntity(j => j.ToTable("ServicioSede"));
+            .UsingEntity<Dictionary<string, object>>(
+                "ServicioSede",
+                j => j.HasOne<Servicio>()
+                    .WithMany()
+                    .HasForeignKey("ServicioId")
+                    .OnDelete(DeleteBehavior.Cascade),
+                j => j.HasOne<Sede>()
+                    .WithMany()
+                    .HasForeignKey("SedeId")
+                    .OnDelete(DeleteBehavior.Restrict),
+                j =>
+                {
+                    j.ToTable("ServicioSede");
+                    j.HasKey("ServicioId", "SedeId");
+                });
 
         // RF04: Sede es de solo lectura desde la API.
     }

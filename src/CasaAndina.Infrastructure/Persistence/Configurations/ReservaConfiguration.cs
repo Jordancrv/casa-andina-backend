@@ -23,9 +23,15 @@ public class ReservaConfiguration : IEntityTypeConfiguration<Reserva>
 
         builder.Property(r => r.NumAdultos).HasColumnType("tinyint");
         builder.Property(r => r.NumNinos).HasColumnType("tinyint");
+        builder.Property(r => r.FechaCheckIn).HasColumnType("date");
+        builder.Property(r => r.FechaCheckOut).HasColumnType("date");
 
         // BaseEntity.FechaActualizacion no existe en Reserva
         builder.Ignore(r => r.FechaActualizacion);
+
+        builder.HasIndex(r => new { r.HabitacionId, r.FechaCheckIn, r.FechaCheckOut })
+            .HasDatabaseName("IX_Reserva_Habitacion_Fechas");
+        builder.HasIndex(r => r.Estado).HasDatabaseName("IX_Reserva_Estado");
 
         // FK → Cliente
         builder.HasOne(r => r.Cliente)
@@ -44,7 +50,7 @@ public class ReservaConfiguration : IEntityTypeConfiguration<Reserva>
             .WithMany(u => u.Reservas)
             .HasForeignKey(r => r.CreadoPorUsuarioId)
             .IsRequired(false)
-            .OnDelete(DeleteBehavior.SetNull);
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
 

@@ -28,3 +28,8 @@ actualiza sus datos e inserta únicamente las que no existen.
 4. Iniciar la API con `dotnet run --project src/CasaAndina.Api`.
 
 Swagger está disponible en el entorno `Development`.
+
+## Contrato de datos
+
+El inventario de tablas, las reglas de mantenimiento y las brechas pendientes
+del modelo se encuentran en [`docs/data-model.md`](docs/data-model.md).
