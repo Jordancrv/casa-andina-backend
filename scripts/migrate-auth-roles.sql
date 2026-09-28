@@ -9,21 +9,25 @@ BEGIN TRY
     IF COL_LENGTH(N'dbo.Rol', N'Codigo') IS NULL
         ALTER TABLE dbo.Rol ADD Codigo NVARCHAR(30) NULL;
 
-    UPDATE dbo.Rol
-    SET Codigo = CASE Nombre
-        WHEN N'Administrador' THEN N'ADMINISTRADOR'
-        WHEN N'Recepción' THEN N'RECEPCION'
-        WHEN N'Recepcion' THEN N'RECEPCION'
-        WHEN N'Operaciones' THEN N'OPERACIONES'
-        WHEN N'Mantenimiento' THEN N'MANTENIMIENTO'
-        ELSE Codigo
-    END
-    WHERE Codigo IS NULL;
+    -- SQL Server compila el lote completo antes de ejecutar ALTER TABLE.
+    -- Las referencias a la nueva columna deben compilarse después mediante SQL dinámico.
+    EXEC sys.sp_executesql N'
+        UPDATE dbo.Rol
+        SET Codigo = CASE Nombre
+            WHEN N''Administrador'' THEN N''ADMINISTRADOR''
+            WHEN N''Recepción'' THEN N''RECEPCION''
+            WHEN N''Recepcion'' THEN N''RECEPCION''
+            WHEN N''Operaciones'' THEN N''OPERACIONES''
+            WHEN N''Mantenimiento'' THEN N''MANTENIMIENTO''
+            ELSE Codigo
+        END
+        WHERE Codigo IS NULL;
 
-    IF EXISTS (SELECT 1 FROM dbo.Rol WHERE Codigo IS NULL)
-        THROW 51010, 'Existen roles sin un código reconocido. Corríjalos antes de continuar.', 1;
+        IF EXISTS (SELECT 1 FROM dbo.Rol WHERE Codigo IS NULL)
+            THROW 51010, ''Existen roles sin un código reconocido. Corríjalos antes de continuar.'', 1;
 
-    ALTER TABLE dbo.Rol ALTER COLUMN Codigo NVARCHAR(30) NOT NULL;
+        ALTER TABLE dbo.Rol ALTER COLUMN Codigo NVARCHAR(30) NOT NULL;
+    ';
 
     IF NOT EXISTS (
         SELECT 1
@@ -31,8 +35,10 @@ BEGIN TRY
         WHERE name = N'UQ_Rol_Codigo'
           AND parent_object_id = OBJECT_ID(N'dbo.Rol'))
     BEGIN
-        ALTER TABLE dbo.Rol
-            ADD CONSTRAINT UQ_Rol_Codigo UNIQUE (Codigo);
+        EXEC sys.sp_executesql N'
+            ALTER TABLE dbo.Rol
+                ADD CONSTRAINT UQ_Rol_Codigo UNIQUE (Codigo);
+        ';
     END;
 
     COMMIT TRANSACTION;
