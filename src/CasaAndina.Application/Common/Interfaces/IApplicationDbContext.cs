@@ -11,6 +11,7 @@ namespace CasaAndina.Application.Common.Interfaces;
 public interface IApplicationDbContext
 {
     DbSet<Sede> Sedes { get; }
+    DbSet<Rol> Roles { get; }
     DbSet<TipoHabitacion> TiposHabitacion { get; }
     DbSet<Habitacion> Habitaciones { get; }
     DbSet<Comodidad> Comodidades { get; }

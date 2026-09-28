@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\CasaAndina.Application\CasaAndina.Application.csproj" />
+    <ProjectReference Include="..\..\src\CasaAndina.Infrastructure\CasaAndina.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

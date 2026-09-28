@@ -24,14 +24,14 @@ Orden local de ejecución:
 | Tabla | Estado en EF Core | Actividad responsable |
 | --- | --- | --- |
 | Sede | Mapeada | Catálogo de sedes |
-| Rol | Pendiente | Autenticación y roles |
+| Rol | Mapeada | Autenticación y roles |
 | TipoHabitacion | Mapeada | Habitaciones |
 | Comodidad | Mapeada | Habitaciones |
 | Habitacion | Mapeada | Habitaciones |
 | HabitacionComodidad | Mapeada como relación | Habitaciones |
 | Servicio | Mapeada | Servicios |
 | ServicioSede | Mapeada como relación | Servicios |
-| Usuario | Parcial: faltan sede y datos operativos | Autenticación y roles |
+| Usuario | Mapeada | Autenticación y roles |
 | Cliente | Mapeada | CRM clientes |
 | Reserva | Mapeada | Reservas |
 | ReservaServicio | Pendiente | Reservas y servicios |
@@ -48,9 +48,9 @@ Orden local de ejecución:
 - No se deben generar migraciones hasta completar el mapeo de las tablas que
   intervienen en la actividad en desarrollo.
 
-## Próxima alineación
+## Autenticación
 
-La actividad de autenticación debe incorporar la entidad `Rol`, la relación
-`Usuario-Rol`, la sede opcional del usuario y los campos `Telefono` y
-`UltimoAcceso`. Los nombres utilizados por JWT y frontend deben ser estables y
-no depender de identificadores numéricos insertados en un orden específico.
+La autenticación incorpora `Rol`, la relación `Usuario-Rol`, la sede opcional
+del usuario y los campos `Telefono` y `UltimoAcceso`. `Rol.Codigo` es el valor
+estable que se traduce a los nombres utilizados por JWT y frontend; el sistema
+no depende del orden ni de los identificadores numéricos de los roles.

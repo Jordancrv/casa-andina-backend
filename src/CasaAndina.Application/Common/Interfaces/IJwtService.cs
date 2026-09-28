@@ -5,4 +5,5 @@ namespace CasaAndina.Application.Common.Interfaces;
 public interface IJwtService
 {
     string GenerarToken(Usuario usuario);
+    string GenerarToken(Cliente cliente);
 }

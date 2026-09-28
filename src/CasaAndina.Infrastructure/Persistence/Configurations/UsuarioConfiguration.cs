@@ -33,6 +33,9 @@ public class UsuarioConfiguration : IEntityTypeConfiguration<Usuario>
             .HasMaxLength(150)
             .IsRequired();
 
+        builder.Property(u => u.Telefono).HasMaxLength(20);
+        builder.Property(u => u.UltimoAcceso);
+
         // FechaRegistro → FechaCreacion (BaseEntity)
         builder.Property(u => u.FechaCreacion)
             .HasColumnName("FechaRegistro");
@@ -47,6 +50,17 @@ public class UsuarioConfiguration : IEntityTypeConfiguration<Usuario>
 
         // RolId: FK a tabla Rol
         builder.Property(u => u.RolId).HasColumnName("RolId");
+
+        builder.HasOne(u => u.RolAsignado)
+            .WithMany(r => r.Usuarios)
+            .HasForeignKey(u => u.RolId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(u => u.Sede)
+            .WithMany()
+            .HasForeignKey(u => u.SedeId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // 'Rol' es una propiedad calculada (no stored) → EF no debe mapearla a columna
         builder.Ignore(u => u.Rol);

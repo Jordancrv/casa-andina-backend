@@ -27,7 +27,20 @@ actualiza sus datos e inserta únicamente las que no existen.
 3. Ejecutar `scripts/seed-sedes.sql` en SQL Server.
 4. Iniciar la API con `dotnet run --project src/CasaAndina.Api`.
 
+Si la base ya existía antes de la implementación de roles, ejecutar una sola
+vez `scripts/migrate-auth-roles.sql` en lugar de recrear las tablas.
+
 Swagger está disponible en el entorno `Development`.
+
+La clave JWT no se almacena en el repositorio. Para desarrollo puede definirse
+como variable de entorno antes de iniciar la API:
+
+```powershell
+$env:Jwt__Key = "una-clave-local-de-al-menos-32-caracteres"
+```
+
+El inicio de sesión acepta personal interno de `Usuario` y huéspedes con cuenta
+en `Cliente`. Las contraseñas deben almacenarse exclusivamente con BCrypt.
 
 ## Contrato de datos
 

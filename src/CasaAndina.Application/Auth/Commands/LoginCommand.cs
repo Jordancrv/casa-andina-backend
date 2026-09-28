@@ -35,13 +35,33 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
 
     public async Task<LoginResponse> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
+        var email = request.Email.Trim();
         var usuario = await _context.Usuarios
-            .FirstOrDefaultAsync(u => u.Email == request.Email && u.Activo, cancellationToken);
+            .Include(u => u.RolAsignado)
+            .SingleOrDefaultAsync(u => u.Email == email && u.Activo, cancellationToken);
 
-        if (usuario is null || !_passwordHasher.Verify(request.Password, usuario.PasswordHash))
-            throw new UnauthorizedAccessException("Credenciales inválidas.");
+        if (usuario is not null && _passwordHasher.Verify(request.Password, usuario.PasswordHash))
+        {
+            usuario.UltimoAcceso = DateTime.UtcNow;
+            await _context.SaveChangesAsync(cancellationToken);
 
-        var token = _jwtService.GenerarToken(usuario);
-        return new LoginResponse(token, usuario.NombreCompleto, usuario.Rol.ToString());
+            var token = _jwtService.GenerarToken(usuario);
+            return new LoginResponse(token, usuario.NombreCompleto, usuario.Rol.ToString());
+        }
+
+        var cliente = await _context.Clientes
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                c => c.Correo == email && c.Estado == "Activo" && c.ContrasenaHash != null,
+                cancellationToken);
+
+        if (cliente?.ContrasenaHash is not null
+            && _passwordHasher.Verify(request.Password, cliente.ContrasenaHash))
+        {
+            var token = _jwtService.GenerarToken(cliente);
+            return new LoginResponse(token, cliente.NombreCompleto, "Cliente");
+        }
+
+        throw new UnauthorizedAccessException("Credenciales inválidas.");
     }
 }

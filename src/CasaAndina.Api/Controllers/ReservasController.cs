@@ -8,7 +8,7 @@ namespace CasaAndina.Api.Controllers;
 /// <summary>RF03: lista las reservas del cliente autenticado (Portal Cliente).</summary>
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "Cliente")]
 public class ReservasController : ControllerBase
 {
     private readonly ISender _mediator;

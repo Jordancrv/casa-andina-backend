@@ -11,6 +11,15 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services, IConfiguration configuration)
     {
         var jwtSettings = configuration.GetSection("Jwt");
+        var jwtKey = jwtSettings["Key"];
+
+        if (string.IsNullOrWhiteSpace(jwtKey)
+            || jwtKey.Length < 32
+            || jwtKey.StartsWith("CAMBIAR-", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Jwt:Key debe configurarse fuera del repositorio y tener al menos 32 caracteres.");
+        }
 
         services.AddAuthentication(options =>
         {
@@ -28,7 +37,7 @@ public static class ServiceCollectionExtensions
                 ValidIssuer = jwtSettings["Issuer"],
                 ValidAudience = jwtSettings["Audience"],
                 IssuerSigningKey = new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(jwtSettings["Key"]!))
+                    Encoding.UTF8.GetBytes(jwtKey))
             };
         });
 
@@ -36,7 +45,19 @@ public static class ServiceCollectionExtensions
         services.AddAuthorization(options =>
         {
             options.AddPolicy(nameof(RolUsuario.Administrador), p => p.RequireRole(nameof(RolUsuario.Administrador)));
+            options.AddPolicy(nameof(RolUsuario.Recepcion), p => p.RequireRole(nameof(RolUsuario.Recepcion)));
+            options.AddPolicy(nameof(RolUsuario.Operaciones), p => p.RequireRole(nameof(RolUsuario.Operaciones)));
+            options.AddPolicy(nameof(RolUsuario.Mantenimiento), p => p.RequireRole(nameof(RolUsuario.Mantenimiento)));
             options.AddPolicy(nameof(RolUsuario.Cliente), p => p.RequireRole(nameof(RolUsuario.Cliente)));
+            options.AddPolicy("PersonalInterno", p => p.RequireRole(
+                nameof(RolUsuario.Administrador),
+                nameof(RolUsuario.Recepcion),
+                nameof(RolUsuario.Operaciones),
+                nameof(RolUsuario.Mantenimiento)));
+            options.AddPolicy("GestionHabitaciones", p => p.RequireRole(
+                nameof(RolUsuario.Administrador),
+                nameof(RolUsuario.Operaciones),
+                nameof(RolUsuario.Mantenimiento)));
         });
 
         return services;

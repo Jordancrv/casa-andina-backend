@@ -9,6 +9,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
     public DbSet<Sede> Sedes => Set<Sede>();
+    public DbSet<Rol> Roles => Set<Rol>();
     public DbSet<TipoHabitacion> TiposHabitacion => Set<TipoHabitacion>();
     public DbSet<Habitacion> Habitaciones => Set<Habitacion>();
     public DbSet<Comodidad> Comodidades => Set<Comodidad>();

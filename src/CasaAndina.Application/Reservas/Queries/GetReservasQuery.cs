@@ -6,25 +6,33 @@ using Microsoft.EntityFrameworkCore;
 namespace CasaAndina.Application.Reservas.Queries;
 
 /// <summary>
-/// RF03: lista las reservas filtradas opcionalmente por cliente, ordenadas por fecha check-in.
+/// RF03: lista únicamente las reservas del cliente autenticado.
 /// </summary>
-public record GetReservasQuery(int? ClienteId = null) : IRequest<IReadOnlyList<ReservaDto>>;
+public record GetReservasQuery : IRequest<IReadOnlyList<ReservaDto>>;
 
 public class GetReservasQueryHandler
     : IRequestHandler<GetReservasQuery, IReadOnlyList<ReservaDto>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly ICurrentUserService _currentUser;
 
-    public GetReservasQueryHandler(IApplicationDbContext context)
+    public GetReservasQueryHandler(
+        IApplicationDbContext context,
+        ICurrentUserService currentUser)
     {
         _context = context;
+        _currentUser = currentUser;
     }
 
     public async Task<IReadOnlyList<ReservaDto>> Handle(
         GetReservasQuery request, CancellationToken cancellationToken)
     {
+        var clienteId = _currentUser.ClienteId
+            ?? throw new UnauthorizedAccessException("El token no identifica a un cliente.");
+
         return await _context.Reservas
-            .Where(r => request.ClienteId == null || r.ClienteId == request.ClienteId)
+            .AsNoTracking()
+            .Where(r => r.ClienteId == clienteId)
             .OrderByDescending(r => r.FechaCheckIn)
             .Select(r => new ReservaDto(
                 r.Id,

@@ -9,21 +9,27 @@ public class Usuario : BaseEntity
     public string NombreCompleto { get; set; } = default!;
     public string Email { get; set; } = default!;
     public string PasswordHash { get; set; } = default!;
+    public string? Telefono { get; set; }
+    public DateTime? UltimoAcceso { get; set; }
+
+    public int? SedeId { get; set; }
+    public Sede? Sede { get; set; }
 
     /// <summary>
-    /// FK a la tabla Rol. El nombre del rol se lee via la propiedad de navegación RolEntidad.
-    /// Se mapea al enum RolUsuario en la configuración.
+    /// FK a la tabla Rol. El código persistido se traduce al identificador estable
+    /// que utilizan JWT y frontend.
     /// </summary>
     public int RolId { get; set; }
+    public Rol RolAsignado { get; set; } = default!;
 
-    /// <summary>Derivado del Nombre en la tabla Rol — NO una columna directa en Usuario.</summary>
-    public RolUsuario Rol => RolId switch
+    /// <summary>Derivado de Rol.Codigo; no depende del id ni del nombre visible.</summary>
+    public RolUsuario Rol => RolAsignado.Codigo switch
     {
-        1 => RolUsuario.Administrador,
-        2 => RolUsuario.Recepcion,
-        3 => RolUsuario.Operaciones,
-        4 => RolUsuario.Mantenimiento,
-        _ => RolUsuario.Administrador
+        "ADMINISTRADOR" => RolUsuario.Administrador,
+        "RECEPCION" => RolUsuario.Recepcion,
+        "OPERACIONES" => RolUsuario.Operaciones,
+        "MANTENIMIENTO" => RolUsuario.Mantenimiento,
+        _ => throw new InvalidOperationException($"El código de rol '{RolAsignado.Codigo}' no está soportado.")
     };
 
     public ICollection<Reserva> Reservas { get; set; } = new List<Reserva>();

@@ -1,4 +1,5 @@
 using CasaAndina.Application.Auth.Commands;
+using CasaAndina.Application.Auth.DTOs;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,6 +14,11 @@ public class AuthController : ControllerBase
     public AuthController(ISender mediator) => _mediator = mediator;
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login(LoginCommand command)
-        => Ok(await _mediator.Send(command));
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<LoginResponse>> Login(
+        LoginCommand command,
+        CancellationToken cancellationToken)
+        => Ok(await _mediator.Send(command, cancellationToken));
 }
