@@ -58,6 +58,9 @@ public static class ServiceCollectionExtensions
                 nameof(RolUsuario.Administrador),
                 nameof(RolUsuario.Operaciones),
                 nameof(RolUsuario.Mantenimiento)));
+            options.AddPolicy("GestionServicios", p => p.RequireRole(
+                nameof(RolUsuario.Administrador),
+                nameof(RolUsuario.Operaciones)));
         });
 
         return services;
