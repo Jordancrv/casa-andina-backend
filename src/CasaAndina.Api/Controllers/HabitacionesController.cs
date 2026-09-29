@@ -19,11 +19,31 @@ public class HabitacionesController : ControllerBase
     public async Task<IActionResult> Get([FromQuery] GetHabitacionesQuery query)
         => Ok(await _mediator.Send(query));
 
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+        => Ok(await _mediator.Send(new GetHabitacionByIdQuery(id)));
+
     [HttpPost]
     [Authorize(Policy = "GestionHabitaciones")]
     public async Task<IActionResult> Create(CreateHabitacionCommand command)
     {
         var id = await _mediator.Send(command);
-        return CreatedAtAction(nameof(Get), new { id }, id);
+        return CreatedAtAction(nameof(GetById), new { id }, id);
+    }
+
+    [HttpPut("{id:int}")]
+    [Authorize(Policy = "GestionHabitaciones")]
+    public async Task<IActionResult> Update(int id, UpdateHabitacionCommand command)
+    {
+        await _mediator.Send(command with { Id = id });
+        return NoContent();
+    }
+
+    [HttpDelete("{id:int}")]
+    [Authorize(Policy = "GestionHabitaciones")]
+    public async Task<IActionResult> Deactivate(int id)
+    {
+        await _mediator.Send(new DeactivateHabitacionCommand(id));
+        return NoContent();
     }
 }
