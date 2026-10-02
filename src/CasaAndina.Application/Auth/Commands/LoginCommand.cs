@@ -13,7 +13,7 @@ public class LoginCommandValidator : AbstractValidator<LoginCommand>
     public LoginCommandValidator()
     {
         RuleFor(x => x.Email).NotEmpty().EmailAddress();
-        RuleFor(x => x.Password).NotEmpty().MinimumLength(6);
+        RuleFor(x => x.Password).NotEmpty().MinimumLength(6).MaximumLength(72);
     }
 }
 
@@ -35,7 +35,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
 
     public async Task<LoginResponse> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
-        var email = request.Email.Trim();
+        var email = request.Email.Trim().ToLowerInvariant();
         var usuario = await _context.Usuarios
             .Include(u => u.RolAsignado)
             .SingleOrDefaultAsync(u => u.Email == email && u.Activo, cancellationToken);
