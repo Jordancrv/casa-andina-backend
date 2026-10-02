@@ -52,8 +52,11 @@ public sealed class AuthSecurityTests
     {
         var validator = new RegisterClientCommandValidator();
         var command = new RegisterClientCommand(
-            "A",
+            "X",
+            "DNI",
             "1234",
+            "A",
+            null,
             "correo-invalido",
             "texto",
             "debil");
@@ -63,7 +66,8 @@ public sealed class AuthSecurityTests
         result.IsValid.Should().BeFalse();
         result.Errors.Select(error => error.PropertyName).Should().Contain([
             nameof(RegisterClientCommand.NombreCompleto),
-            nameof(RegisterClientCommand.Dni),
+            nameof(RegisterClientCommand.TipoPersona),
+            nameof(RegisterClientCommand.NumeroDocumento),
             nameof(RegisterClientCommand.Email),
             nameof(RegisterClientCommand.Telefono),
             nameof(RegisterClientCommand.Password)
@@ -88,8 +92,11 @@ public sealed class AuthSecurityTests
 
         var response = await handler.Handle(
             new RegisterClientCommand(
-                "  María   López ",
+                "N",
+                "DNI",
                 "87654321",
+                "  María   López ",
+                null,
                 "MARIA@CORREO.COM ",
                 "+51987654321",
                 password),
@@ -111,7 +118,7 @@ public sealed class AuthSecurityTests
     public async Task Registro_DeberiaRechazarCorreoODniDuplicados()
     {
         await using var context = CreateContext();
-        var dniType = await context.TiposDocumento.SingleAsync();
+        var dniType = await context.TiposDocumento.SingleAsync(x => x.Codigo == "DNI");
         var persona = new Persona
         {
             TipoPersona = "N",
@@ -142,8 +149,11 @@ public sealed class AuthSecurityTests
 
         var action = () => handler.Handle(
             new RegisterClientCommand(
-                "Otro Cliente",
+                "N",
+                "DNI",
                 "87654321",
+                "Otro Cliente",
+                null,
                 "EXISTENTE@CORREO.COM",
                 null,
                 "CasaAndina2026!"),
@@ -153,21 +163,42 @@ public sealed class AuthSecurityTests
         (await context.Clientes.CountAsync()).Should().Be(1);
     }
 
+    [Fact]
+    public async Task Registro_DeberiaCrearPersonaJuridicaConRuc()
+    {
+        await using var context = CreateContext();
+        var handler = new RegisterClientCommandHandler(context, new PasswordHasher(), new FakeJwtService());
+
+        var response = await handler.Handle(
+            new RegisterClientCommand(
+                "J",
+                "RUC",
+                "20123456789",
+                "Servicios Hoteleros Andinos SAC",
+                "Andinos",
+                "empresa@correo.com",
+                null,
+                "CasaAndina2026!"),
+            CancellationToken.None);
+
+        response.Rol.Should().Be("Cliente");
+        (await context.PersonasJuridicas.SingleAsync()).RazonSocial
+            .Should().Be("Servicios Hoteleros Andinos SAC");
+        (await context.PersonaDocumentos.SingleAsync()).Numero.Should().Be("20123456789");
+        (await context.PersonasNaturales.CountAsync()).Should().Be(0);
+    }
+
     private static ApplicationDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
         var context = new ApplicationDbContext(options);
-        context.TiposDocumento.Add(new TipoDocumento
-        {
-            Codigo = "DNI",
-            Nombre = "Documento Nacional de Identidad",
-            TipoPersonaPermitida = "N",
-            LongitudMinima = 8,
-            LongitudMaxima = 8,
-            Activo = true
-        });
+        context.TiposDocumento.AddRange(
+            new TipoDocumento { Codigo = "DNI", Nombre = "Documento Nacional de Identidad", TipoPersonaPermitida = "N", LongitudMinima = 8, LongitudMaxima = 8, Activo = true },
+            new TipoDocumento { Codigo = "CE", Nombre = "Carné de Extranjería", TipoPersonaPermitida = "N", LongitudMinima = 9, LongitudMaxima = 12, Activo = true },
+            new TipoDocumento { Codigo = "PASAPORTE", Nombre = "Pasaporte", TipoPersonaPermitida = "N", LongitudMinima = 6, LongitudMaxima = 20, Activo = true },
+            new TipoDocumento { Codigo = "RUC", Nombre = "Registro Único de Contribuyentes", TipoPersonaPermitida = "J", LongitudMinima = 11, LongitudMaxima = 11, Activo = true });
         context.SaveChanges();
         return context;
     }

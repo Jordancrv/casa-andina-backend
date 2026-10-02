@@ -1,5 +1,6 @@
 using CasaAndina.Application.Auth.Commands;
 using CasaAndina.Application.Auth.DTOs;
+using CasaAndina.Application.Auth.Queries;
 using MediatR;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
@@ -13,6 +14,13 @@ public class AuthController : ControllerBase
     private readonly ISender _mediator;
 
     public AuthController(ISender mediator) => _mediator = mediator;
+
+    [HttpGet("document-types")]
+    [ProducesResponseType(typeof(IReadOnlyList<DocumentTypeDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<DocumentTypeDto>>> GetDocumentTypes(
+        [FromQuery] string personType = "N",
+        CancellationToken cancellationToken = default)
+        => Ok(await _mediator.Send(new GetDocumentTypesQuery(personType), cancellationToken));
 
     [HttpPost("login")]
     [EnableRateLimiting("login")]
