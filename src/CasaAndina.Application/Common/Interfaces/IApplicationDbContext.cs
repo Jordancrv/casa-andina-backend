@@ -18,7 +18,15 @@ public interface IApplicationDbContext
     DbSet<Servicio> Servicios { get; }
     DbSet<Usuario> Usuarios { get; }
     DbSet<Cliente> Clientes { get; }
+    DbSet<Persona> Personas { get; }
+    DbSet<PersonaNatural> PersonasNaturales { get; }
+    DbSet<PersonaJuridica> PersonasJuridicas { get; }
+    DbSet<TipoDocumento> TiposDocumento { get; }
+    DbSet<PersonaDocumento> PersonaDocumentos { get; }
+    DbSet<PersonaCorreo> PersonaCorreos { get; }
+    DbSet<PersonaTelefono> PersonaTelefonos { get; }
     DbSet<Reserva> Reservas { get; }
+    DbSet<ReservaHuesped> ReservaHuespedes { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

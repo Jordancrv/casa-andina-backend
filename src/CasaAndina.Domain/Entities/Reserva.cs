@@ -29,4 +29,5 @@ public class Reserva : BaseEntity
     public string Estado { get; set; } = "Pendiente";       // Pendiente/Confirmada/Bloqueada/Completada/Cancelada
     public string Canal { get; set; } = "Directo";          // Directo / OTA
     public decimal PrecioTotal { get; set; }                // → columna PrecioTotal en BD
+    public ICollection<ReservaHuesped> Huespedes { get; set; } = new List<ReservaHuesped>();
 }

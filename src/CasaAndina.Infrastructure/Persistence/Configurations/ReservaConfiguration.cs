@@ -75,6 +75,12 @@ public class ClienteConfiguration : IEntityTypeConfiguration<Cliente>
         builder.Property(c => c.Estado).HasMaxLength(20);
         builder.Property(c => c.FechaRegistro);
 
+        builder.HasOne(c => c.Persona)
+            .WithOne(p => p.Cliente)
+            .HasForeignKey<Cliente>(c => c.PersonaId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(c => c.PersonaId).IsUnique();
+
         builder.HasIndex(c => c.DNI).IsUnique();
         builder.HasIndex(c => c.Correo).IsUnique();
     }

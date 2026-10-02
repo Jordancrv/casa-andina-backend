@@ -8,6 +8,10 @@ namespace CasaAndina.Domain.Entities;
 public class Cliente
 {
     public int Id { get; set; }   // → ClienteId en BD
+    public int PersonaId { get; set; }
+    public Persona Persona { get; set; } = default!;
+
+    // Campos heredados durante la transición al modelo Persona.
     public string NombreCompleto { get; set; } = default!;
     public string DNI { get; set; } = default!;
     public string Correo { get; set; } = default!;

@@ -75,23 +75,65 @@ public sealed class RegisterClientCommandHandler : IRequestHandler<RegisterClien
         var email = request.Email.Trim().ToLowerInvariant();
         var dni = request.Dni.Trim();
 
-        var clientAlreadyExists = await _context.Clientes
-            .AnyAsync(c => c.Correo == email || c.DNI == dni, cancellationToken);
+        var dniType = await _context.TiposDocumento
+            .SingleOrDefaultAsync(x => x.Codigo == "DNI" && x.Activo, cancellationToken)
+            ?? throw new InvalidOperationException("El catálogo de tipos de documento no contiene DNI.");
+
+        var clientAlreadyExists = await _context.PersonaCorreos
+            .AnyAsync(c => c.Correo == email, cancellationToken)
+            || await _context.PersonaDocumentos.AnyAsync(
+                d => d.TipoDocumentoId == dniType.Id && d.Numero == dni,
+                cancellationToken);
         var staffEmailAlreadyExists = await _context.Usuarios
             .AnyAsync(u => u.Email == email, cancellationToken);
 
         if (clientAlreadyExists || staffEmailAlreadyExists)
             throw new ConflictException("Ya existe una cuenta registrada con estos datos.");
 
+        var nombreCompleto = string.Join(' ', request.NombreCompleto.Trim()
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        var persona = new Persona
+        {
+            TipoPersona = "N",
+            Estado = "Activo",
+            FechaRegistro = DateTime.UtcNow,
+            Natural = new PersonaNatural
+            {
+                Nombres = nombreCompleto
+            }
+        };
+        persona.Documentos.Add(new PersonaDocumento
+        {
+            TipoDocumentoId = dniType.Id,
+            Numero = dni,
+            PaisEmision = "Perú",
+            EsPrincipal = true
+        });
+        persona.Correos.Add(new PersonaCorreo
+        {
+            Correo = email,
+            EsPrincipal = true
+        });
+
+        var telefono = string.IsNullOrWhiteSpace(request.Telefono)
+            ? null
+            : request.Telefono.Trim();
+        if (telefono is not null)
+        {
+            persona.Telefonos.Add(new PersonaTelefono
+            {
+                Numero = telefono,
+                EsPrincipal = true
+            });
+        }
+
         var cliente = new Cliente
         {
-            NombreCompleto = string.Join(' ', request.NombreCompleto.Trim()
-                .Split(' ', StringSplitOptions.RemoveEmptyEntries)),
+            Persona = persona,
+            NombreCompleto = nombreCompleto,
             DNI = dni,
             Correo = email,
-            Telefono = string.IsNullOrWhiteSpace(request.Telefono)
-                ? null
-                : request.Telefono.Trim(),
+            Telefono = telefono,
             ContrasenaHash = _passwordHasher.Hash(request.Password),
             Estado = "Activo",
             FechaRegistro = DateTime.UtcNow

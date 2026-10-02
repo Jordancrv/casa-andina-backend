@@ -102,19 +102,41 @@ public sealed class AuthSecurityTests
         cliente.Estado.Should().Be("Activo");
         cliente.ContrasenaHash.Should().NotBe(password);
         new PasswordHasher().Verify(password, cliente.ContrasenaHash!).Should().BeTrue();
+        (await context.PersonasNaturales.CountAsync()).Should().Be(1);
+        (await context.PersonaDocumentos.SingleAsync()).Numero.Should().Be("87654321");
+        (await context.PersonaCorreos.SingleAsync()).Correo.Should().Be("maria@correo.com");
     }
 
     [Fact]
     public async Task Registro_DeberiaRechazarCorreoODniDuplicados()
     {
         await using var context = CreateContext();
-        context.Clientes.Add(new Cliente
+        var dniType = await context.TiposDocumento.SingleAsync();
+        var persona = new Persona
         {
+            TipoPersona = "N",
+            Natural = new PersonaNatural { Nombres = "Cliente Existente" }
+        };
+        persona.Documentos.Add(new PersonaDocumento
+        {
+            TipoDocumentoId = dniType.Id,
+            Numero = "12345678",
+            EsPrincipal = true
+        });
+        persona.Correos.Add(new PersonaCorreo
+        {
+            Correo = "existente@correo.com",
+            EsPrincipal = true
+        });
+        persona.Cliente = new Cliente
+        {
+            Persona = persona,
             NombreCompleto = "Cliente Existente",
             DNI = "12345678",
             Correo = "existente@correo.com",
             Estado = "Activo"
-        });
+        };
+        context.Personas.Add(persona);
         await context.SaveChangesAsync();
         var handler = new RegisterClientCommandHandler(context, new PasswordHasher(), new FakeJwtService());
 
@@ -136,7 +158,18 @@ public sealed class AuthSecurityTests
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
-        return new ApplicationDbContext(options);
+        var context = new ApplicationDbContext(options);
+        context.TiposDocumento.Add(new TipoDocumento
+        {
+            Codigo = "DNI",
+            Nombre = "Documento Nacional de Identidad",
+            TipoPersonaPermitida = "N",
+            LongitudMinima = 8,
+            LongitudMaxima = 8,
+            Activo = true
+        });
+        context.SaveChanges();
+        return context;
     }
 
     private sealed class FakeJwtService : IJwtService
