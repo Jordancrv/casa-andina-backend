@@ -1,6 +1,6 @@
 namespace CasaAndina.Domain.Entities;
 
-/// <summary>Rol persistido para el personal interno del portal administrativo.</summary>
+/// <summary>Rol asignable a una cuenta de usuario.</summary>
 public sealed class Rol
 {
     public int Id { get; set; }
@@ -8,5 +8,14 @@ public sealed class Rol
     public string Nombre { get; set; } = default!;
     public string? Descripcion { get; set; }
 
-    public ICollection<Usuario> Usuarios { get; set; } = new List<Usuario>();
+    public ICollection<UsuarioRol> Usuarios { get; set; } = new List<UsuarioRol>();
+}
+
+public class UsuarioRol
+{
+    public int UsuarioId { get; set; }
+    public Usuario Usuario { get; set; } = default!;
+    public int RolId { get; set; }
+    public Rol Rol { get; set; } = default!;
+    public DateTime FechaAsignacion { get; set; }
 }

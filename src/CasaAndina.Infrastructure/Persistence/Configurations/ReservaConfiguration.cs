@@ -21,16 +21,9 @@ public class ReservaConfiguration : IEntityTypeConfiguration<Reserva>
         builder.Property(r => r.Estado).HasMaxLength(20);
         builder.Property(r => r.Canal).HasMaxLength(20);
 
-        builder.Property(r => r.NumAdultos).HasColumnType("tinyint");
-        builder.Property(r => r.NumNinos).HasColumnType("tinyint");
-        builder.Property(r => r.FechaCheckIn).HasColumnType("date");
-        builder.Property(r => r.FechaCheckOut).HasColumnType("date");
-
         // BaseEntity.FechaActualizacion no existe en Reserva
         builder.Ignore(r => r.FechaActualizacion);
 
-        builder.HasIndex(r => new { r.HabitacionId, r.FechaCheckIn, r.FechaCheckOut })
-            .HasDatabaseName("IX_Reserva_Habitacion_Fechas");
         builder.HasIndex(r => r.Estado).HasDatabaseName("IX_Reserva_Estado");
 
         // FK → Cliente
@@ -39,11 +32,8 @@ public class ReservaConfiguration : IEntityTypeConfiguration<Reserva>
             .HasForeignKey(r => r.ClienteId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // FK → Habitacion (relación directa 1:1 en la BD)
-        builder.HasOne(r => r.Habitacion)
-            .WithMany()
-            .HasForeignKey(r => r.HabitacionId)
-            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(r => r.Sede).WithMany()
+            .HasForeignKey(r => r.SedeId).OnDelete(DeleteBehavior.Restrict);
 
         // FK opcional → Usuario (quien creó la reserva en recepción)
         builder.HasOne(r => r.CreadoPorUsuario)
@@ -54,10 +44,75 @@ public class ReservaConfiguration : IEntityTypeConfiguration<Reserva>
     }
 }
 
+public sealed class ReservaHabitacionConfiguration : IEntityTypeConfiguration<ReservaHabitacion>
+{
+    public void Configure(EntityTypeBuilder<ReservaHabitacion> builder)
+    {
+        builder.ToTable("ReservaHabitacion");
+        builder.Property(x => x.Id).HasColumnName("ReservaHabitacionId");
+        builder.Property(x => x.FechaCheckIn).HasColumnType("date");
+        builder.Property(x => x.FechaCheckOut).HasColumnType("date");
+        builder.Property(x => x.CantidadPersonas).HasColumnType("smallint");
+        builder.Property(x => x.PrecioAcordado).HasColumnType("decimal(10,2)");
+        builder.Property(x => x.Subtotal).HasColumnType("decimal(10,2)");
+        builder.HasIndex(x => new { x.HabitacionId, x.FechaCheckIn, x.FechaCheckOut })
+            .HasDatabaseName("IX_ReservaHabitacion_Habitacion_Fechas");
+        builder.HasIndex(x => new { x.ReservaId, x.HabitacionId, x.FechaCheckIn, x.FechaCheckOut })
+            .IsUnique().HasDatabaseName("UQ_ReservaHabitacion_Reserva_Habitacion_Fechas");
+        builder.HasOne(x => x.Reserva).WithMany(x => x.Habitaciones)
+            .HasForeignKey(x => x.ReservaId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(x => x.Habitacion).WithMany()
+            .HasForeignKey(x => x.HabitacionId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class ReservaServicioConfiguration : IEntityTypeConfiguration<ReservaServicio>
+{
+    public void Configure(EntityTypeBuilder<ReservaServicio> builder)
+    {
+        builder.ToTable("ReservaServicio");
+        builder.HasKey(x => new { x.ReservaId, x.ServicioId });
+        builder.Property(x => x.Cantidad).HasColumnType("int");
+        builder.Property(x => x.PrecioUnitario).HasColumnType("decimal(10,2)");
+        builder.Property(x => x.Subtotal)
+            .HasColumnType("decimal(10,2)")
+            .HasComputedColumnSql("(CONVERT(decimal(10,2), [Cantidad] * [PrecioUnitario]))", stored: true);
+        builder.HasOne(x => x.Reserva).WithMany(x => x.Servicios)
+            .HasForeignKey(x => x.ReservaId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(x => x.Servicio).WithMany(x => x.Reservas)
+            .HasForeignKey(x => x.ServicioId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public sealed class ComprobanteConfiguration : IEntityTypeConfiguration<Comprobante>
+{
+    public void Configure(EntityTypeBuilder<Comprobante> builder)
+    {
+        builder.ToTable("Comprobante", table =>
+            table.HasCheckConstraint(
+                "CK_Comprobante_TipoComprobante",
+                "[TipoComprobante] IN (N'Boleta', N'Factura')"));
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id).HasColumnName("ComprobanteId");
+        builder.Property(x => x.NumeroComprobante).HasMaxLength(30).IsRequired();
+        builder.HasIndex(x => x.NumeroComprobante).IsUnique().HasDatabaseName("UQ_Comprobante_Numero");
+        builder.Property(x => x.Tipo)
+            .HasColumnName("TipoComprobante")
+            .HasConversion<string>()
+            .HasMaxLength(10)
+            .IsRequired();
+        builder.Property(x => x.FechaEmision).HasColumnType("datetime2");
+        builder.Property(x => x.MontoTotal).HasColumnType("decimal(10,2)");
+        builder.Property(x => x.UrlPdf).HasMaxLength(500);
+        builder.HasOne(x => x.Reserva).WithOne(x => x.Comprobante)
+            .HasForeignKey<Comprobante>(x => x.ReservaId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(x => x.ReservaId).IsUnique().HasDatabaseName("UQ_Comprobante_Reserva");
+    }
+}
+
 /// <summary>
-/// Configuración de la tabla Cliente.
-/// BD: ClienteId, NombreCompleto, DNI, Correo, Telefono,
-///     ContrasenaHash, FotoUrl, Estado, FechaRegistro
+/// Configuración del perfil comercial de la persona.
 /// </summary>
 public class ClienteConfiguration : IEntityTypeConfiguration<Cliente>
 {
@@ -66,12 +121,6 @@ public class ClienteConfiguration : IEntityTypeConfiguration<Cliente>
         builder.ToTable("Cliente");
         builder.Property(c => c.Id).HasColumnName("ClienteId");
 
-        builder.Property(c => c.NombreCompleto).HasMaxLength(200).IsRequired();
-        builder.Property(c => c.DNI).HasMaxLength(15).IsRequired();
-        builder.Property(c => c.Correo).HasMaxLength(150).IsRequired();
-        builder.Property(c => c.Telefono).HasMaxLength(20);
-        builder.Property(c => c.ContrasenaHash).HasMaxLength(256);
-        builder.Property(c => c.FotoUrl).HasMaxLength(500);
         builder.Property(c => c.Estado).HasMaxLength(20);
         builder.Property(c => c.FechaRegistro);
 
@@ -80,8 +129,5 @@ public class ClienteConfiguration : IEntityTypeConfiguration<Cliente>
             .HasForeignKey<Cliente>(c => c.PersonaId)
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(c => c.PersonaId).IsUnique();
-
-        builder.HasIndex(c => c.DNI).IsUnique();
-        builder.HasIndex(c => c.Correo).IsUnique();
     }
 }

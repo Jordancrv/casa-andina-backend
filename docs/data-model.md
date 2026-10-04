@@ -2,55 +2,19 @@
 
 ## Fuente de verdad
 
-El esquema contractual está en `casa-andina-frontend/BD CASA ANDINA.txt`. Es un
-script destructivo para desarrollo: elimina y vuelve a crear las tablas. No debe
-ejecutarse sobre una base con información que se necesite conservar.
+El DDL de instalación está en `casa-andina-frontend/BD CASA ANDINA.txt`. Es destructivo y solo se usa para una base vacía o descartable. Las bases con información se actualizan mediante scripts versionados de `scripts/`; para el modelo normalizado final, consultar [`personas-reservas-model.md`](personas-reservas-model.md) y aplicar `migrate-estructura-final.sql` después de las migraciones previas que falten.
 
-La carga de sedes tiene una única fuente canónica:
-`scripts/seed-sedes.sql`. El script es idempotente y se ejecuta después del
-esquema. El archivo `llenado de datos 2.0.txt` se conserva como material de
-trabajo histórico y no debe formar parte de una instalación automatizada.
+Las sedes son datos maestros y su carga canónica está en [`scripts/seed-sedes.sql`](../scripts/seed-sedes.sql).
 
-Orden local de ejecución:
+## Reglas del modelo
 
-1. Ejecutar `BD CASA ANDINA.txt` para crear el esquema vacío y los catálogos
-   básicos.
-2. Ejecutar `scripts/seed-sedes.sql` para insertar o actualizar las 10 sedes.
-3. Configurar la cadena `ConnectionStrings:DefaultConnection` de la API.
-4. Iniciar la API y verificar los endpoints desde Swagger.
-
-## Cobertura del modelo
-
-| Tabla | Estado en EF Core | Actividad responsable |
-| --- | --- | --- |
-| Sede | Mapeada | Catálogo de sedes |
-| Rol | Mapeada | Autenticación y roles |
-| TipoHabitacion | Mapeada | Habitaciones |
-| Comodidad | Mapeada | Habitaciones |
-| Habitacion | Mapeada | Habitaciones |
-| HabitacionComodidad | Mapeada como relación | Habitaciones |
-| Servicio | Mapeada | Servicios |
-| ServicioSede | Mapeada como relación | Servicios |
-| Usuario | Mapeada | Autenticación y roles |
-| Cliente | Mapeada | CRM clientes |
-| Reserva | Mapeada | Reservas |
-| ReservaServicio | Pendiente | Reservas y servicios |
-| Comprobante | Pendiente | Reservas y voucher |
-| ConsultaChatbot | Pendiente | Chatbot y Dashboard BI |
-
-## Decisiones
-
-- Una reserva referencia una sola habitación mediante `Reserva.HabitacionId`.
-  No existe una tabla `ReservaHabitacion` en el esquema actual.
-- Las sedes no tienen operaciones de escritura en la API.
-- Los estados "Frecuente" y "Nuevo" de clientes son valores calculados y no
-  columnas de `Cliente`.
-- No se deben generar migraciones hasta completar el mapeo de las tablas que
-  intervienen en la actividad en desarrollo.
-
-## Autenticación
-
-La autenticación incorpora `Rol`, la relación `Usuario-Rol`, la sede opcional
-del usuario y los campos `Telefono` y `UltimoAcceso`. `Rol.Codigo` es el valor
-estable que se traduce a los nombres utilizados por JWT y frontend; el sistema
-no depende del orden ni de los identificadores numéricos de los roles.
+- `Usuario` referencia a `Persona`; `SedeId` es nullable para clientes y cuentas corporativas.
+- Los permisos se asignan mediante `UsuarioRol`, no con una columna de rol en `Usuario`.
+- Documentos y contactos pertenecen a `Persona`; `Cliente` y `Huesped` son perfiles, no duplicados de sus datos personales.
+- `Reserva` exige un `ClienteId` y un `SedeId`.
+- Las habitaciones y fechas de una operación residen en `ReservaHabitacion`; cada reserva debe pertenecer a una sola sede.
+- `AsignacionHuesped` identifica ocupantes por habitación reservada.
+- `Comprobante` se relaciona 1:1 con `Reserva` y guarda si se emite boleta o factura; RUC/razón social se consultan desde Persona y sus documentos, no se repiten.
+- `Habitacion` debe tener sede y tipo; las comodidades se relacionan mediante `HabitacionComodidad`.
+- `Auditoria` mantiene el historial técnico. Su tabla no implica que todos los eventos de aplicación ya estén instrumentados.
+- Los estados de cliente derivados, como frecuente/nuevo, se calculan y no se almacenan como duplicados.

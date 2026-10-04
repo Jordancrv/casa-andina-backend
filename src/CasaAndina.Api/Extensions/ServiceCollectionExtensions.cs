@@ -44,21 +44,25 @@ public static class ServiceCollectionExtensions
         // RBAC (RNF01): políticas por rol, usadas con [Authorize(Policy = "Administrador")]
         services.AddAuthorization(options =>
         {
+            options.AddPolicy(nameof(RolUsuario.Superadministrador), p => p.RequireRole(nameof(RolUsuario.Superadministrador)));
             options.AddPolicy(nameof(RolUsuario.Administrador), p => p.RequireRole(nameof(RolUsuario.Administrador)));
             options.AddPolicy(nameof(RolUsuario.Recepcion), p => p.RequireRole(nameof(RolUsuario.Recepcion)));
             options.AddPolicy(nameof(RolUsuario.Operaciones), p => p.RequireRole(nameof(RolUsuario.Operaciones)));
             options.AddPolicy(nameof(RolUsuario.Mantenimiento), p => p.RequireRole(nameof(RolUsuario.Mantenimiento)));
             options.AddPolicy(nameof(RolUsuario.Cliente), p => p.RequireRole(nameof(RolUsuario.Cliente)));
             options.AddPolicy("PersonalInterno", p => p.RequireRole(
+                nameof(RolUsuario.Superadministrador),
                 nameof(RolUsuario.Administrador),
                 nameof(RolUsuario.Recepcion),
                 nameof(RolUsuario.Operaciones),
                 nameof(RolUsuario.Mantenimiento)));
             options.AddPolicy("GestionHabitaciones", p => p.RequireRole(
+                nameof(RolUsuario.Superadministrador),
                 nameof(RolUsuario.Administrador),
                 nameof(RolUsuario.Operaciones),
                 nameof(RolUsuario.Mantenimiento)));
             options.AddPolicy("GestionServicios", p => p.RequireRole(
+                nameof(RolUsuario.Superadministrador),
                 nameof(RolUsuario.Administrador),
                 nameof(RolUsuario.Operaciones)));
         });

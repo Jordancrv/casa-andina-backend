@@ -26,11 +26,11 @@ public class GetDashboardResumenQueryHandler
 
         // Habitaciones ocupadas = las que tienen reserva Confirmada en curso hoy
         var hoy = DateTime.UtcNow.Date;
-        var habitacionesOcupadas = await _context.Reservas
-            .Where(r => r.Estado == "Confirmada"
-                     && r.FechaCheckIn.Date <= hoy
-                     && r.FechaCheckOut.Date > hoy)
-            .Select(r => r.HabitacionId)
+        var habitacionesOcupadas = await _context.ReservaHabitaciones
+            .Where(detalle => detalle.Reserva.Estado == "Confirmada"
+                     && detalle.FechaCheckIn <= hoy
+                     && detalle.FechaCheckOut > hoy)
+            .Select(detalle => detalle.HabitacionId)
             .Distinct()
             .CountAsync(cancellationToken);
 

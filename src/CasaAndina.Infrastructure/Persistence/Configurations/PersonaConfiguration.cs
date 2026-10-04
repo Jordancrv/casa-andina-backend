@@ -12,6 +12,8 @@ public sealed class PersonaConfiguration : IEntityTypeConfiguration<Persona>
         builder.Property(x => x.Id).HasColumnName("PersonaId");
         builder.Property(x => x.TipoPersona).HasColumnType("nchar(1)").IsRequired();
         builder.Property(x => x.Estado).HasMaxLength(20).IsRequired();
+        builder.HasOne(x => x.Usuario).WithOne(x => x.Persona)
+            .HasForeignKey<Usuario>(x => x.PersonaId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 
@@ -20,10 +22,11 @@ public sealed class PersonaNaturalConfiguration : IEntityTypeConfiguration<Perso
     public void Configure(EntityTypeBuilder<PersonaNatural> builder)
     {
         builder.ToTable("PersonaNatural"); builder.HasKey(x => x.PersonaId);
-        builder.Property(x => x.Nombres).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.Nombres).HasMaxLength(200).IsRequired();
         builder.Property(x => x.Apellidos).HasMaxLength(100);
         builder.Property(x => x.FechaNacimiento).HasColumnType("date");
         builder.Property(x => x.Nacionalidad).HasMaxLength(60);
+        builder.Property(x => x.Genero).HasColumnType("nchar(1)");
         builder.HasOne(x => x.Persona).WithOne(x => x.Natural).HasForeignKey<PersonaNatural>(x => x.PersonaId).OnDelete(DeleteBehavior.Restrict);
     }
 }
@@ -61,30 +64,71 @@ public sealed class PersonaDocumentoConfiguration : IEntityTypeConfiguration<Per
     }
 }
 
-public sealed class PersonaCorreoConfiguration : IEntityTypeConfiguration<PersonaCorreo>
+public sealed class PersonaContactoConfiguration : IEntityTypeConfiguration<PersonaContacto>
 {
-    public void Configure(EntityTypeBuilder<PersonaCorreo> builder)
+    public void Configure(EntityTypeBuilder<PersonaContacto> builder)
     {
-        builder.ToTable("PersonaCorreo"); builder.Property(x => x.Id).HasColumnName("PersonaCorreoId"); builder.Property(x => x.Correo).HasMaxLength(150).IsRequired();
-        builder.HasIndex(x => x.Correo).IsUnique(); builder.HasOne(x => x.Persona).WithMany(x => x.Correos).HasForeignKey(x => x.PersonaId).OnDelete(DeleteBehavior.Restrict);
+        builder.ToTable("PersonaContacto");
+        builder.Property(x => x.Id).HasColumnName("PersonaContactoId");
+        builder.Property(x => x.TipoContacto).HasMaxLength(20).IsRequired();
+        builder.Property(x => x.Valor).HasMaxLength(150).IsRequired();
+        builder.HasIndex(x => x.Valor).IsUnique().HasFilter("[TipoContacto] = N'Correo'")
+            .HasDatabaseName("UX_PersonaContacto_Correo");
+        builder.HasIndex(x => new { x.PersonaId, x.TipoContacto }).IsUnique()
+            .HasFilter("[EsPrincipal] = 1").HasDatabaseName("UX_PersonaContacto_Principal");
+        builder.HasOne(x => x.Persona).WithMany(x => x.Contactos)
+            .HasForeignKey(x => x.PersonaId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 
-public sealed class PersonaTelefonoConfiguration : IEntityTypeConfiguration<PersonaTelefono>
+public sealed class HuespedConfiguration : IEntityTypeConfiguration<Huesped>
 {
-    public void Configure(EntityTypeBuilder<PersonaTelefono> builder)
+    public void Configure(EntityTypeBuilder<Huesped> builder)
     {
-        builder.ToTable("PersonaTelefono"); builder.Property(x => x.Id).HasColumnName("PersonaTelefonoId"); builder.Property(x => x.Numero).HasMaxLength(20).IsRequired();
-        builder.HasIndex(x => new { x.PersonaId, x.Numero }).IsUnique(); builder.HasOne(x => x.Persona).WithMany(x => x.Telefonos).HasForeignKey(x => x.PersonaId).OnDelete(DeleteBehavior.Restrict);
+        builder.ToTable("Huesped");
+        builder.Property(x => x.Id).HasColumnName("HuespedId");
+        builder.HasIndex(x => x.PersonaId).IsUnique();
+        builder.HasOne(x => x.PersonaNatural).WithOne(x => x.Huesped)
+            .HasForeignKey<Huesped>(x => x.PersonaId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 
-public sealed class ReservaHuespedConfiguration : IEntityTypeConfiguration<ReservaHuesped>
+public sealed class AsignacionHuespedConfiguration : IEntityTypeConfiguration<AsignacionHuesped>
 {
-    public void Configure(EntityTypeBuilder<ReservaHuesped> builder)
+    public void Configure(EntityTypeBuilder<AsignacionHuesped> builder)
     {
-        builder.ToTable("ReservaHuesped"); builder.HasKey(x => new { x.ReservaId, x.PersonaId }); builder.Property(x => x.Observacion).HasMaxLength(250);
-        builder.HasOne(x => x.Reserva).WithMany(x => x.Huespedes).HasForeignKey(x => x.ReservaId).OnDelete(DeleteBehavior.Restrict);
-        builder.HasOne(x => x.Huesped).WithMany(x => x.Reservas).HasForeignKey(x => x.PersonaId).OnDelete(DeleteBehavior.Restrict);
+        builder.ToTable("AsignacionHuesped");
+        builder.HasKey(x => new { x.ReservaHabitacionId, x.HuespedId });
+        builder.Property(x => x.Observacion).HasMaxLength(250);
+        builder.HasOne(x => x.ReservaHabitacion).WithMany(x => x.Huespedes)
+            .HasForeignKey(x => x.ReservaHabitacionId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(x => x.Huesped).WithMany(x => x.Asignaciones)
+            .HasForeignKey(x => x.HuespedId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(x => x.ReservaHabitacionId).IsUnique()
+            .HasFilter("[EsTitular] = 1").HasDatabaseName("UX_AsignacionHuesped_Titular");
+    }
+}
+
+public sealed class AuditoriaConfiguration : IEntityTypeConfiguration<Auditoria>
+{
+    public void Configure(EntityTypeBuilder<Auditoria> builder)
+    {
+        builder.ToTable("Auditoria");
+        builder.Property(x => x.Id).HasColumnName("AuditoriaId");
+        builder.Property(x => x.FechaUtc).HasColumnType("datetime2");
+        builder.Property(x => x.Accion).HasMaxLength(30).IsRequired();
+        builder.Property(x => x.Entidad).HasMaxLength(128).IsRequired();
+        builder.Property(x => x.EntidadId).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.Antes).HasColumnType("nvarchar(max)");
+        builder.Property(x => x.Despues).HasColumnType("nvarchar(max)");
+        builder.Property(x => x.DireccionIp).HasMaxLength(45);
+        builder.HasIndex(x => x.FechaUtc).HasDatabaseName("IX_Auditoria_FechaUtc");
+        builder.HasIndex(x => new { x.Entidad, x.EntidadId, x.FechaUtc }).HasDatabaseName("IX_Auditoria_Entidad");
+        builder.HasIndex(x => new { x.UsuarioId, x.FechaUtc }).HasDatabaseName("IX_Auditoria_Usuario_Fecha");
+        builder.HasIndex(x => new { x.SedeId, x.FechaUtc }).HasDatabaseName("IX_Auditoria_Sede_Fecha");
+        builder.HasOne(x => x.Usuario).WithMany().HasForeignKey(x => x.UsuarioId)
+            .OnDelete(DeleteBehavior.SetNull);
+        builder.HasOne(x => x.Sede).WithMany().HasForeignKey(x => x.SedeId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

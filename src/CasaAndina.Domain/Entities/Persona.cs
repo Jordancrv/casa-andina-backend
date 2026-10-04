@@ -8,10 +8,10 @@ public class Persona
     public DateTime FechaRegistro { get; set; }
     public PersonaNatural? Natural { get; set; }
     public PersonaJuridica? Juridica { get; set; }
+    public Usuario? Usuario { get; set; }
     public Cliente? Cliente { get; set; }
     public ICollection<PersonaDocumento> Documentos { get; set; } = new List<PersonaDocumento>();
-    public ICollection<PersonaCorreo> Correos { get; set; } = new List<PersonaCorreo>();
-    public ICollection<PersonaTelefono> Telefonos { get; set; } = new List<PersonaTelefono>();
+    public ICollection<PersonaContacto> Contactos { get; set; } = new List<PersonaContacto>();
 }
 
 public class PersonaNatural
@@ -21,8 +21,9 @@ public class PersonaNatural
     public string Nombres { get; set; } = default!;
     public string? Apellidos { get; set; }
     public DateTime? FechaNacimiento { get; set; }
+    public string? Genero { get; set; }
     public string? Nacionalidad { get; set; }
-    public ICollection<ReservaHuesped> Reservas { get; set; } = new List<ReservaHuesped>();
+    public Huesped? Huesped { get; set; }
 }
 
 public class PersonaJuridica
@@ -58,31 +59,32 @@ public class PersonaDocumento
     public bool EsPrincipal { get; set; }
 }
 
-public class PersonaCorreo
+public class PersonaContacto
 {
     public int Id { get; set; }
     public int PersonaId { get; set; }
     public Persona Persona { get; set; } = default!;
-    public string Correo { get; set; } = default!;
+    public string TipoContacto { get; set; } = default!;
+    public string Valor { get; set; } = default!;
     public bool EsPrincipal { get; set; }
     public bool Verificado { get; set; }
 }
 
-public class PersonaTelefono
+public class Huesped
 {
     public int Id { get; set; }
     public int PersonaId { get; set; }
-    public Persona Persona { get; set; } = default!;
-    public string Numero { get; set; } = default!;
-    public bool EsPrincipal { get; set; }
+    public PersonaNatural PersonaNatural { get; set; } = default!;
+    public DateTime FechaRegistro { get; set; }
+    public ICollection<AsignacionHuesped> Asignaciones { get; set; } = new List<AsignacionHuesped>();
 }
 
-public class ReservaHuesped
+public class AsignacionHuesped
 {
-    public int ReservaId { get; set; }
-    public Reserva Reserva { get; set; } = default!;
-    public int PersonaId { get; set; }
-    public PersonaNatural Huesped { get; set; } = default!;
+    public int ReservaHabitacionId { get; set; }
+    public ReservaHabitacion ReservaHabitacion { get; set; } = default!;
+    public int HuespedId { get; set; }
+    public Huesped Huesped { get; set; } = default!;
     public bool EsTitular { get; set; }
     public string? Observacion { get; set; }
 }

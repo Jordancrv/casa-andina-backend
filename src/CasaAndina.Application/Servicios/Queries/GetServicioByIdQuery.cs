@@ -34,7 +34,7 @@ public class GetServicioByIdQueryHandler : IRequestHandler<GetServicioByIdQuery,
         if (servicio is null)
             throw new NotFoundException("Servicio", request.Id);
 
-        if (_currentUser.Rol != RolUsuario.Administrador && !_currentUser.SedeId.HasValue)
+        if (_currentUser.Rol is not (RolUsuario.Administrador or RolUsuario.Superadministrador) && !_currentUser.SedeId.HasValue)
             throw new ForbiddenAccessException("El usuario no tiene una sede asignada.");
 
         if (_currentUser.SedeId.HasValue && !servicio.SedesIds.Contains(_currentUser.SedeId.Value))

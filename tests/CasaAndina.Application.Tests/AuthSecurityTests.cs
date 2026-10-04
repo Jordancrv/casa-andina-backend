@@ -22,11 +22,13 @@ public sealed class AuthSecurityTests
     {
         var usuario = new Usuario
         {
-            RolId = 99,
-            RolAsignado = new Rol { Id = 99, Codigo = codigo, Nombre = "Nombre visible" }
+            Roles =
+            {
+                new UsuarioRol { Rol = new Rol { Id = 99, Codigo = codigo, Nombre = "Nombre visible" } }
+            }
         };
 
-        usuario.Rol.Should().Be(esperado);
+        RolCodigo.Mapear(usuario.Roles.Single().Rol.Codigo).Should().Be(esperado);
     }
 
     [Fact]
@@ -103,15 +105,15 @@ public sealed class AuthSecurityTests
             CancellationToken.None);
 
         var cliente = await context.Clientes.SingleAsync();
+        var usuario = await context.Usuarios.Include(x => x.Roles).ThenInclude(x => x.Rol).SingleAsync();
         response.Rol.Should().Be("Cliente");
-        cliente.Correo.Should().Be("maria@correo.com");
-        cliente.NombreCompleto.Should().Be("María López");
         cliente.Estado.Should().Be("Activo");
-        cliente.ContrasenaHash.Should().NotBe(password);
-        new PasswordHasher().Verify(password, cliente.ContrasenaHash!).Should().BeTrue();
+        usuario.PasswordHash.Should().NotBe(password);
+        new PasswordHasher().Verify(password, usuario.PasswordHash).Should().BeTrue();
+        usuario.Roles.Single().Rol.Codigo.Should().Be("CLIENTE");
         (await context.PersonasNaturales.CountAsync()).Should().Be(1);
         (await context.PersonaDocumentos.SingleAsync()).Numero.Should().Be("87654321");
-        (await context.PersonaCorreos.SingleAsync()).Correo.Should().Be("maria@correo.com");
+        (await context.PersonaContactos.SingleAsync(x => x.TipoContacto == "Correo")).Valor.Should().Be("maria@correo.com");
     }
 
     [Fact]
@@ -130,17 +132,15 @@ public sealed class AuthSecurityTests
             Numero = "12345678",
             EsPrincipal = true
         });
-        persona.Correos.Add(new PersonaCorreo
+        persona.Contactos.Add(new PersonaContacto
         {
-            Correo = "existente@correo.com",
+            TipoContacto = "Correo",
+            Valor = "existente@correo.com",
             EsPrincipal = true
         });
         persona.Cliente = new Cliente
         {
             Persona = persona,
-            NombreCompleto = "Cliente Existente",
-            DNI = "12345678",
-            Correo = "existente@correo.com",
             Estado = "Activo"
         };
         context.Personas.Add(persona);
@@ -199,13 +199,13 @@ public sealed class AuthSecurityTests
             new TipoDocumento { Codigo = "CE", Nombre = "Carné de Extranjería", TipoPersonaPermitida = "N", LongitudMinima = 9, LongitudMaxima = 12, Activo = true },
             new TipoDocumento { Codigo = "PASAPORTE", Nombre = "Pasaporte", TipoPersonaPermitida = "N", LongitudMinima = 6, LongitudMaxima = 20, Activo = true },
             new TipoDocumento { Codigo = "RUC", Nombre = "Registro Único de Contribuyentes", TipoPersonaPermitida = "J", LongitudMinima = 11, LongitudMaxima = 11, Activo = true });
+        context.Roles.Add(new Rol { Codigo = "CLIENTE", Nombre = "Cliente" });
         context.SaveChanges();
         return context;
     }
 
     private sealed class FakeJwtService : IJwtService
     {
-        public string GenerarToken(Usuario usuario) => "personal-token";
-        public string GenerarToken(Cliente cliente) => "cliente-token";
+        public string GenerarToken(Usuario usuario) => "usuario-token";
     }
 }

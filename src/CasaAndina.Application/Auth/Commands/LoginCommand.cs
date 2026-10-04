@@ -1,5 +1,6 @@
 using CasaAndina.Application.Auth.DTOs;
 using CasaAndina.Application.Common.Interfaces;
+using CasaAndina.Domain.Enums;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -37,8 +38,13 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
     {
         var email = request.Email.Trim().ToLowerInvariant();
         var usuario = await _context.Usuarios
-            .Include(u => u.RolAsignado)
-            .SingleOrDefaultAsync(u => u.Email == email && u.Activo, cancellationToken);
+            .Include(u => u.Roles).ThenInclude(x => x.Rol)
+            .Include(u => u.Persona).ThenInclude(x => x.Contactos)
+            .Include(u => u.Persona).ThenInclude(x => x.Natural)
+            .Include(u => u.Persona).ThenInclude(x => x.Juridica)
+            .Include(u => u.Persona).ThenInclude(x => x.Cliente)
+            .SingleOrDefaultAsync(u => u.Persona.Contactos.Any(c =>
+                c.TipoContacto == "Correo" && c.Valor == email) && u.Activo, cancellationToken);
 
         if (usuario is not null && _passwordHasher.Verify(request.Password, usuario.PasswordHash))
         {
@@ -46,22 +52,24 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
             await _context.SaveChangesAsync(cancellationToken);
 
             var token = _jwtService.GenerarToken(usuario);
-            return new LoginResponse(token, usuario.NombreCompleto, usuario.Rol.ToString());
-        }
-
-        var cliente = await _context.Clientes
-            .AsNoTracking()
-            .SingleOrDefaultAsync(
-                c => c.Correo == email && c.Estado == "Activo" && c.ContrasenaHash != null,
-                cancellationToken);
-
-        if (cliente?.ContrasenaHash is not null
-            && _passwordHasher.Verify(request.Password, cliente.ContrasenaHash))
-        {
-            var token = _jwtService.GenerarToken(cliente);
-            return new LoginResponse(token, cliente.NombreCompleto, "Cliente");
+            var roles = usuario.Roles
+                .Select(x => RolCodigo.Mapear(x.Rol.Codigo))
+                .Where(x => x.HasValue)
+                .Select(x => x!.Value)
+                .OrderBy(RolCodigo.Prioridad)
+                .ToArray();
+            if (roles.Length == 0)
+                throw new UnauthorizedAccessException("La cuenta no tiene roles asignados.");
+            var nombre = NombrePersona(usuario.Persona);
+            return new LoginResponse(token, nombre, roles[0].ToString());
         }
 
         throw new UnauthorizedAccessException("Credenciales inválidas.");
     }
+
+    private static string NombrePersona(CasaAndina.Domain.Entities.Persona persona)
+        => persona.Natural is not null
+            ? string.Join(' ', new[] { persona.Natural.Nombres, persona.Natural.Apellidos }
+                .Where(x => !string.IsNullOrWhiteSpace(x)))
+            : persona.Juridica?.RazonSocial ?? "Usuario";
 }

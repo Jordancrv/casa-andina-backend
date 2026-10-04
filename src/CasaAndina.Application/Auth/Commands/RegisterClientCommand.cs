@@ -113,15 +113,13 @@ public sealed class RegisterClientCommandHandler : IRequestHandler<RegisterClien
                 new ValidationFailure("TipoDocumento", "El documento no corresponde al tipo de persona.")
             ]);
 
-        var clientAlreadyExists = await _context.PersonaCorreos
-            .AnyAsync(c => c.Correo == email, cancellationToken)
+        var clientAlreadyExists = await _context.PersonaContactos
+            .AnyAsync(c => c.TipoContacto == "Correo" && c.Valor == email, cancellationToken)
             || await _context.PersonaDocumentos.AnyAsync(
                 d => d.TipoDocumentoId == documentType.Id && d.Numero == documentNumber,
                 cancellationToken);
-        var staffEmailAlreadyExists = await _context.Usuarios
-            .AnyAsync(u => u.Email == email, cancellationToken);
 
-        if (clientAlreadyExists || staffEmailAlreadyExists)
+        if (clientAlreadyExists)
             throw new ConflictException("Ya existe una cuenta registrada con estos datos.");
 
         var nombreCompleto = string.Join(' ', request.NombreCompleto.Trim()
@@ -150,9 +148,10 @@ public sealed class RegisterClientCommandHandler : IRequestHandler<RegisterClien
             PaisEmision = "Perú",
             EsPrincipal = true
         });
-        persona.Correos.Add(new PersonaCorreo
+        persona.Contactos.Add(new PersonaContacto
         {
-            Correo = email,
+            TipoContacto = "Correo",
+            Valor = email,
             EsPrincipal = true
         });
 
@@ -161,9 +160,10 @@ public sealed class RegisterClientCommandHandler : IRequestHandler<RegisterClien
             : request.Telefono.Trim();
         if (telefono is not null)
         {
-            persona.Telefonos.Add(new PersonaTelefono
+            persona.Contactos.Add(new PersonaContacto
             {
-                Numero = telefono,
+                TipoContacto = "Telefono",
+                Valor = telefono,
                 EsPrincipal = true
             });
         }
@@ -171,16 +171,29 @@ public sealed class RegisterClientCommandHandler : IRequestHandler<RegisterClien
         var cliente = new Cliente
         {
             Persona = persona,
-            NombreCompleto = nombreCompleto,
-            DNI = documentNumber,
-            Correo = email,
-            Telefono = telefono,
-            ContrasenaHash = _passwordHasher.Hash(request.Password),
             Estado = "Activo",
             FechaRegistro = DateTime.UtcNow
         };
+        persona.Cliente = cliente;
+
+        var rolCliente = await _context.Roles
+            .SingleOrDefaultAsync(x => x.Codigo == "CLIENTE", cancellationToken)
+            ?? throw new InvalidOperationException("El rol Cliente no está configurado.");
+        var usuario = new Usuario
+        {
+            Persona = persona,
+            PasswordHash = _passwordHasher.Hash(request.Password),
+            SedeId = null,
+            Activo = true,
+            FechaCreacion = DateTime.UtcNow,
+            Roles =
+            {
+                new UsuarioRol { Rol = rolCliente, FechaAsignacion = DateTime.UtcNow }
+            }
+        };
 
         _context.Clientes.Add(cliente);
+        _context.Usuarios.Add(usuario);
 
         try
         {
@@ -191,7 +204,7 @@ public sealed class RegisterClientCommandHandler : IRequestHandler<RegisterClien
             throw new ConflictException("Ya existe una cuenta registrada con estos datos.");
         }
 
-        var token = _jwtService.GenerarToken(cliente);
-        return new LoginResponse(token, cliente.NombreCompleto, "Cliente");
+        var token = _jwtService.GenerarToken(usuario);
+        return new LoginResponse(token, nombreCompleto, "Cliente");
     }
 }

@@ -13,7 +13,7 @@ public static class ServicioRules
         if (ids.Count == 0)
             throw new ForbiddenAccessException("El servicio debe asignarse al menos a una sede.");
 
-        if (currentUser.Rol == RolUsuario.Administrador)
+        if (currentUser.Rol is RolUsuario.Administrador or RolUsuario.Superadministrador)
             return ids;
 
         if (!currentUser.SedeId.HasValue)
@@ -28,7 +28,7 @@ public static class ServicioRules
     public static void ValidarServicioAsignado(
         ICurrentUserService currentUser, IReadOnlyCollection<int> sedesIds)
     {
-        if (currentUser.Rol == RolUsuario.Administrador)
+        if (currentUser.Rol is RolUsuario.Administrador or RolUsuario.Superadministrador)
             return;
 
         if (!currentUser.SedeId.HasValue ||

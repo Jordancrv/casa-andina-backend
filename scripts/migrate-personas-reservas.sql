@@ -241,6 +241,7 @@ BEGIN TRY
         SELECT reserva.ReservaId, cliente.PersonaId, 1
         FROM dbo.Reserva reserva
         INNER JOIN dbo.Cliente cliente ON cliente.ClienteId = reserva.ClienteId
+        INNER JOIN dbo.PersonaNatural natural ON natural.PersonaId = cliente.PersonaId
         WHERE NOT EXISTS (
             SELECT 1 FROM dbo.ReservaHuesped huesped
             WHERE huesped.ReservaId = reserva.ReservaId

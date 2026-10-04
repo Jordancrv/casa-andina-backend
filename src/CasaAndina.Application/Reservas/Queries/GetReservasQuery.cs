@@ -33,17 +33,18 @@ public class GetReservasQueryHandler
         return await _context.Reservas
             .AsNoTracking()
             .Where(r => r.ClienteId == clienteId)
-            .OrderByDescending(r => r.FechaCheckIn)
+            .OrderByDescending(r => r.Habitaciones.Min(detalle => detalle.FechaCheckIn))
             .Select(r => new ReservaDto(
                 r.Id,
                 r.CodigoReserva,
-                r.FechaCheckIn,
-                r.FechaCheckOut,
+                r.Habitaciones.Min(detalle => detalle.FechaCheckIn),
+                r.Habitaciones.Max(detalle => detalle.FechaCheckOut),
                 r.PrecioTotal,
                 r.Estado,
-                r.Habitacion.Sede.Nombre,
-                r.Habitacion.Sede.Ciudad,
-                new[] { r.Habitacion.Numero }))
+                r.Sede.Nombre,
+                r.Sede.Ciudad,
+                r.Habitaciones.OrderBy(detalle => detalle.FechaCheckIn)
+                    .Select(detalle => detalle.Habitacion.Numero).ToArray()))
             .ToListAsync(cancellationToken);
     }
 }

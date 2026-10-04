@@ -26,10 +26,12 @@ public class DeactivateHabitacionCommandHandler : IRequestHandler<DeactivateHabi
             throw new NotFoundException("Habitacion", request.Id);
 
         HabitacionRules.ValidarAccesoASede(_currentUser, habitacion.SedeId);
-        var tieneReservas = await _context.Reservas.AnyAsync(r =>
-            r.HabitacionId == request.Id &&
-            r.FechaCheckOut >= DateTime.UtcNow.Date &&
-            (r.Estado == "Pendiente" || r.Estado == "Confirmada" || r.Estado == "Bloqueada"),
+        var tieneReservas = await _context.ReservaHabitaciones.AnyAsync(detalle =>
+            detalle.HabitacionId == request.Id &&
+            detalle.FechaCheckOut >= DateTime.UtcNow.Date &&
+            (detalle.Reserva.Estado == "Pendiente"
+                || detalle.Reserva.Estado == "Confirmada"
+                || detalle.Reserva.Estado == "Bloqueada"),
             cancellationToken);
         if (tieneReservas)
             throw new ConflictException("La habitación tiene reservas activas o futuras y no puede desactivarse.");

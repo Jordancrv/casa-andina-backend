@@ -42,7 +42,7 @@ public class GetHabitacionesQueryHandler
     public async Task<PaginatedList<HabitacionDto>> Handle(
         GetHabitacionesQuery request, CancellationToken cancellationToken)
     {
-        if (_currentUser.Rol != RolUsuario.Administrador && !_currentUser.SedeId.HasValue)
+        if (_currentUser.Rol is not (RolUsuario.Administrador or RolUsuario.Superadministrador) && !_currentUser.SedeId.HasValue)
             throw new ForbiddenAccessException("El usuario no tiene una sede asignada.");
 
         if (request.SedeId.HasValue)

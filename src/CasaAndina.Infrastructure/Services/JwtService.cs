@@ -18,47 +18,45 @@ public class JwtService : IJwtService
     public JwtService(IConfiguration configuration) => _configuration = configuration;
 
     public string GenerarToken(Usuario usuario)
-        => GenerarToken(
-            usuario.Id,
-            usuario.Email,
-            usuario.NombreCompleto,
-            usuario.Rol,
-            AuthClaimTypes.Personal,
-            usuario.SedeId);
-
-    public string GenerarToken(Cliente cliente)
-        => GenerarToken(
-            cliente.Id,
-            cliente.Correo,
-            cliente.NombreCompleto,
-            RolUsuario.Cliente,
-            AuthClaimTypes.Cliente,
-            null);
-
-    private string GenerarToken(
-        int id,
-        string email,
-        string nombre,
-        RolUsuario rol,
-        string tipoUsuario,
-        int? sedeId)
     {
+        var persona = usuario.Persona;
+        var email = persona.Contactos
+            .FirstOrDefault(x => x.TipoContacto == "Correo" && x.EsPrincipal)?.Valor
+            ?? persona.Contactos.FirstOrDefault(x => x.TipoContacto == "Correo")?.Valor
+            ?? throw new InvalidOperationException("La persona del usuario no tiene correo electrónico.");
+        var nombre = persona.Natural is not null
+            ? string.Join(' ', new[] { persona.Natural.Nombres, persona.Natural.Apellidos }
+                .Where(x => !string.IsNullOrWhiteSpace(x)))
+            : persona.Juridica?.RazonSocial ?? "Usuario";
+        var roles = usuario.Roles
+            .Select(x => RolCodigo.Mapear(x.Rol.Codigo))
+            .Where(x => x.HasValue)
+            .Select(x => x!.Value)
+            .OrderBy(RolCodigo.Prioridad)
+            .ToArray();
+        if (roles.Length == 0)
+            throw new InvalidOperationException("El usuario no tiene roles asignados.");
+
         var jwtSettings = _configuration.GetSection("Jwt");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new List<Claim>
         {
-            new Claim(JwtRegisteredClaimNames.Sub, id.ToString()),
-            new Claim(ClaimTypes.NameIdentifier, id.ToString()),
+            new Claim(JwtRegisteredClaimNames.Sub, usuario.Id.ToString()),
+            new Claim(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, email),
             new Claim(ClaimTypes.Name, nombre),
-            new Claim(ClaimTypes.Role, rol.ToString()),
-            new Claim(AuthClaimTypes.TipoUsuario, tipoUsuario)
+            new Claim(AuthClaimTypes.TipoUsuario, persona.Cliente is null ? AuthClaimTypes.Personal : AuthClaimTypes.Cliente)
         };
 
-        if (sedeId.HasValue)
-            claims.Add(new Claim(AuthClaimTypes.SedeId, sedeId.Value.ToString()));
+        foreach (var rol in roles)
+            claims.Add(new Claim(ClaimTypes.Role, rol.ToString()));
+
+        if (persona.Cliente is not null)
+            claims.Add(new Claim(AuthClaimTypes.ClienteId, persona.Cliente.Id.ToString()));
+        if (usuario.SedeId.HasValue)
+            claims.Add(new Claim(AuthClaimTypes.SedeId, usuario.SedeId.Value.ToString()));
 
         var token = new JwtSecurityToken(
             issuer: jwtSettings["Issuer"],

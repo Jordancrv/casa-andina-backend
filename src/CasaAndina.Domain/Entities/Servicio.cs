@@ -10,4 +10,5 @@ public class Servicio : BaseEntity
     public decimal Precio { get; set; }
 
     public ICollection<Sede> Sedes { get; set; } = new List<Sede>();
+    public ICollection<ReservaServicio> Reservas { get; set; } = new List<ReservaServicio>();
 }

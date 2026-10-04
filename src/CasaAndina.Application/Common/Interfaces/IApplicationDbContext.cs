@@ -12,6 +12,7 @@ public interface IApplicationDbContext
 {
     DbSet<Sede> Sedes { get; }
     DbSet<Rol> Roles { get; }
+    DbSet<UsuarioRol> UsuarioRoles { get; }
     DbSet<TipoHabitacion> TiposHabitacion { get; }
     DbSet<Habitacion> Habitaciones { get; }
     DbSet<Comodidad> Comodidades { get; }
@@ -23,10 +24,14 @@ public interface IApplicationDbContext
     DbSet<PersonaJuridica> PersonasJuridicas { get; }
     DbSet<TipoDocumento> TiposDocumento { get; }
     DbSet<PersonaDocumento> PersonaDocumentos { get; }
-    DbSet<PersonaCorreo> PersonaCorreos { get; }
-    DbSet<PersonaTelefono> PersonaTelefonos { get; }
+    DbSet<PersonaContacto> PersonaContactos { get; }
     DbSet<Reserva> Reservas { get; }
-    DbSet<ReservaHuesped> ReservaHuespedes { get; }
+    DbSet<ReservaHabitacion> ReservaHabitaciones { get; }
+    DbSet<ReservaServicio> ReservaServicios { get; }
+    DbSet<Comprobante> Comprobantes { get; }
+    DbSet<Huesped> Huespedes { get; }
+    DbSet<AsignacionHuesped> AsignacionesHuespedes { get; }
+    DbSet<Auditoria> Auditoria { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
