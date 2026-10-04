@@ -13,6 +13,8 @@ public sealed record HabitacionDisponibleDto(
     decimal PrecioNoche,
     IReadOnlyList<string> Comodidades);
 
+public sealed record ServicioDisponibleDto(int Id, string Nombre, string? Descripcion, decimal Precio);
+
 public sealed record HuespedCompraDto(
     string Nombres,
     string Apellidos,
