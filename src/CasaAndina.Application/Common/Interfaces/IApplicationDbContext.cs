@@ -1,5 +1,6 @@
 using CasaAndina.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 
 namespace CasaAndina.Application.Common.Interfaces;
 
@@ -32,6 +33,8 @@ public interface IApplicationDbContext
     DbSet<Huesped> Huespedes { get; }
     DbSet<AsignacionHuesped> AsignacionesHuespedes { get; }
     DbSet<Auditoria> Auditoria { get; }
+
+    Task<IApplicationTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default);
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -33,6 +33,7 @@ public class GetReservasQueryHandler
         return await _context.Reservas
             .AsNoTracking()
             .Where(r => r.ClienteId == clienteId)
+            .Where(r => r.Habitaciones.Any())
             .OrderByDescending(r => r.Habitaciones.Min(detalle => detalle.FechaCheckIn))
             .Select(r => new ReservaDto(
                 r.Id,

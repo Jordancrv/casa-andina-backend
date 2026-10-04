@@ -1,6 +1,8 @@
 using CasaAndina.Application.Common.Interfaces;
 using CasaAndina.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using System.Data;
 
 namespace CasaAndina.Infrastructure.Persistence;
 
@@ -30,6 +32,16 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<Huesped> Huespedes => Set<Huesped>();
     public DbSet<AsignacionHuesped> AsignacionesHuespedes => Set<AsignacionHuesped>();
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();
+
+    public async Task<IApplicationTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default)
+        => new ApplicationTransaction(await Database.BeginTransactionAsync(isolationLevel, cancellationToken));
+
+    private sealed class ApplicationTransaction(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction)
+        : IApplicationTransaction
+    {
+        public Task CommitAsync(CancellationToken cancellationToken = default) => transaction.CommitAsync(cancellationToken);
+        public ValueTask DisposeAsync() => transaction.DisposeAsync();
+    }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

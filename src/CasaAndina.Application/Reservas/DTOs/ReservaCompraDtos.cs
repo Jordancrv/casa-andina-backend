@@ -1,0 +1,45 @@
+namespace CasaAndina.Application.Reservas.DTOs;
+
+public sealed record HabitacionDisponibleDto(
+    int HabitacionId,
+    int SedeId,
+    string SedeNombre,
+    string Ciudad,
+    string Numero,
+    int Piso,
+    string TipoHabitacion,
+    int CapacidadAdultos,
+    int CapacidadNinos,
+    decimal PrecioNoche,
+    IReadOnlyList<string> Comodidades);
+
+public sealed record HuespedCompraDto(
+    string Nombres,
+    string Apellidos,
+    string Correo,
+    string? Telefono,
+    bool EsTitular);
+
+public sealed record HabitacionCompraDto(
+    int HabitacionId,
+    IReadOnlyList<HuespedCompraDto> Huespedes);
+
+public sealed record ServicioCompraDto(int ServicioId, int Cantidad);
+
+public sealed record CrearReservaCompraCommand(
+    int SedeId,
+    DateTime FechaCheckIn,
+    DateTime FechaCheckOut,
+    IReadOnlyList<HabitacionCompraDto> Habitaciones,
+    IReadOnlyList<ServicioCompraDto> Servicios,
+    string TipoComprobante,
+    string? RazonSocial,
+    string? Ruc) : MediatR.IRequest<ReservaCompraResponseDto>;
+
+public sealed record ReservaCompraResponseDto(
+    int ReservaId,
+    string CodigoReserva,
+    string Estado,
+    decimal PrecioTotal,
+    string TipoComprobante,
+    string MensajePago);
