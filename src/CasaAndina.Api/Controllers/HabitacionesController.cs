@@ -25,7 +25,6 @@ public class HabitacionesController : ControllerBase
         => Ok(await _mediator.Send(new GetHabitacionByIdQuery(id)));
 
     [HttpGet("calendario-reservas")]
-    [Authorize(Policy = "Administrador")]
     public async Task<IActionResult> GetCalendarioReservas(
         [FromQuery] int sedeId,
         [FromQuery] DateTime fechaDesde,

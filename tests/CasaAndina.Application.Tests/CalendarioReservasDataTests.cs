@@ -11,8 +11,12 @@ namespace CasaAndina.Application.Tests;
 
 public sealed class CalendarioReservasDataTests
 {
-    [Fact]
-    public async Task Calendario_devuelve_estado_y_nombre_minimo_del_titular()
+    [Theory]
+    [InlineData(RolUsuario.Administrador, "Jordan Prueba")]
+    [InlineData(RolUsuario.Recepcion, null)]
+    [InlineData(RolUsuario.Superadministrador, null)]
+    public async Task Calendario_expone_nombre_solo_a_rol_administrador(
+        RolUsuario role, string? expectedName)
     {
         await using var context = CreateContext();
         var hotel = new Sede { Id = 7, Nombre = "Sede de prueba", Codigo = "TST", Region = "Sierra", Ciudad = "Cusco", Categoria = "Standard" };
@@ -33,7 +37,7 @@ public sealed class CalendarioReservasDataTests
         };
         context.Reservas.Add(booking);
         await context.SaveChangesAsync();
-        var handler = new GetCalendarioReservasQueryHandler(context, new CurrentUserStub(hotel.Id));
+        var handler = new GetCalendarioReservasQueryHandler(context, new CurrentUserStub(hotel.Id, role));
 
         var result = await handler.Handle(
             new GetCalendarioReservasQuery(hotel.Id, new DateTime(2026, 12, 1), new DateTime(2026, 12, 5)),
@@ -42,7 +46,7 @@ public sealed class CalendarioReservasDataTests
         result.Should().ContainSingle();
         result[0].Reservas.Should().ContainSingle();
         result[0].Reservas[0].Estado.Should().Be("Pendiente");
-        result[0].Reservas[0].NombreReservante.Should().Be("Jordan Prueba");
+        result[0].Reservas[0].NombreReservante.Should().Be(expectedName);
     }
 
     private static ApplicationDbContext CreateContext()
@@ -52,11 +56,11 @@ public sealed class CalendarioReservasDataTests
         return new ApplicationDbContext(options);
     }
 
-    private sealed class CurrentUserStub(int? siteId) : ICurrentUserService
+    private sealed class CurrentUserStub(int? siteId, RolUsuario role) : ICurrentUserService
     {
         public int? UsuarioId => 1;
         public int? ClienteId => null;
         public int? SedeId => siteId;
-        public RolUsuario? Rol => RolUsuario.Administrador;
+        public RolUsuario? Rol => role;
     }
 }

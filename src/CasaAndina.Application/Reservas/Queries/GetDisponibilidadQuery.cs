@@ -83,9 +83,11 @@ public sealed class GetCalendarioReservasQueryHandler(
                         rh.FechaCheckIn,
                         rh.FechaCheckOut,
                         rh.Reserva.Estado,
-                        rh.Reserva.Cliente.Persona.TipoPersona == "N"
-                            ? ((rh.Reserva.Cliente.Persona.Natural!.Nombres + " ") + (rh.Reserva.Cliente.Persona.Natural.Apellidos ?? "")).Trim()
-                            : (rh.Reserva.Cliente.Persona.Juridica!.NombreComercial ?? rh.Reserva.Cliente.Persona.Juridica.RazonSocial)))
+                        currentUser.Rol == RolUsuario.Administrador
+                            ? rh.Reserva.Cliente.Persona.TipoPersona == "N"
+                                ? ((rh.Reserva.Cliente.Persona.Natural!.Nombres + " ") + (rh.Reserva.Cliente.Persona.Natural.Apellidos ?? "")).Trim()
+                                : (rh.Reserva.Cliente.Persona.Juridica!.NombreComercial ?? rh.Reserva.Cliente.Persona.Juridica.RazonSocial)
+                            : null))
                     .ToArray()))
             .ToListAsync(cancellationToken);
     }
