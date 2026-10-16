@@ -67,6 +67,11 @@ public sealed class GetClientesAdminQueryHandler(
             reservas.Count(reserva => reserva.ClienteId == cliente.Id),
             reservas.Where(reserva => reserva.ClienteId == cliente.Id && reserva.Estado != "Cancelada")
                 .Select(reserva => (decimal?)reserva.PrecioTotal).Sum() ?? 0,
+            context.DetallesPago
+                .Where(detalle => detalle.Reserva.ClienteId == cliente.Id
+                    && (!currentUser.SedeId.HasValue || detalle.Reserva.SedeId == currentUser.SedeId.Value)
+                    && detalle.Pago.EstadoPago.Codigo == "APROBADO")
+                .Select(detalle => (decimal?)detalle.MontoAplicado).Sum() ?? 0,
             reservas.Where(reserva => reserva.ClienteId == cliente.Id)
                 .Where(reserva => reserva.Habitaciones.Any())
                 .OrderByDescending(reserva => reserva.FechaCreacion)

@@ -7,6 +7,7 @@ public sealed record ClienteAdminDto(
     string? Correo,
     int TotalReservas,
     decimal ImporteReservado,
+    decimal ImportePagadoSimulado,
     IReadOnlyList<ReservaClienteAdminDto> Historial);
 
 public sealed record ReservaClienteAdminDto(

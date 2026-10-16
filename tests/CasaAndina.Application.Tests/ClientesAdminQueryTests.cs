@@ -30,8 +30,55 @@ public sealed class ClientesAdminQueryTests
             SedeId = hotel.Id, Sede = hotel, Estado = "Confirmada", PrecioTotal = 250,
             Habitaciones = { new ReservaHabitacion { FechaCheckIn = new DateTime(2026, 12, 1), FechaCheckOut = new DateTime(2026, 12, 3) } }
         };
+        var otherHotel = new Sede { Id = 2, Nombre = "Otra sede", Codigo = "OTH", Region = "Costa", Ciudad = "Lima", Categoria = "Standard" };
+        var foreignReservation = new Reserva
+        {
+            Id = 31, CodigoReserva = "CA-TEST-31", ClienteId = cliente.Id, Cliente = cliente,
+            SedeId = otherHotel.Id, Sede = otherHotel, Estado = "Confirmada", PrecioTotal = 500
+        };
+        var approved = new EstadoPago { Id = 1, Codigo = "APROBADO", Nombre = "Aprobado", Activo = true };
+        var rejected = new EstadoPago { Id = 2, Codigo = "RECHAZADO", Nombre = "Rechazado", Activo = true };
+        var method = new MetodoPago
+        {
+            Id = 1, Codigo = "YAPE", Nombre = "Yape", Categoria = "BilleteraDigital",
+            Activo = true, FechaCreacion = DateTime.UtcNow
+        };
+        var payments = new[]
+        {
+            new DetallePago
+            {
+                Id = 50, ReservaId = reserva.Id, Reserva = reserva, PagoId = 60,
+                Pago = new Pago { Id = 60, MetodoPagoId = method.Id, MetodoPago = method,
+                    EstadoPagoId = approved.Id, EstadoPago = approved, Importe = 180,
+                    Moneda = "PEN", FechaCreacion = DateTime.UtcNow },
+                MontoAplicado = 180
+            },
+            new DetallePago
+            {
+                Id = 51, ReservaId = reserva.Id, Reserva = reserva, PagoId = 61,
+                Pago = new Pago { Id = 61, MetodoPagoId = method.Id, MetodoPago = method,
+                    EstadoPagoId = rejected.Id, EstadoPago = rejected, Importe = 70,
+                    Moneda = "PEN", FechaCreacion = DateTime.UtcNow },
+                MontoAplicado = 70
+            },
+            new DetallePago
+            {
+                Id = 52, ReservaId = foreignReservation.Id, Reserva = foreignReservation, PagoId = 62,
+                Pago = new Pago { Id = 62, MetodoPagoId = method.Id, MetodoPago = method,
+                    EstadoPagoId = approved.Id, EstadoPago = approved, Importe = 500,
+                    Moneda = "PEN", FechaCreacion = DateTime.UtcNow },
+                MontoAplicado = 500
+            }
+        };
+        reserva.Pagos.Add(payments[0]);
+        reserva.Pagos.Add(payments[1]);
+        foreignReservation.Pagos.Add(payments[2]);
         context.Clientes.Add(cliente);
-        context.Reservas.Add(reserva);
+        context.Sedes.Add(otherHotel);
+        context.Reservas.AddRange(reserva, foreignReservation);
+        context.EstadosPago.AddRange(approved, rejected);
+        context.MetodosPago.Add(method);
+        context.DetallesPago.AddRange(payments);
         await context.SaveChangesAsync();
         var handler = new GetClientesAdminQueryHandler(context, new CurrentUserStub(RolUsuario.Administrador, hotel.Id));
 
@@ -43,6 +90,7 @@ public sealed class ClientesAdminQueryTests
         item.Nombre.Should().Be("Ana Prueba");
         item.TotalReservas.Should().Be(1);
         item.ImporteReservado.Should().Be(250);
+        item.ImportePagadoSimulado.Should().Be(180);
         item.Correo.Should().Be("ana@example.test");
         item.Historial.Should().ContainSingle().Which.CodigoReserva.Should().Be("CA-TEST-30");
     }
