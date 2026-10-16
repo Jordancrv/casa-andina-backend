@@ -20,6 +20,59 @@ public sealed class ReservaCompraValidationTests
     }
 
     [Fact]
+    public async Task Compra_debe_rechazar_colecciones_nulas_sin_lanzar_error()
+    {
+        var command = ValidCommand() with { Habitaciones = null!, Servicios = null! };
+
+        var result = await new CrearReservaCompraCommandValidator().ValidateAsync(command);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(x => x.PropertyName == nameof(command.Habitaciones));
+        result.Errors.Should().Contain(x => x.PropertyName == nameof(command.Servicios));
+    }
+
+    [Fact]
+    public async Task Compra_debe_rechazar_lista_de_huespedes_nula_sin_lanzar_error()
+    {
+        var command = ValidCommand() with
+        {
+            Habitaciones = [new HabitacionCompraDto(1, null!)]
+        };
+
+        var result = await new CrearReservaCompraCommandValidator().ValidateAsync(command);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(x => x.PropertyName.EndsWith("Huespedes", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Compra_debe_rechazar_elementos_nulos_sin_lanzar_error()
+    {
+        var command = ValidCommand() with
+        {
+            Habitaciones = [null!],
+            Servicios = [null!]
+        };
+
+        var result = await new CrearReservaCompraCommandValidator().ValidateAsync(command);
+
+        result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Compra_debe_rechazar_huesped_nulo_sin_lanzar_error()
+    {
+        var command = ValidCommand() with
+        {
+            Habitaciones = [new HabitacionCompraDto(1, [null!])]
+        };
+
+        var result = await new CrearReservaCompraCommandValidator().ValidateAsync(command);
+
+        result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Cada_habitacion_debe_identificar_un_huesped_principal()
     {
         var command = ValidCommand() with

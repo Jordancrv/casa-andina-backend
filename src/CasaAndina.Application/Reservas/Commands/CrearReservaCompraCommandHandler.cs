@@ -20,17 +20,23 @@ public sealed class CrearReservaCompraCommandValidator : AbstractValidator<Crear
         RuleFor(x => x.SedeId).GreaterThan(0);
         RuleFor(x => x.FechaCheckIn).Must((x, start) => start.Date >= DateTime.Today && x.FechaCheckOut.Date > start.Date)
             .WithMessage("El rango de estadía no es válido.");
-        RuleFor(x => x.Habitaciones).NotEmpty().Must(x => x.Count <= 8)
+        RuleFor(x => x.Habitaciones).Cascade(CascadeMode.Stop)
+            .NotNull().NotEmpty().Must(x => x.Count <= 8)
             .WithMessage("Selecciona entre una y ocho habitaciones.");
-        RuleFor(x => x.Habitaciones).Must(x => x.Select(r => r.HabitacionId).Distinct().Count() == x.Count)
+        RuleFor(x => x.Habitaciones).Cascade(CascadeMode.Stop).NotNull()
+            .Must(x => x.All(r => r is not null) && x.Select(r => r.HabitacionId).Distinct().Count() == x.Count)
             .WithMessage("No repitas una habitación en la reserva.");
-        RuleForEach(x => x.Habitaciones).ChildRules(room =>
+        RuleForEach(x => x.Habitaciones).Where(room => room is not null).ChildRules(room =>
         {
             room.RuleFor(x => x.HabitacionId).GreaterThan(0);
-            room.RuleFor(x => x.Huespedes).NotEmpty().Must(x => x.Count <= 10);
-            room.RuleFor(x => x.Huespedes).Must(x => x.Count(g => g.EsTitular) == 1)
+            room.RuleFor(x => x.Huespedes).Cascade(CascadeMode.Stop)
+                .NotNull().NotEmpty().Must(x => x.Count <= 10);
+            room.RuleFor(x => x.Huespedes).Cascade(CascadeMode.Stop).NotNull()
+                .Must(x => x.All(g => g is not null))
+                .WithMessage("La lista de huéspedes contiene un valor inválido.")
+                .Must(x => x.Count(g => g.EsTitular) == 1)
                 .WithMessage("Cada habitación debe tener exactamente un huésped titular.");
-            room.RuleForEach(x => x.Huespedes).ChildRules(guest =>
+            room.RuleForEach(x => x.Huespedes).Where(guest => guest is not null).ChildRules(guest =>
             {
                 guest.RuleFor(x => x.Nombres).NotEmpty().MaximumLength(200);
                 guest.RuleFor(x => x.Apellidos).NotEmpty().MaximumLength(100);
@@ -38,9 +44,10 @@ public sealed class CrearReservaCompraCommandValidator : AbstractValidator<Crear
                 guest.RuleFor(x => x.Telefono).MaximumLength(20);
             });
         });
-        RuleFor(x => x.Servicios).Must(x => x.Select(s => s.ServicioId).Distinct().Count() == x.Count)
+        RuleFor(x => x.Servicios).Cascade(CascadeMode.Stop).NotNull()
+            .Must(x => x.All(s => s is not null) && x.Select(s => s.ServicioId).Distinct().Count() == x.Count)
             .WithMessage("No repitas un servicio; ajusta su cantidad.");
-        RuleForEach(x => x.Servicios).ChildRules(service =>
+        RuleForEach(x => x.Servicios).Where(service => service is not null).ChildRules(service =>
         {
             service.RuleFor(x => x.ServicioId).GreaterThan(0);
             service.RuleFor(x => x.Cantidad).InclusiveBetween(1, 20);
