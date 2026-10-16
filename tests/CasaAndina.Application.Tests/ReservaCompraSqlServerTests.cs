@@ -21,25 +21,37 @@ public sealed class ReservaCompraSqlServerTests
             throw new InvalidOperationException("La prueba SQL Server requiere CASAANDINA_TEST_SQLSERVER.");
 
         var databaseName = $"CasaAndinaTestCompra_{Guid.NewGuid():N}";
-        var connection = new SqlConnectionStringBuilder(baseConnectionString)
+        var masterConnection = new SqlConnectionStringBuilder(baseConnectionString)
         {
-            InitialCatalog = databaseName,
+            InitialCatalog = "master",
             MultipleActiveResultSets = true
         };
-        connection.Remove("AttachDbFilename");
-        databaseName.Should().StartWith("CasaAndinaTestCompra_");
-        databaseName.Should().NotBe("CasaAndinaDb");
+        masterConnection.Remove("AttachDbFilename");
+        var targetConnection = new SqlConnectionStringBuilder(masterConnection.ConnectionString)
+        {
+            InitialCatalog = databaseName
+        };
+        databaseName.Should().MatchRegex("^CasaAndinaTestCompra_[0-9a-f]{32}$");
 
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseSqlServer(connection.ConnectionString)
+            .UseSqlServer(targetConnection.ConnectionString)
             .Options;
-        var databaseCreationAttempted = false;
+        var databaseCreated = false;
+        var cleanupAttempted = false;
 
         try
         {
+            await using (var connection = new SqlConnection(masterConnection.ConnectionString))
+            {
+                await connection.OpenAsync();
+                await using var create = connection.CreateCommand();
+                create.CommandText = $"CREATE DATABASE [{databaseName}]";
+                await create.ExecuteNonQueryAsync();
+                databaseCreated = true;
+            }
+
             await using (var seedContext = new ApplicationDbContext(options))
             {
-                databaseCreationAttempted = true;
                 (await seedContext.Database.EnsureCreatedAsync()).Should().BeTrue("cada ejecución utiliza una base con nombre aleatorio");
                 SeedCheckout(seedContext);
             }
@@ -61,40 +73,62 @@ public sealed class ReservaCompraSqlServerTests
                     CancellationToken.None);
             }
 
-            await using var verifyContext = new ApplicationDbContext(options);
-            var reservation = await verifyContext.Reservas
-                .Include(item => item.Habitaciones).ThenInclude(item => item.Huespedes)
-                    .ThenInclude(item => item.Huesped).ThenInclude(item => item.PersonaNatural)
-                .Include(item => item.Comprobante)
-                .SingleAsync(item => item.Id == result.ReservaId);
-            var payment = await verifyContext.Pagos
-                .Include(item => item.MetodoPago)
-                .Include(item => item.EstadoPago)
-                .Include(item => item.Detalles)
-                .SingleAsync(item => item.Detalles.Any(detail => detail.ReservaId == result.ReservaId));
+            await using (var verifyContext = new ApplicationDbContext(options))
+            {
+                var reservation = await verifyContext.Reservas
+                    .Include(item => item.Habitaciones).ThenInclude(item => item.Huespedes)
+                        .ThenInclude(item => item.Huesped).ThenInclude(item => item.PersonaNatural)
+                    .Include(item => item.Comprobante)
+                    .SingleAsync(item => item.Id == result.ReservaId);
+                var payment = await verifyContext.Pagos
+                    .Include(item => item.MetodoPago)
+                    .Include(item => item.EstadoPago)
+                    .Include(item => item.Detalles)
+                    .SingleAsync(item => item.Detalles.Any(detail => detail.ReservaId == result.ReservaId));
 
-            reservation.Estado.Should().Be("Confirmada");
-            reservation.PrecioTotal.Should().Be(200m);
-            reservation.Habitaciones.Should().ContainSingle();
-            reservation.Habitaciones.Single().CantidadPersonas.Should().Be(1);
-            reservation.Habitaciones.Single().Huespedes.Should().ContainSingle()
-                .Which.Huesped.PersonaNatural.Nombres.Should().Be("Huésped");
-            reservation.Comprobante.Should().NotBeNull();
-            reservation.Comprobante!.Tipo.Should().Be(TipoComprobante.Boleta);
-            payment.MetodoPago.Codigo.Should().Be("YAPE");
-            payment.EstadoPago.Codigo.Should().Be("APROBADO");
-            payment.Importe.Should().Be(200m);
-            payment.ReferenciaProveedor.Should().BeNull();
-            payment.Detalles.Should().ContainSingle().Which.MontoAplicado.Should().Be(200m);
+                reservation.Estado.Should().Be("Confirmada");
+                reservation.PrecioTotal.Should().Be(200m);
+                reservation.Habitaciones.Should().ContainSingle();
+                reservation.Habitaciones.Single().CantidadPersonas.Should().Be(1);
+                reservation.Habitaciones.Single().Huespedes.Should().ContainSingle()
+                    .Which.Huesped.PersonaNatural.Nombres.Should().Be("Huésped");
+                reservation.Comprobante.Should().NotBeNull();
+                reservation.Comprobante!.Tipo.Should().Be(TipoComprobante.Boleta);
+                payment.MetodoPago.Codigo.Should().Be("YAPE");
+                payment.EstadoPago.Codigo.Should().Be("APROBADO");
+                payment.Importe.Should().Be(200m);
+                payment.ReferenciaProveedor.Should().BeNull();
+                payment.Detalles.Should().ContainSingle().Which.MontoAplicado.Should().Be(200m);
+            }
+        }
+        catch (Exception executionError) when (databaseCreated)
+        {
+            cleanupAttempted = true;
+            try
+            {
+                await DropDatabaseAsync(masterConnection.ConnectionString, databaseName);
+            }
+            catch (Exception cleanupError)
+            {
+                throw new AggregateException("Falló la prueba SQL y también la limpieza de su base temporal.", executionError, cleanupError);
+            }
+
+            throw;
         }
         finally
         {
-            if (databaseCreationAttempted)
-            {
-                await using var cleanupContext = new ApplicationDbContext(options);
-                await cleanupContext.Database.EnsureDeletedAsync();
-            }
+            if (databaseCreated && !cleanupAttempted)
+                await DropDatabaseAsync(masterConnection.ConnectionString, databaseName);
         }
+    }
+
+    private static async Task DropDatabaseAsync(string connectionString, string databaseName)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"ALTER DATABASE [{databaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{databaseName}]";
+        await command.ExecuteNonQueryAsync();
     }
 
     private static void SeedCheckout(ApplicationDbContext context)
