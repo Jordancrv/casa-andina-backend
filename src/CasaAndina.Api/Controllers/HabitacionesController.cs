@@ -1,5 +1,6 @@
 using CasaAndina.Application.Habitaciones.Commands;
 using CasaAndina.Application.Habitaciones.Queries;
+using CasaAndina.Application.Reservas.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,6 +23,15 @@ public class HabitacionesController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
         => Ok(await _mediator.Send(new GetHabitacionByIdQuery(id)));
+
+    [HttpGet("calendario-reservas")]
+    public async Task<IActionResult> GetCalendarioReservas(
+        [FromQuery] int sedeId,
+        [FromQuery] DateTime fechaDesde,
+        [FromQuery] DateTime fechaHasta,
+        CancellationToken cancellationToken)
+        => Ok(await _mediator.Send(
+            new GetCalendarioReservasQuery(sedeId, fechaDesde, fechaHasta), cancellationToken));
 
     [HttpPost]
     [Authorize(Policy = "GestionHabitaciones")]

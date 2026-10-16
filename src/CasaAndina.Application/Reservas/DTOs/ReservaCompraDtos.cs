@@ -13,6 +13,18 @@ public sealed record HabitacionDisponibleDto(
     decimal PrecioNoche,
     IReadOnlyList<string> Comodidades);
 
+public sealed record HabitacionCalendarioDto(
+    int HabitacionId,
+    string Numero,
+    int Piso,
+    string TipoHabitacion,
+    string EstadoHabitacion,
+    IReadOnlyList<ReservaCalendarioDto> Reservas);
+
+public sealed record ReservaCalendarioDto(
+    DateTime FechaCheckIn,
+    DateTime FechaCheckOut);
+
 public sealed record ServicioDisponibleDto(int Id, string Nombre, string? Descripcion, decimal Precio);
 
 public sealed record HuespedCompraDto(

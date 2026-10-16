@@ -43,3 +43,40 @@ public sealed class GetDisponibilidadQueryHandler(IApplicationDbContext context)
                 "Indica una sede y un rango de fechas válido, con salida posterior a la entrada.")]);
     }
 }
+
+public sealed record GetCalendarioReservasQuery(int SedeId, DateTime FechaDesde, DateTime FechaHasta)
+    : IRequest<IReadOnlyList<HabitacionCalendarioDto>>;
+
+public sealed class GetCalendarioReservasQueryHandler(IApplicationDbContext context)
+    : IRequestHandler<GetCalendarioReservasQuery, IReadOnlyList<HabitacionCalendarioDto>>
+{
+    public async Task<IReadOnlyList<HabitacionCalendarioDto>> Handle(
+        GetCalendarioReservasQuery request, CancellationToken cancellationToken)
+    {
+        ValidarRango(request.SedeId, request.FechaDesde, request.FechaHasta);
+        var desde = request.FechaDesde.Date;
+        var hasta = request.FechaHasta.Date;
+
+        return await context.Habitaciones.AsNoTracking()
+            .Where(h => h.SedeId == request.SedeId && h.Activo)
+            .OrderBy(h => h.Numero)
+            .Select(h => new HabitacionCalendarioDto(
+                h.Id, h.Numero, h.Piso, h.TipoHabitacion.Nombre, h.Estado,
+                context.ReservaHabitaciones
+                    .Where(rh => rh.HabitacionId == h.Id &&
+                        rh.FechaCheckIn < hasta && rh.FechaCheckOut > desde &&
+                        rh.Reserva.Estado != "Cancelada")
+                    .OrderBy(rh => rh.FechaCheckIn)
+                    .Select(rh => new ReservaCalendarioDto(
+                        rh.FechaCheckIn, rh.FechaCheckOut))
+                    .ToArray()))
+            .ToListAsync(cancellationToken);
+    }
+
+    public static void ValidarRango(int sedeId, DateTime desde, DateTime hasta)
+    {
+        if (sedeId <= 0 || hasta.Date <= desde.Date || (hasta.Date - desde.Date).TotalDays > 366)
+            throw new ValidationException([new ValidationFailure(nameof(GetCalendarioReservasQuery.FechaHasta),
+                "Indica una sede y un rango válido de hasta 366 días, con fecha final posterior a la inicial.")]);
+    }
+}
