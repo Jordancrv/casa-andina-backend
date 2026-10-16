@@ -41,6 +41,8 @@ public sealed class DashboardResumenQueryTests
         result.HabitacionesOcupadas.Should().Be(2);
         result.HabitacionesDisponibles.Should().Be(1);
         result.ReservasActivas.Should().Be(2);
+        result.ReservasPendientes.Should().Be(1);
+        result.ReservasConfirmadas.Should().Be(1);
         result.ImporteReservadoMesActual.Should().Be(500);
     }
 

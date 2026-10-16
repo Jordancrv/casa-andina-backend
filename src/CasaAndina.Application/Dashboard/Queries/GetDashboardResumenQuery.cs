@@ -30,9 +30,12 @@ public class GetDashboardResumenQueryHandler
             throw new ForbiddenAccessException("El dashboard requiere una sede específica.");
 
         var sedeId = _currentUser.SedeId.Value;
-        // Reservas activas = Pendiente o Confirmada
-        var reservasActivas = await _context.Reservas
-            .CountAsync(r => r.SedeId == sedeId && (r.Estado == "Pendiente" || r.Estado == "Confirmada"), cancellationToken);
+        // Se mantienen los estados separados para alimentar el resumen y sus gráficas.
+        var reservasPendientes = await _context.Reservas
+            .CountAsync(r => r.SedeId == sedeId && r.Estado == "Pendiente", cancellationToken);
+        var reservasConfirmadas = await _context.Reservas
+            .CountAsync(r => r.SedeId == sedeId && r.Estado == "Confirmada", cancellationToken);
+        var reservasActivas = reservasPendientes + reservasConfirmadas;
 
         // Habitaciones ocupadas = las que tienen reserva Confirmada en curso hoy
         var hoy = DateTime.UtcNow.Date;
@@ -63,6 +66,8 @@ public class GetDashboardResumenQueryHandler
             habitacionesOcupadas,
             habitacionesDisponibles,
             reservasActivas,
-            importeReservadoMes);
+            importeReservadoMes,
+            reservasPendientes,
+            reservasConfirmadas);
     }
 }

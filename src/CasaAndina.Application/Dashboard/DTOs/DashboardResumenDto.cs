@@ -5,4 +5,6 @@ public record DashboardResumenDto(
     int HabitacionesOcupadas,
     int HabitacionesDisponibles,
     int ReservasActivas,
-    decimal ImporteReservadoMesActual);
+    decimal ImporteReservadoMesActual,
+    int ReservasPendientes,
+    int ReservasConfirmadas);
