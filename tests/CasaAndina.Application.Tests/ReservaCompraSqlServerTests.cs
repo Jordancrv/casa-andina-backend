@@ -93,7 +93,7 @@ public sealed class ReservaCompraSqlServerTests
                 reservation.Estado.Should().Be("Confirmada");
                 reservation.PrecioTotal.Should().Be(200m);
                 reservation.Habitaciones.Should().ContainSingle();
-                reservation.Habitaciones.Single().CantidadPersonas.Should().Be(1);
+                reservation.Habitaciones.Single().CantidadPersonas.Should().Be(2);
                 reservation.Habitaciones.Single().Huespedes.Should().HaveCount(2);
                 reservation.Habitaciones.Single().Huespedes
                     .Should().Contain(item => item.Huesped.PersonaNatural.Nombres == "Cliente");
