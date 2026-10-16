@@ -71,7 +71,7 @@ public sealed class GetUsuariosAdminQueryHandler(IApplicationDbContext context, 
                 (user.Persona.Juridica != null &&
                     (user.Persona.Juridica.RazonSocial.Contains(normalizedSearch) ||
                      (user.Persona.Juridica.NombreComercial != null && user.Persona.Juridica.NombreComercial.Contains(normalizedSearch)))) ||
-                user.Persona.Contactos.Any(contacto => contacto.TipoContacto == "Correo" && contacto.Valor.Contains(normalizedSearch)));
+                user.Correo.Contains(normalizedSearch));
         }
 
         return users.OrderBy(user => user.PersonaId);
@@ -83,11 +83,7 @@ public sealed class GetUsuariosAdminQueryHandler(IApplicationDbContext context, 
             user.Persona.TipoPersona == "N"
                 ? ((user.Persona.Natural!.Nombres + " ") + (user.Persona.Natural.Apellidos ?? "")).Trim()
                 : (user.Persona.Juridica!.NombreComercial ?? user.Persona.Juridica.RazonSocial),
-            user.Persona.Contactos
-                .Where(contacto => contacto.TipoContacto == "Correo")
-                .OrderByDescending(contacto => contacto.EsPrincipal)
-                .Select(contacto => contacto.Valor)
-                .FirstOrDefault(),
+            user.Correo,
             user.Persona.Contactos
                 .Where(contacto => contacto.TipoContacto == "Telefono")
                 .OrderByDescending(contacto => contacto.EsPrincipal)

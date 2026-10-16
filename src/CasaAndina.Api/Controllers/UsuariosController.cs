@@ -24,10 +24,10 @@ public sealed class UsuariosController(ISender sender) : ControllerBase
     public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
         => Ok(await sender.Send(new GetUsuarioAdminByIdQuery(id), cancellationToken));
 
-    [HttpPut("{id:int}/contactos")]
-    public async Task<IActionResult> UpdateContacts(
+    [HttpPut("{id:int}/cuenta")]
+    public async Task<IActionResult> UpdateAccount(
         int id,
-        [FromBody] ActualizarContactosUsuarioCommand command,
+        [FromBody] ActualizarCuentaUsuarioCommand command,
         CancellationToken cancellationToken)
     {
         await sender.Send(command with { UsuarioId = id }, cancellationToken);

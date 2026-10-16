@@ -265,11 +265,12 @@ public sealed class AuthSecurityTests
         response.Rol.Should().Be("Cliente");
         cliente.Estado.Should().Be("Activo");
         usuario.PasswordHash.Should().NotBe(password);
+        usuario.Correo.Should().Be("maria@correo.com");
         new PasswordHasher().Verify(password, usuario.PasswordHash).Should().BeTrue();
         usuario.Roles.Single().Rol.Codigo.Should().Be("CLIENTE");
         (await context.PersonasNaturales.CountAsync()).Should().Be(1);
         (await context.PersonaDocumentos.SingleAsync()).Numero.Should().Be("87654321");
-        (await context.PersonaContactos.SingleAsync(x => x.TipoContacto == "Correo")).Valor.Should().Be("maria@correo.com");
+        (await context.PersonaContactos.CountAsync(x => x.TipoContacto == "Correo")).Should().Be(0);
     }
 
     [Fact]
@@ -300,6 +301,12 @@ public sealed class AuthSecurityTests
             Estado = "Activo"
         };
         context.Personas.Add(persona);
+        context.Usuarios.Add(new Usuario
+        {
+            Correo = "existente@correo.com",
+            Persona = persona,
+            PasswordHash = "hash-de-prueba"
+        });
         await context.SaveChangesAsync();
         var handler = new RegisterClientCommandHandler(context, new PasswordHasher(), new FakeJwtService());
 

@@ -12,5 +12,5 @@ public sealed record UsuarioAdminDto(
     IReadOnlyList<string> Roles,
     bool Activo);
 
-public sealed record ActualizarContactosUsuarioCommand(int UsuarioId, string Correo, string? Telefono)
+public sealed record ActualizarCuentaUsuarioCommand(int UsuarioId, string Correo, string? Telefono)
     : MediatR.IRequest;

@@ -21,7 +21,7 @@ public sealed class DesactivarUsuarioCommandTests
             TipoPersona = "N",
             Natural = new PersonaNatural { PersonaId = 10, Nombres = "Cuenta", Apellidos = "Prueba" }
         };
-        context.Usuarios.Add(new Usuario { Id = 20, PersonaId = persona.Id, Persona = persona, SedeId = 5, PasswordHash = "hash-de-prueba" });
+        context.Usuarios.Add(new Usuario { Id = 20, Correo = "usuario@example.test", PersonaId = persona.Id, Persona = persona, SedeId = 5, PasswordHash = "hash-de-prueba" });
         await context.SaveChangesAsync();
         var handler = new DesactivarUsuarioCommandHandler(context, new CurrentUserStub());
 

@@ -113,8 +113,8 @@ public sealed class RegisterClientCommandHandler : IRequestHandler<RegisterClien
                 new ValidationFailure("TipoDocumento", "El documento no corresponde al tipo de persona.")
             ]);
 
-        var clientAlreadyExists = await _context.PersonaContactos
-            .AnyAsync(c => c.TipoContacto == "Correo" && c.Valor == email, cancellationToken)
+        var clientAlreadyExists = await _context.Usuarios
+            .AnyAsync(usuario => usuario.Correo == email, cancellationToken)
             || await _context.PersonaDocumentos.AnyAsync(
                 d => d.TipoDocumentoId == documentType.Id && d.Numero == documentNumber,
                 cancellationToken);
@@ -148,13 +148,6 @@ public sealed class RegisterClientCommandHandler : IRequestHandler<RegisterClien
             PaisEmision = "Perú",
             EsPrincipal = true
         });
-        persona.Contactos.Add(new PersonaContacto
-        {
-            TipoContacto = "Correo",
-            Valor = email,
-            EsPrincipal = true
-        });
-
         var telefono = string.IsNullOrWhiteSpace(request.Telefono)
             ? null
             : request.Telefono.Trim();
@@ -181,6 +174,7 @@ public sealed class RegisterClientCommandHandler : IRequestHandler<RegisterClien
             ?? throw new InvalidOperationException("El rol Cliente no está configurado.");
         var usuario = new Usuario
         {
+            Correo = email,
             Persona = persona,
             PasswordHash = _passwordHasher.Hash(request.Password),
             SedeId = null,

@@ -32,12 +32,12 @@ public sealed class LoginSecurityTests
         await using var context = CreateContext();
         var persona = new Persona
         {
-            Id = 1,
-            Contactos = { new PersonaContacto { TipoContacto = "Correo", Valor = "sin-rol@example.test" } }
+            Id = 1
         };
         context.Usuarios.Add(new Usuario
         {
             Id = 1,
+            Correo = "sin-rol@example.test",
             PersonaId = persona.Id,
             Persona = persona,
             PasswordHash = "test-hash"
@@ -50,6 +50,45 @@ public sealed class LoginSecurityTests
 
         var error = await action.Should().ThrowAsync<UnauthorizedAccessException>();
         error.Which.Message.Should().Be("Credenciales inválidas.");
+    }
+
+    [Fact]
+    public async Task Login_UsaSoloCorreoDeUsuarioYNoLosContactosDeNotificacion()
+    {
+        await using var context = CreateContext();
+        var persona = new Persona
+        {
+            Id = 1,
+            Natural = new PersonaNatural { Nombres = "Ana" },
+            Contactos =
+            {
+                new PersonaContacto { TipoContacto = "Correo", Valor = "notificaciones@example.test", EsPrincipal = true }
+            }
+        };
+        var rol = new Rol { Id = 1, Codigo = "CLIENTE", Nombre = "Cliente" };
+        context.Usuarios.Add(new Usuario
+        {
+            Id = 1,
+            Correo = "acceso@example.test",
+            PersonaId = 1,
+            Persona = persona,
+            PasswordHash = "test-hash",
+            Roles = { new UsuarioRol { Rol = rol } }
+        });
+        await context.SaveChangesAsync();
+        var hasher = new TestPasswordHasher(validPassword: true);
+        var handler = new LoginCommandHandler(context, hasher, new TestJwtService(), new TestRecaptchaVerifier());
+
+        var wrongIdentifier = () => handler.Handle(
+            new LoginCommand("notificaciones@example.test", "Password123!"), CancellationToken.None);
+        await wrongIdentifier.Should().ThrowAsync<UnauthorizedAccessException>()
+            .WithMessage("Credenciales inválidas.");
+        hasher.DummyVerificationCount.Should().Be(1);
+
+        var response = await handler.Handle(
+            new LoginCommand(" ACCESO@example.test ", "Password123!"), CancellationToken.None);
+        response.Token.Should().Be("test-token");
+        hasher.DummyVerificationCount.Should().Be(1);
     }
 
     [Fact]

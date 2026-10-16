@@ -31,6 +31,8 @@ public class UsuarioConfiguration : IEntityTypeConfiguration<Usuario>
             .HasColumnName("ContrasenaHash")
             .HasMaxLength(256)
             .IsRequired();
+        builder.Property(u => u.Correo).HasMaxLength(150).IsRequired();
+        builder.HasIndex(u => u.Correo).IsUnique().HasDatabaseName("UX_Usuario_Correo");
         builder.Property(u => u.UltimoAcceso);
 
         // FechaRegistro → FechaCreacion (BaseEntity)

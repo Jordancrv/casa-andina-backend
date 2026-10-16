@@ -46,12 +46,10 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
         var email = request.Email.Trim().ToLowerInvariant();
         var usuario = await _context.Usuarios
             .Include(u => u.Roles).ThenInclude(x => x.Rol)
-            .Include(u => u.Persona).ThenInclude(x => x.Contactos)
             .Include(u => u.Persona).ThenInclude(x => x.Natural)
             .Include(u => u.Persona).ThenInclude(x => x.Juridica)
             .Include(u => u.Persona).ThenInclude(x => x.Cliente)
-            .SingleOrDefaultAsync(u => u.Persona.Contactos.Any(c =>
-                c.TipoContacto == "Correo" && c.Valor == email) && u.Activo, cancellationToken);
+            .SingleOrDefaultAsync(u => u.Correo == email && u.Activo, cancellationToken);
 
         if (usuario is null)
         {

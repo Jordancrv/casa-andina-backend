@@ -10,9 +10,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CasaAndina.Application.Usuarios.Commands;
 
-public sealed class ActualizarContactosUsuarioCommandValidator : AbstractValidator<ActualizarContactosUsuarioCommand>
+public sealed class ActualizarCuentaUsuarioCommandValidator : AbstractValidator<ActualizarCuentaUsuarioCommand>
 {
-    public ActualizarContactosUsuarioCommandValidator()
+    public ActualizarCuentaUsuarioCommandValidator()
     {
         RuleFor(command => command.UsuarioId).GreaterThan(0);
         RuleFor(command => command.Correo).NotEmpty().EmailAddress().MaximumLength(150);
@@ -22,12 +22,12 @@ public sealed class ActualizarContactosUsuarioCommandValidator : AbstractValidat
     }
 }
 
-public sealed class ActualizarContactosUsuarioCommandHandler(
+public sealed class ActualizarCuentaUsuarioCommandHandler(
     IApplicationDbContext context,
     ICurrentUserService currentUser)
-    : IRequestHandler<ActualizarContactosUsuarioCommand>
+    : IRequestHandler<ActualizarCuentaUsuarioCommand>
 {
-    public async Task Handle(ActualizarContactosUsuarioCommand request, CancellationToken cancellationToken)
+    public async Task Handle(ActualizarCuentaUsuarioCommand request, CancellationToken cancellationToken)
     {
         EnsureAdministrator();
         if (currentUser.Rol != RolUsuario.Superadministrador && !currentUser.SedeId.HasValue)
@@ -40,33 +40,13 @@ public sealed class ActualizarContactosUsuarioCommandHandler(
         await EnsureSameScope(usuario, cancellationToken);
 
         var correo = request.Correo.Trim().ToLowerInvariant();
-        var correoPrincipal = usuario.Persona.Contactos
-            .Where(contacto => contacto.TipoContacto == "Correo")
-            .OrderByDescending(contacto => contacto.EsPrincipal)
-            .FirstOrDefault();
-        var correoContactoId = correoPrincipal?.Id;
-        var correoEnUso = await context.PersonaContactos.AnyAsync(contacto =>
-            contacto.TipoContacto == "Correo" && (!correoContactoId.HasValue || contacto.Id != correoContactoId.Value) &&
-            contacto.Valor.ToLower() == correo, cancellationToken);
+        var correoEnUso = await context.Usuarios.AnyAsync(otro =>
+            otro.Id != usuario.Id && otro.Correo == correo, cancellationToken);
         if (correoEnUso)
             throw new CasaAndina.Application.Common.Exceptions.ValidationException(
-                [new ValidationFailure(nameof(request.Correo), "El correo ya está asociado a otra persona.")]);
+                [new ValidationFailure(nameof(request.Correo), "El correo de acceso ya pertenece a otra cuenta.")]);
 
-        if (correoPrincipal is null)
-        {
-            usuario.Persona.Contactos.Add(new PersonaContacto
-            {
-                PersonaId = usuario.PersonaId,
-                TipoContacto = "Correo",
-                Valor = correo,
-                EsPrincipal = true
-            });
-        }
-        else
-        {
-            correoPrincipal.Valor = correo;
-            correoPrincipal.EsPrincipal = true;
-        }
+        usuario.Correo = correo;
 
         if (!string.IsNullOrWhiteSpace(request.Telefono))
         {
