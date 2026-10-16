@@ -1,20 +1,29 @@
 using CasaAndina.Application.Auth.Commands;
 using CasaAndina.Application.Common.Exceptions;
 using CasaAndina.Application.Common.Interfaces;
+using CasaAndina.Api.Extensions;
 using CasaAndina.Domain.Entities;
 using CasaAndina.Domain.Enums;
 using CasaAndina.Infrastructure.Persistence;
 using CasaAndina.Infrastructure.Services;
 using FluentAssertions;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using Xunit;
 
 namespace CasaAndina.Application.Tests;
 
 public sealed class AuthSecurityTests
 {
+    private const string TestJwtKey = "test-secret-key-with-at-least-32-characters";
+
     [Theory]
     [InlineData("1", 1)]
     [InlineData("4", 4)]
@@ -104,6 +113,41 @@ public sealed class AuthSecurityTests
         token.Claims.Should().Contain(claim => claim.Type == System.Security.Claims.ClaimTypes.Role
             && claim.Value == nameof(RolUsuario.Cliente));
         Math.Abs((token.ValidTo - expectedExpiration).TotalSeconds).Should().BeLessThan(2);
+    }
+
+    [Fact]
+    public void Jwt_ConfiguracionApi_DeberiaAceptarTokenValido()
+    {
+        var configuration = CreateJwtConfiguration();
+        var validationParameters = CreateJwtValidationParameters(configuration);
+        var validToken = CreateSignedToken("CasaAndina.Api", "CasaAndina.Clients", TestJwtKey,
+            DateTime.UtcNow.AddMinutes(5));
+
+        var principal = new JwtSecurityTokenHandler()
+            .ValidateToken(validToken, validationParameters, out _);
+
+        principal.FindFirst(ClaimTypes.Role)?.Value.Should().Be(nameof(RolUsuario.Cliente));
+    }
+
+    [Theory]
+    [InlineData("issuer")]
+    [InlineData("audience")]
+    [InlineData("signature")]
+    [InlineData("expiration")]
+    public void Jwt_ConfiguracionApi_DeberiaRechazarTokenInvalido(string defect)
+    {
+        var validationParameters = CreateJwtValidationParameters(CreateJwtConfiguration());
+        var issuer = defect == "issuer" ? "Otro.Emisor" : "CasaAndina.Api";
+        var audience = defect == "audience" ? "Otro.Audience" : "CasaAndina.Clients";
+        var key = defect == "signature" ? "another-invalid-signing-key-with-32-chars" : TestJwtKey;
+        var expiration = defect == "expiration"
+            ? DateTime.UtcNow.AddMinutes(-2)
+            : DateTime.UtcNow.AddMinutes(5);
+        var invalidToken = CreateSignedToken(issuer, audience, key, expiration);
+        var act = () => new JwtSecurityTokenHandler()
+            .ValidateToken(invalidToken, validationParameters, out _);
+
+        act.Should().Throw<SecurityTokenException>();
     }
 
     [Theory]
@@ -314,6 +358,42 @@ public sealed class AuthSecurityTests
         context.Roles.Add(new Rol { Codigo = "CLIENTE", Nombre = "Cliente" });
         context.SaveChanges();
         return context;
+    }
+
+    private static IConfiguration CreateJwtConfiguration() => new ConfigurationBuilder()
+        .AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Jwt:Issuer"] = "CasaAndina.Api",
+            ["Jwt:Audience"] = "CasaAndina.Clients",
+            ["Jwt:Key"] = TestJwtKey,
+            ["Jwt:ExpirationHours"] = "4"
+        })
+        .Build();
+
+    private static TokenValidationParameters CreateJwtValidationParameters(IConfiguration configuration)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddJwtAuthentication(configuration);
+        using var provider = services.BuildServiceProvider();
+        return provider.GetRequiredService<IOptionsMonitor<JwtBearerOptions>>()
+            .Get(JwtBearerDefaults.AuthenticationScheme).TokenValidationParameters;
+    }
+
+    private static string CreateSignedToken(string issuer, string audience, string signingKey, DateTime expiration)
+    {
+        var credentials = new SigningCredentials(
+            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
+            SecurityAlgorithms.HmacSha256);
+        var token = new JwtSecurityToken(
+            issuer: issuer,
+            audience: audience,
+            claims: [new Claim(ClaimTypes.Role, nameof(RolUsuario.Cliente))],
+            notBefore: DateTime.UtcNow.AddMinutes(-5),
+            expires: expiration,
+            signingCredentials: credentials);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
     private sealed class FakeJwtService : IJwtService
