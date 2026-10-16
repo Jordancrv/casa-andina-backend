@@ -26,20 +26,21 @@ public sealed class ReservaCompraSqlServerTests
             InitialCatalog = databaseName,
             MultipleActiveResultSets = true
         };
+        connection.Remove("AttachDbFilename");
         databaseName.Should().StartWith("CasaAndinaTestCompra_");
         databaseName.Should().NotBe("CasaAndinaDb");
 
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseSqlServer(connection.ConnectionString)
             .Options;
-        var databaseCreated = false;
+        var databaseCreationAttempted = false;
 
         try
         {
             await using (var seedContext = new ApplicationDbContext(options))
             {
-                databaseCreated = await seedContext.Database.EnsureCreatedAsync();
-                databaseCreated.Should().BeTrue("cada ejecución utiliza una base con nombre aleatorio");
+                databaseCreationAttempted = true;
+                (await seedContext.Database.EnsureCreatedAsync()).Should().BeTrue("cada ejecución utiliza una base con nombre aleatorio");
                 SeedCheckout(seedContext);
             }
 
@@ -88,7 +89,7 @@ public sealed class ReservaCompraSqlServerTests
         }
         finally
         {
-            if (databaseCreated)
+            if (databaseCreationAttempted)
             {
                 await using var cleanupContext = new ApplicationDbContext(options);
                 await cleanupContext.Database.EnsureDeletedAsync();
