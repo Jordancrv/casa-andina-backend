@@ -21,6 +21,8 @@ public static class ServiceCollectionExtensions
                 "Jwt:Key debe configurarse fuera del repositorio y tener al menos 32 caracteres.");
         }
 
+        _ = CasaAndina.Infrastructure.Services.JwtTokenSettings.GetExpirationHours(configuration);
+
         services.AddAuthentication(options =>
         {
             options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -34,6 +36,7 @@ public static class ServiceCollectionExtensions
                 ValidateAudience = true,
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true,
+                ClockSkew = TimeSpan.FromSeconds(30),
                 ValidIssuer = jwtSettings["Issuer"],
                 ValidAudience = jwtSettings["Audience"],
                 IssuerSigningKey = new SymmetricSecurityKey(

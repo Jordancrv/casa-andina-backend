@@ -38,6 +38,7 @@ public class JwtService : IJwtService
             throw new InvalidOperationException("El usuario no tiene roles asignados.");
 
         var jwtSettings = _configuration.GetSection("Jwt");
+        var expirationHours = JwtTokenSettings.GetExpirationHours(_configuration);
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
@@ -62,8 +63,7 @@ public class JwtService : IJwtService
             issuer: jwtSettings["Issuer"],
             audience: jwtSettings["Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(
-                double.Parse(jwtSettings["ExpirationHours"] ?? "8")),
+            expires: DateTime.UtcNow.AddHours(expirationHours),
             signingCredentials: creds);
 
         return new JwtSecurityTokenHandler().WriteToken(token);

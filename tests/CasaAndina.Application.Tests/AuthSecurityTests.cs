@@ -7,12 +7,56 @@ using CasaAndina.Infrastructure.Persistence;
 using CasaAndina.Infrastructure.Services;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Xunit;
 
 namespace CasaAndina.Application.Tests;
 
 public sealed class AuthSecurityTests
 {
+    [Theory]
+    [InlineData("1", 1)]
+    [InlineData("4", 4)]
+    [InlineData("8", 8)]
+    public void Jwt_DeberiaAceptarExpiracionesDentroDelRango(string configured, double expected)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Jwt:ExpirationHours"] = configured
+            })
+            .Build();
+
+        JwtTokenSettings.GetExpirationHours(configuration).Should().Be(expected);
+    }
+
+    [Fact]
+    public void Jwt_DeberiaUsarCuatroHorasCuandoNoHayConfiguracion()
+    {
+        var configuration = new ConfigurationBuilder().Build();
+
+        JwtTokenSettings.GetExpirationHours(configuration).Should().Be(4);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("8.1")]
+    [InlineData("NaN")]
+    [InlineData("infinity")]
+    public void Jwt_DeberiaRechazarExpiracionesInvalidas(string configured)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Jwt:ExpirationHours"] = configured
+            })
+            .Build();
+
+        var act = () => JwtTokenSettings.GetExpirationHours(configuration);
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
     [Theory]
     [InlineData("ADMINISTRADOR", RolUsuario.Administrador)]
     [InlineData("RECEPCION", RolUsuario.Recepcion)]
