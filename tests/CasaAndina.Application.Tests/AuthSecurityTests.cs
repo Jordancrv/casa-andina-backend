@@ -6,6 +6,7 @@ using CasaAndina.Domain.Enums;
 using CasaAndina.Infrastructure.Persistence;
 using CasaAndina.Infrastructure.Services;
 using FluentAssertions;
+using System.IdentityModel.Tokens.Jwt;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Xunit;
@@ -36,6 +37,52 @@ public sealed class AuthSecurityTests
         var configuration = new ConfigurationBuilder().Build();
 
         JwtTokenSettings.GetExpirationHours(configuration).Should().Be(4);
+    }
+
+    [Fact]
+    public void Jwt_DeberiaEmitirTokenConExpiracionYClaimsEsperados()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Jwt:Issuer"] = "CasaAndina.Api",
+                ["Jwt:Audience"] = "CasaAndina.Clients",
+                ["Jwt:Key"] = "test-secret-key-with-at-least-32-characters",
+                ["Jwt:ExpirationHours"] = "4"
+            })
+            .Build();
+        var user = new Usuario
+        {
+            Id = 42,
+            Persona = new Persona
+            {
+                Natural = new PersonaNatural { Nombres = "Cliente", Apellidos = "Prueba" },
+                Cliente = new Cliente { Id = 7 },
+                Contactos =
+                {
+                    new PersonaContacto
+                    {
+                        TipoContacto = "Correo",
+                        Valor = "cliente@example.test",
+                        EsPrincipal = true
+                    }
+                }
+            },
+            Roles =
+            {
+                new UsuarioRol { Rol = new Rol { Codigo = "CLIENTE" } }
+            }
+        };
+        var expectedExpiration = DateTime.UtcNow.AddHours(4);
+
+        var rawToken = new JwtService(configuration).GenerarToken(user);
+        var token = new JwtSecurityTokenHandler().ReadJwtToken(rawToken);
+
+        token.Issuer.Should().Be("CasaAndina.Api");
+        token.Audiences.Should().Contain("CasaAndina.Clients");
+        token.Claims.Should().Contain(claim => claim.Type == System.Security.Claims.ClaimTypes.Role
+            && claim.Value == nameof(RolUsuario.Cliente));
+        Math.Abs((token.ValidTo - expectedExpiration).TotalSeconds).Should().BeLessThan(2);
     }
 
     [Theory]
