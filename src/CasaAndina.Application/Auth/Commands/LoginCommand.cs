@@ -46,7 +46,13 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
             .SingleOrDefaultAsync(u => u.Persona.Contactos.Any(c =>
                 c.TipoContacto == "Correo" && c.Valor == email) && u.Activo, cancellationToken);
 
-        if (usuario is not null && _passwordHasher.Verify(request.Password, usuario.PasswordHash))
+        if (usuario is null)
+        {
+            _passwordHasher.VerifyAgainstDummyHash(request.Password);
+            throw new UnauthorizedAccessException("Credenciales inválidas.");
+        }
+
+        if (_passwordHasher.Verify(request.Password, usuario.PasswordHash))
         {
             usuario.UltimoAcceso = DateTime.UtcNow;
             await _context.SaveChangesAsync(cancellationToken);
@@ -59,7 +65,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
                 .OrderBy(RolCodigo.Prioridad)
                 .ToArray();
             if (roles.Length == 0)
-                throw new UnauthorizedAccessException("La cuenta no tiene roles asignados.");
+                throw new UnauthorizedAccessException("Credenciales inválidas.");
             var nombre = NombrePersona(usuario.Persona);
             return new LoginResponse(token, nombre, roles[0].ToString());
         }
