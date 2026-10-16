@@ -101,6 +101,8 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
             var capacity = room.TipoHabitacion.CapacidadAdultos + room.TipoHabitacion.CapacidadNinos;
             if (allocation.Huespedes.Count > capacity)
                 throw Invalid($"La habitación {room.Numero} admite como máximo {capacity} huéspedes.");
+            var roomSubtotal = decimal.Round(room.PrecioNoche * nights, 2);
+            ReservaCompraRules.ValidarImportePersistible(roomSubtotal, "Subtotal de habitación");
             foreach (var guest in allocation.Huespedes)
             {
                 if (!guestEmailSet.Add(guest.Correo.Trim().ToLowerInvariant()))
@@ -142,6 +144,7 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
         foreach (var allocation in request.Habitaciones)
         {
             var room = rooms.Single(x => x.Id == allocation.HabitacionId);
+            var roomSubtotal = decimal.Round(room.PrecioNoche * nights, 2);
             var detail = new ReservaHabitacion
             {
                 HabitacionId = room.Id,
@@ -149,9 +152,10 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
                 FechaCheckOut = checkOut,
                 CantidadPersonas = allocation.Huespedes.Count,
                 PrecioAcordado = room.PrecioNoche,
-                Subtotal = decimal.Round(room.PrecioNoche * nights, 2)
+                Subtotal = roomSubtotal
             };
-            reservation.PrecioTotal += detail.Subtotal;
+            reservation.PrecioTotal = ReservaCompraRules.ValidarImportePersistible(
+                reservation.PrecioTotal + detail.Subtotal, "Total de reserva");
             foreach (var guest in allocation.Huespedes)
             {
                 var guestId = await FindOrCreateGuest(guest, cancellationToken);
@@ -167,13 +171,16 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
         foreach (var requestedService in request.Servicios)
         {
             var service = services.Single(x => x.Id == requestedService.ServicioId);
+            var serviceSubtotal = service.Precio * requestedService.Cantidad;
+            ReservaCompraRules.ValidarImportePersistible(serviceSubtotal, "Subtotal de servicio");
             reservation.Servicios.Add(new ReservaServicio
             {
                 ServicioId = service.Id,
                 Cantidad = requestedService.Cantidad,
                 PrecioUnitario = service.Precio
             });
-            reservation.PrecioTotal += service.Precio * requestedService.Cantidad;
+            reservation.PrecioTotal = ReservaCompraRules.ValidarImportePersistible(
+                reservation.PrecioTotal + serviceSubtotal, "Total de reserva");
         }
 
         var bookingNumber = $"B{DateTime.UtcNow:yyyyMMdd}{reservation.CodigoReserva[^5..]}";

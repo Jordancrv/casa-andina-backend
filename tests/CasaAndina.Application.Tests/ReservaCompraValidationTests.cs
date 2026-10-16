@@ -1,5 +1,6 @@
 using CasaAndina.Application.Reservas.Commands;
 using CasaAndina.Application.Reservas.DTOs;
+using CasaAndina.Application.Common.Exceptions;
 using FluentAssertions;
 using Xunit;
 
@@ -64,6 +65,25 @@ public sealed class ReservaCompraValidationTests
         var result = await new CrearReservaCompraCommandValidator().ValidateAsync(command);
 
         result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Importe_maximo_decimal_10_2_es_aceptado()
+    {
+        var importe = () => ReservaCompraRules.ValidarImportePersistible(
+            ReservaCompraRules.MaximoImportePersistible, "Total de reserva");
+
+        importe.Should().NotThrow();
+    }
+
+    [Theory]
+    [InlineData(-0.01)]
+    [InlineData(100000000)]
+    public void Importe_fuera_de_decimal_10_2_se_rechaza(decimal valor)
+    {
+        var importe = () => ReservaCompraRules.ValidarImportePersistible(valor, "Total de reserva");
+
+        importe.Should().Throw<ValidationException>();
     }
 
     private static CrearReservaCompraCommand ValidCommand() => new(
