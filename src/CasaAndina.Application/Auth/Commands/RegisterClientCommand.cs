@@ -41,6 +41,9 @@ public sealed class RegisterClientCommandValidator : AbstractValidator<RegisterC
             .MinimumLength(3)
             .MaximumLength(200);
         RuleFor(x => x.NombreCompleto)
+            .Must(value => !string.IsNullOrWhiteSpace(value))
+            .WithMessage("El nombre o razón social no puede contener solo espacios.");
+        RuleFor(x => x.NombreCompleto)
             .Matches(@"^[\p{L}][\p{L}\s.'-]*$")
             .When(x => x.TipoPersona == "N")
             .WithMessage("El nombre solo puede contener letras y separadores habituales.");

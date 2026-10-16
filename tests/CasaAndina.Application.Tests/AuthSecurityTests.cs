@@ -235,6 +235,22 @@ public sealed class AuthSecurityTests
         ]);
     }
 
+    [Theory]
+    [InlineData("N", "DNI", "12345678")]
+    [InlineData("J", "RUC", "20123456789")]
+    public void Registro_RechazaNombreORazonSocialCompuestosSoloPorEspacios(
+        string personType, string documentType, string documentNumber)
+    {
+        var validator = new RegisterClientCommandValidator();
+        var command = new RegisterClientCommand(
+            personType, documentType, documentNumber, "   ", null,
+            "cliente@example.test", null, "CasaAndina2026!");
+
+        var result = validator.Validate(command);
+
+        result.Errors.Should().Contain(error => error.PropertyName == nameof(RegisterClientCommand.NombreCompleto));
+    }
+
     [Fact]
     public void Login_DeberiaLimitarLongitudDeContrasena()
     {

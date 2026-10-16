@@ -32,6 +32,56 @@ public sealed class CrearReservaCompraHandlerTests
     }
 
     [Fact]
+    public async Task Correo_de_acceso_con_nombres_distintos_se_rechaza_sin_crear_reserva()
+    {
+        await using var context = CreateContext();
+        var seed = await SeedAsync(context);
+        var handler = new CrearReservaCompraCommandHandler(context, new CurrentUserStub(seed.ClienteId, seed.UsuarioId));
+        var command = Command("titular@example.test", true) with
+        {
+            Habitaciones = [new HabitacionCompraDto(1, [
+                new HuespedCompraDto("Otra Persona", "Visitante", "titular@example.test", null, true)
+            ])]
+        };
+
+        var action = () => handler.Handle(command, CancellationToken.None);
+
+        await action.Should().ThrowAsync<CasaAndina.Application.Common.Exceptions.ConflictException>();
+        (await context.Reservas.CountAsync()).Should().Be(0);
+        (await context.Huespedes.CountAsync()).Should().Be(0);
+        (await context.Personas.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Correo_de_contacto_con_nombres_distintos_se_rechaza()
+    {
+        await using var context = CreateContext();
+        var seed = await SeedAsync(context);
+        context.Personas.Add(new Persona
+        {
+            TipoPersona = "N",
+            Estado = "Activo",
+            Natural = new PersonaNatural { Nombres = "Nombre Registrado", Apellidos = "Apellido Registrado" },
+            Contactos = { new PersonaContacto { TipoContacto = "Correo", Valor = "visita@example.test", EsPrincipal = true } }
+        });
+        await context.SaveChangesAsync();
+        var handler = new CrearReservaCompraCommandHandler(context, new CurrentUserStub(seed.ClienteId, seed.UsuarioId));
+        var command = Command("titular@example.test", true) with
+        {
+            Habitaciones = [new HabitacionCompraDto(1, [
+                new HuespedCompraDto("Otro Nombre", "Otra Persona", "visita@example.test", null, false),
+                new HuespedCompraDto("Titular", "Prueba", "titular@example.test", null, true)
+            ])]
+        };
+
+        var action = () => handler.Handle(command, CancellationToken.None);
+
+        await action.Should().ThrowAsync<CasaAndina.Application.Common.Exceptions.ConflictException>();
+        (await context.Reservas.CountAsync()).Should().Be(0);
+        (await context.Personas.CountAsync()).Should().Be(2);
+    }
+
+    [Fact]
     public async Task Huesped_nuevo_se_registra_como_persona_natural_y_se_asigna_a_la_reserva()
     {
         await using var context = CreateContext();
@@ -53,7 +103,7 @@ public sealed class CrearReservaCompraHandlerTests
     private static CrearReservaCompraCommand Command(string email, bool titular)
     {
         var guests = titular
-            ? new[] { new HuespedCompraDto("María José", "O’Neil", email, null, true) }
+            ? new[] { new HuespedCompraDto("Titular", "Prueba", email, null, true) }
             : [
                 new HuespedCompraDto("Titular", "Prueba", "titular@example.test", null, true),
                 new HuespedCompraDto("María José", "O’Neil", email, null, false)
@@ -85,7 +135,7 @@ public sealed class CrearReservaCompraHandlerTests
         var person = new Persona
         {
             TipoPersona = "N", Estado = "Activo", FechaRegistro = PeruBusinessTime.Today,
-            Natural = new PersonaNatural { Nombres = "Titular", Apellidos = "Prueba" }
+            Natural = new PersonaNatural { Nombres = "Titular Prueba" }
         };
         var client = new Cliente { Persona = person, Estado = "Activo", FechaRegistro = PeruBusinessTime.Today };
         var user = new Usuario { Correo = "titular@example.test", PasswordHash = "test-hash", Persona = person };

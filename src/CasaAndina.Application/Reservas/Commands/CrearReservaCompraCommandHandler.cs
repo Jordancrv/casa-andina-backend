@@ -284,6 +284,7 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
         {
             if (account.Persona.Natural is null)
                 throw new ConflictException("El correo indicado corresponde a una persona jurídica y no puede registrarse como huésped.");
+            EnsureGuestNamesMatch(account.Persona.Natural.Nombres, account.Persona.Natural.Apellidos, guest);
 
             var accountGuest = await _context.Huespedes.SingleOrDefaultAsync(
                 x => x.PersonaId == account.PersonaId, cancellationToken);
@@ -305,10 +306,11 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
             .SingleOrDefaultAsync(x => x.TipoContacto == "Correo" && x.Valor.ToLower() == email, cancellationToken);
         if (existingContact is not null)
         {
-            var existingGuest = await _context.Huespedes.SingleOrDefaultAsync(x => x.PersonaId == existingContact.PersonaId, cancellationToken);
-            if (existingGuest is not null) return existingGuest.Id;
             if (existingContact.Persona.Natural is null)
                 throw new ConflictException("El correo indicado pertenece a una persona jurídica y no puede registrarse como huésped.");
+            EnsureGuestNamesMatch(existingContact.Persona.Natural.Nombres, existingContact.Persona.Natural.Apellidos, guest);
+            var existingGuest = await _context.Huespedes.SingleOrDefaultAsync(x => x.PersonaId == existingContact.PersonaId, cancellationToken);
+            if (existingGuest is not null) return existingGuest.Id;
             var linkedGuest = new Huesped { PersonaId = existingContact.PersonaId, FechaRegistro = DateTime.UtcNow };
             _context.Huespedes.Add(linkedGuest);
             await _context.SaveChangesAsync(cancellationToken);
@@ -334,6 +336,22 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
         await _context.SaveChangesAsync(cancellationToken);
         return newGuest.Id;
     }
+
+    private static void EnsureGuestNamesMatch(string existingNames, string? existingSurnames, HuespedCompraDto guest)
+    {
+        var separateNamesMatch = NameMatches(existingNames, guest.Nombres)
+            && NameMatches(existingSurnames, guest.Apellidos);
+        var fullNameMatches = string.IsNullOrWhiteSpace(existingSurnames)
+            && NameMatches(existingNames, $"{guest.Nombres} {guest.Apellidos}");
+        if (separateNamesMatch || fullNameMatches) return;
+        throw new ConflictException("Los datos del huésped no coinciden con el perfil asociado al correo. Verifica los datos ingresados.");
+    }
+
+    private static bool NameMatches(string? existing, string submitted)
+        => string.Equals(NormalizeName(existing), NormalizeName(submitted), StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeName(string? value)
+        => string.Join(' ', (value ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
     private static ValidationException Invalid(string message)
         => new([new ValidationFailure("Reserva", message)]);
