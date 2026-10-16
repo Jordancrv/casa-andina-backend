@@ -1,6 +1,7 @@
 using CasaAndina.Application.Common.Interfaces;
 using CasaAndina.Application.Common.Exceptions;
 using CasaAndina.Application.Reservas.DTOs;
+using CasaAndina.Domain.Enums;
 using FluentValidation.Results;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -47,13 +48,24 @@ public sealed class GetDisponibilidadQueryHandler(IApplicationDbContext context)
 public sealed record GetCalendarioReservasQuery(int SedeId, DateTime FechaDesde, DateTime FechaHasta)
     : IRequest<IReadOnlyList<HabitacionCalendarioDto>>;
 
-public sealed class GetCalendarioReservasQueryHandler(IApplicationDbContext context)
+public sealed class GetCalendarioReservasQueryHandler(
+    IApplicationDbContext context,
+    ICurrentUserService currentUser)
     : IRequestHandler<GetCalendarioReservasQuery, IReadOnlyList<HabitacionCalendarioDto>>
 {
     public async Task<IReadOnlyList<HabitacionCalendarioDto>> Handle(
         GetCalendarioReservasQuery request, CancellationToken cancellationToken)
     {
         ValidarRango(request.SedeId, request.FechaDesde, request.FechaHasta);
+        if (currentUser.Rol is not (RolUsuario.Administrador or RolUsuario.Superadministrador)
+            && !currentUser.SedeId.HasValue)
+        {
+            throw new ForbiddenAccessException("El usuario no tiene una sede asignada.");
+        }
+
+        if (currentUser.SedeId.HasValue && currentUser.SedeId.Value != request.SedeId)
+            throw new ForbiddenAccessException("No tiene permisos para consultar reservas de otra sede.");
+
         var desde = request.FechaDesde.Date;
         var hasta = request.FechaHasta.Date;
 
