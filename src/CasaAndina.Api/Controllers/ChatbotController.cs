@@ -8,7 +8,7 @@ namespace CasaAndina.Api.Controllers;
 /// <summary>RF05/RF06: expuesto al Portal Cliente (requiere JWT de cliente).</summary>
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "Cliente")]
 public class ChatbotController : ControllerBase
 
 {

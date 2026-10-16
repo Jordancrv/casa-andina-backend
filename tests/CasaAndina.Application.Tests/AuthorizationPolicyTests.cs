@@ -1,4 +1,5 @@
 using CasaAndina.Api.Extensions;
+using CasaAndina.Api.Controllers;
 using CasaAndina.Domain.Enums;
 using FluentAssertions;
 using Microsoft.AspNetCore.Authorization;
@@ -45,6 +46,17 @@ public sealed class AuthorizationPolicyTests
             .AuthorizeAsync(new ClaimsPrincipal(new ClaimsIdentity()), resource: null, "Cliente");
 
         result.Succeeded.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Chatbot_DeberiaRestringirseAlRolCliente()
+    {
+        var authorize = typeof(ChatbotController)
+            .GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true)
+            .Cast<AuthorizeAttribute>()
+            .Single();
+
+        authorize.Policy.Should().Be("Cliente");
     }
 
     private static ServiceProvider CreateAuthorizationProvider()
