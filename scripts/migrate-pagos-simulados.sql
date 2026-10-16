@@ -254,31 +254,33 @@ BEGIN TRY
         THROW 51042, 'Faltan claves, índices o restricciones requeridas en el esquema de pagos.', 1;
 
     -- Catálogos idempotentes: conserva cualquier configuración existente por código.
-    INSERT INTO dbo.EstadoPago (Codigo, Nombre, Descripcion, EsFinal)
-    SELECT v.Codigo, v.Nombre, v.Descripcion, v.EsFinal
-    FROM (VALUES
-        (N'PENDIENTE', N'Pendiente', N'Registro creado y pendiente de validación.', CONVERT(bit,0)),
-        (N'EN_PROCESO', N'En proceso', N'Registro en proceso de validación manual.', CONVERT(bit,0)),
-        (N'APROBADO', N'Aprobado', N'Estado aprobado dentro de la simulación; no confirma un cobro real.', CONVERT(bit,1)),
-        (N'RECHAZADO', N'Rechazado', N'Registro simulado rechazado.', CONVERT(bit,1)),
-        (N'CANCELADO', N'Cancelado', N'Registro simulado cancelado.', CONVERT(bit,1)),
-        (N'REEMBOLSO_PARCIAL', N'Reembolso parcial', N'Reembolso parcial simulado.', CONVERT(bit,1)),
-        (N'REEMBOLSADO', N'Reembolsado', N'Reembolso simulado.', CONVERT(bit,1))
-    ) v(Codigo, Nombre, Descripcion, EsFinal)
-    WHERE NOT EXISTS (SELECT 1 FROM dbo.EstadoPago e WHERE e.Codigo = v.Codigo);
+    EXEC sys.sp_executesql N'
+        INSERT INTO dbo.EstadoPago (Codigo, Nombre, Descripcion, EsFinal)
+        SELECT v.Codigo, v.Nombre, v.Descripcion, v.EsFinal
+        FROM (VALUES
+            (N''PENDIENTE'', N''Pendiente'', N''Registro creado y pendiente de validación.'', CONVERT(bit,0)),
+            (N''EN_PROCESO'', N''En proceso'', N''Registro en proceso de validación manual.'', CONVERT(bit,0)),
+            (N''APROBADO'', N''Aprobado'', N''Estado aprobado dentro de la simulación; no confirma un cobro real.'', CONVERT(bit,1)),
+            (N''RECHAZADO'', N''Rechazado'', N''Registro simulado rechazado.'', CONVERT(bit,1)),
+            (N''CANCELADO'', N''Cancelado'', N''Registro simulado cancelado.'', CONVERT(bit,1)),
+            (N''REEMBOLSO_PARCIAL'', N''Reembolso parcial'', N''Reembolso parcial simulado.'', CONVERT(bit,1)),
+            (N''REEMBOLSADO'', N''Reembolsado'', N''Reembolso simulado.'', CONVERT(bit,1))
+        ) v(Codigo, Nombre, Descripcion, EsFinal)
+        WHERE NOT EXISTS (SELECT 1 FROM dbo.EstadoPago e WHERE e.Codigo = v.Codigo);';
 
-    INSERT INTO dbo.MetodoPago (Codigo, Nombre, Categoria)
-    SELECT v.Codigo, v.Nombre, v.Categoria
-    FROM (VALUES
-        (N'TARJETA_CREDITO', N'Tarjeta de crédito', N'Tarjeta'),
-        (N'TARJETA_DEBITO', N'Tarjeta de débito', N'Tarjeta'),
-        (N'YAPE', N'Yape', N'BilleteraDigital'),
-        (N'PLIN', N'Plin', N'BilleteraDigital'),
-        (N'TRANSFERENCIA', N'Transferencia bancaria', N'Transferencia'),
-        (N'EFECTIVO', N'Efectivo', N'Efectivo'),
-        (N'OTRO', N'Otro medio de pago', N'Otro')
-    ) v(Codigo, Nombre, Categoria)
-    WHERE NOT EXISTS (SELECT 1 FROM dbo.MetodoPago m WHERE m.Codigo = v.Codigo);
+    EXEC sys.sp_executesql N'
+        INSERT INTO dbo.MetodoPago (Codigo, Nombre, Categoria)
+        SELECT v.Codigo, v.Nombre, v.Categoria
+        FROM (VALUES
+            (N''TARJETA_CREDITO'', N''Tarjeta de crédito'', N''Tarjeta''),
+            (N''TARJETA_DEBITO'', N''Tarjeta de débito'', N''Tarjeta''),
+            (N''YAPE'', N''Yape'', N''BilleteraDigital''),
+            (N''PLIN'', N''Plin'', N''BilleteraDigital''),
+            (N''TRANSFERENCIA'', N''Transferencia bancaria'', N''Transferencia''),
+            (N''EFECTIVO'', N''Efectivo'', N''Efectivo''),
+            (N''OTRO'', N''Otro medio de pago'', N''Otro'')
+        ) v(Codigo, Nombre, Categoria)
+        WHERE NOT EXISTS (SELECT 1 FROM dbo.MetodoPago m WHERE m.Codigo = v.Codigo);';
 
     COMMIT TRANSACTION;
 END TRY
