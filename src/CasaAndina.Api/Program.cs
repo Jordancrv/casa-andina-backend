@@ -16,6 +16,24 @@ builder.Services.AddCorsForFrontend(builder.Configuration);
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        var retryAfter = TimeSpan.FromMinutes(1);
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var leaseRetryAfter))
+            retryAfter = leaseRetryAfter;
+
+        var retrySeconds = Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds));
+        context.HttpContext.Response.Headers.RetryAfter = retrySeconds.ToString(
+            System.Globalization.CultureInfo.InvariantCulture);
+        var retryMinutes = Math.Max(1, (int)Math.Ceiling(retryAfter.TotalMinutes));
+        var problem = new Microsoft.AspNetCore.Mvc.ProblemDetails
+        {
+            Status = StatusCodes.Status429TooManyRequests,
+            Title = "Demasiadas solicitudes",
+            Detail = $"Has alcanzado el límite de solicitudes. Intenta nuevamente en aproximadamente {retryMinutes} minuto(s)."
+        };
+        await context.HttpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
+    };
     options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
