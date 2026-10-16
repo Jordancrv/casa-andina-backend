@@ -23,6 +23,15 @@ public sealed class ClientesAdminQueryTests
             Natural = new PersonaNatural { PersonaId = 10, Nombres = "Ana", Apellidos = "Prueba" },
             Contactos = { new PersonaContacto { TipoContacto = "Correo", Valor = "ana@example.test", EsPrincipal = true } }
         };
+        var user = new Usuario
+        {
+            Id = 40,
+            PersonaId = persona.Id,
+            Persona = persona,
+            Correo = "ana.access@example.test",
+            PasswordHash = "test-hash"
+        };
+        persona.Usuario = user;
         var cliente = new Cliente { Id = 20, PersonaId = persona.Id, Persona = persona, Estado = "Activo" };
         var reserva = new Reserva
         {
@@ -74,6 +83,7 @@ public sealed class ClientesAdminQueryTests
         reserva.Pagos.Add(payments[1]);
         foreignReservation.Pagos.Add(payments[2]);
         context.Clientes.Add(cliente);
+        context.Usuarios.Add(user);
         context.Sedes.Add(otherHotel);
         context.Reservas.AddRange(reserva, foreignReservation);
         context.EstadosPago.AddRange(approved, rejected);
@@ -91,8 +101,13 @@ public sealed class ClientesAdminQueryTests
         item.TotalReservas.Should().Be(1);
         item.ImporteReservado.Should().Be(250);
         item.ImportePagadoSimulado.Should().Be(180);
-        item.Correo.Should().Be("ana@example.test");
+        item.CorreoAcceso.Should().Be("ana.access@example.test");
+        item.CorreoNotificacion.Should().Be("ana@example.test");
         item.Historial.Should().ContainSingle().Which.CodigoReserva.Should().Be("CA-TEST-30");
+
+        var foundByLoginEmail = await handler.Handle(
+            new GetClientesAdminQuery("ana.access@example.test"), CancellationToken.None);
+        foundByLoginEmail.Items.Should().ContainSingle().Which.ClienteId.Should().Be(cliente.Id);
     }
 
     [Fact]

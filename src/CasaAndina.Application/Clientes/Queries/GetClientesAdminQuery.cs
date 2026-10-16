@@ -50,6 +50,8 @@ public sealed class GetClientesAdminQueryHandler(
                 || (cliente.Persona.Juridica != null &&
                     (cliente.Persona.Juridica.RazonSocial.Contains(buscar)
                      || (cliente.Persona.Juridica.NombreComercial != null && cliente.Persona.Juridica.NombreComercial.Contains(buscar))))
+                || context.Usuarios.Any(usuario => usuario.PersonaId == cliente.PersonaId
+                    && usuario.Correo.Contains(buscar))
                 || cliente.Persona.Contactos.Any(contacto => contacto.TipoContacto == "Correo" && contacto.Valor.Contains(buscar)))
             .OrderBy(cliente => cliente.Id);
 
@@ -59,6 +61,10 @@ public sealed class GetClientesAdminQueryHandler(
                 ? ((cliente.Persona.Natural!.Nombres + " ") + (cliente.Persona.Natural.Apellidos ?? "")).Trim()
                 : (cliente.Persona.Juridica!.NombreComercial ?? cliente.Persona.Juridica.RazonSocial),
             cliente.Persona.TipoPersona == "N" ? "Natural" : "Jurídica",
+            context.Usuarios
+                .Where(usuario => usuario.PersonaId == cliente.PersonaId)
+                .Select(usuario => usuario.Correo)
+                .FirstOrDefault(),
             cliente.Persona.Contactos
                 .Where(contacto => contacto.TipoContacto == "Correo")
                 .OrderByDescending(contacto => contacto.EsPrincipal)
