@@ -39,6 +39,27 @@ public sealed class AuthSecurityTests
         JwtTokenSettings.GetExpirationHours(configuration).Should().Be(4);
     }
 
+    [Theory]
+    [InlineData("Jwt:Issuer")]
+    [InlineData("Jwt:Audience")]
+    public void Jwt_DeberiaRechazarIssuerOAudienceVacios(string missingSetting)
+    {
+        var settings = new Dictionary<string, string?>
+        {
+            ["Jwt:Issuer"] = "CasaAndina.Api",
+            ["Jwt:Audience"] = "CasaAndina.Clients",
+            ["Jwt:ExpirationHours"] = "4"
+        };
+        settings.Remove(missingSetting);
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(settings)
+            .Build();
+
+        var act = () => JwtTokenSettings.ValidateAndGetExpirationHours(configuration);
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
     [Fact]
     public void Jwt_DeberiaEmitirTokenConExpiracionYClaimsEsperados()
     {

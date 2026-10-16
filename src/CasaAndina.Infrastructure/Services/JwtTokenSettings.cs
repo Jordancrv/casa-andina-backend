@@ -8,6 +8,16 @@ public static class JwtTokenSettings
     public const double DefaultExpirationHours = 4;
     public const double MaximumExpirationHours = 8;
 
+    public static double ValidateAndGetExpirationHours(IConfiguration configuration)
+    {
+        if (string.IsNullOrWhiteSpace(configuration["Jwt:Issuer"]))
+            throw new InvalidOperationException("Jwt:Issuer debe configurarse.");
+        if (string.IsNullOrWhiteSpace(configuration["Jwt:Audience"]))
+            throw new InvalidOperationException("Jwt:Audience debe configurarse.");
+
+        return GetExpirationHours(configuration);
+    }
+
     public static double GetExpirationHours(IConfiguration configuration)
     {
         var configuredValue = configuration["Jwt:ExpirationHours"];
