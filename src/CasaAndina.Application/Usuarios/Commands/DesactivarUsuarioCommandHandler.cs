@@ -25,11 +25,11 @@ public sealed class DesactivarUsuarioCommandHandler(
     {
         if (currentUser.Rol is not (RolUsuario.Administrador or RolUsuario.Superadministrador))
             throw new ForbiddenAccessException("No tiene permisos para desactivar usuarios.");
-        if (currentUser.Rol != RolUsuario.Superadministrador && !currentUser.SedeId.HasValue)
-            throw new ForbiddenAccessException("La cuenta administrativa no tiene una sede asignada.");
         if (currentUser.UsuarioId == request.Id)
             throw new CasaAndina.Application.Common.Exceptions.ValidationException(
                 [new ValidationFailure(nameof(request.Id), "No puedes desactivar tu propia cuenta.")]);
+        if (currentUser.Rol != RolUsuario.Superadministrador && !currentUser.SedeId.HasValue)
+            throw new ForbiddenAccessException("La cuenta administrativa no tiene una sede asignada.");
 
         var usuario = await context.Usuarios.SingleOrDefaultAsync(
             item => item.Id == request.Id, cancellationToken)

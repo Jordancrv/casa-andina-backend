@@ -21,7 +21,7 @@ public sealed class DesactivarUsuarioCommandTests
             TipoPersona = "N",
             Natural = new PersonaNatural { PersonaId = 10, Nombres = "Cuenta", Apellidos = "Prueba" }
         };
-        context.Usuarios.Add(new Usuario { Id = 20, PersonaId = persona.Id, Persona = persona, PasswordHash = "hash-de-prueba" });
+        context.Usuarios.Add(new Usuario { Id = 20, PersonaId = persona.Id, Persona = persona, SedeId = 5, PasswordHash = "hash-de-prueba" });
         await context.SaveChangesAsync();
         var handler = new DesactivarUsuarioCommandHandler(context, new CurrentUserStub());
 
@@ -49,11 +49,11 @@ public sealed class DesactivarUsuarioCommandTests
         return new ApplicationDbContext(options);
     }
 
-    private sealed class CurrentUserStub(int? usuarioId = 1) : ICurrentUserService
+    private sealed class CurrentUserStub(int? usuarioId = 1, int? sedeId = 5) : ICurrentUserService
     {
         public int? UsuarioId => usuarioId;
         public int? ClienteId => null;
-        public int? SedeId => null;
+        public int? SedeId => sedeId;
         public RolUsuario? Rol => RolUsuario.Administrador;
     }
 }
