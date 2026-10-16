@@ -88,6 +88,8 @@ public sealed class ActualizarCuentaUsuarioCommandHandler(
     {
         if (currentUser.SedeId is not int sedeId || usuario.SedeId == sedeId)
             return;
+        if (usuario.SedeId.HasValue)
+            throw new NotFoundException("Usuario", usuario.Id);
 
         var clienteTieneReservaEnSede = await context.Clientes.AnyAsync(cliente =>
             cliente.PersonaId == usuario.PersonaId &&

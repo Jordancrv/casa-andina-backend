@@ -42,6 +42,20 @@ public sealed class DesactivarUsuarioCommandTests
         await action.Should().ThrowAsync<CasaAndina.Application.Common.Exceptions.ValidationException>();
     }
 
+    [Fact]
+    public async Task No_desactiva_cuenta_de_otra_sede_aunque_tenga_reserva_en_la_sede_actual()
+    {
+        await using var context = CreateContext();
+        await ActualizarCuentaUsuarioTests.SeedCrossSiteCustomer(context);
+        var handler = new DesactivarUsuarioCommandHandler(context, new CurrentUserStub());
+
+        var action = () => handler.Handle(new DesactivarUsuarioCommand(2), CancellationToken.None);
+
+        await action.Should().ThrowAsync<CasaAndina.Application.Common.Exceptions.NotFoundException>();
+        (await context.Usuarios.SingleAsync(user => user.Id == 2)).Activo.Should().BeTrue();
+        context.Auditoria.Should().BeEmpty();
+    }
+
     private static ApplicationDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()

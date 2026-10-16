@@ -57,8 +57,8 @@ public sealed class GetUsuariosAdminQueryHandler(IApplicationDbContext context, 
         {
             var sedeId = currentUser.SedeId.Value;
             users = users.Where(user => user.SedeId == sedeId ||
-                context.Clientes.Any(cliente => cliente.PersonaId == user.PersonaId &&
-                    cliente.Reservas.Any(reserva => reserva.SedeId == sedeId)));
+                (!user.SedeId.HasValue && context.Clientes.Any(cliente => cliente.PersonaId == user.PersonaId &&
+                    cliente.Reservas.Any(reserva => reserva.SedeId == sedeId))));
         }
 
         var normalizedSearch = string.IsNullOrWhiteSpace(search) ? null : search.Trim();

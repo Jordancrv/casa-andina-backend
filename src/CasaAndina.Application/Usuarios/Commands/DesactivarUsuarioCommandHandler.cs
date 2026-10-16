@@ -37,6 +37,9 @@ public sealed class DesactivarUsuarioCommandHandler(
 
         if (currentUser.SedeId is int sedeId && usuario.SedeId != sedeId)
         {
+            if (usuario.SedeId.HasValue)
+                throw new NotFoundException("Usuario", request.Id);
+
             var clienteTieneReservaEnSede = await context.Clientes.AnyAsync(cliente =>
                 cliente.PersonaId == usuario.PersonaId &&
                 cliente.Reservas.Any(reserva => reserva.SedeId == sedeId), cancellationToken);
