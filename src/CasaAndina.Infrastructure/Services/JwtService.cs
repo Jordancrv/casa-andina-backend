@@ -20,10 +20,9 @@ public class JwtService : IJwtService
     public string GenerarToken(Usuario usuario)
     {
         var persona = usuario.Persona;
-        var email = persona.Contactos
-            .FirstOrDefault(x => x.TipoContacto == "Correo" && x.EsPrincipal)?.Valor
-            ?? persona.Contactos.FirstOrDefault(x => x.TipoContacto == "Correo")?.Valor
-            ?? throw new InvalidOperationException("La persona del usuario no tiene correo electrónico.");
+        var email = usuario.Correo?.Trim();
+        if (string.IsNullOrWhiteSpace(email))
+            throw new InvalidOperationException("El usuario no tiene correo de acceso.");
         var nombre = persona.Natural is not null
             ? string.Join(' ', new[] { persona.Natural.Nombres, persona.Natural.Apellidos }
                 .Where(x => !string.IsNullOrWhiteSpace(x)))

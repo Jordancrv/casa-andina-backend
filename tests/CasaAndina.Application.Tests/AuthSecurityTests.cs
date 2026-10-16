@@ -84,6 +84,7 @@ public sealed class AuthSecurityTests
         var user = new Usuario
         {
             Id = 42,
+            Correo = "acceso@example.test",
             Persona = new Persona
             {
                 Natural = new PersonaNatural { Nombres = "Cliente", Apellidos = "Prueba" },
@@ -93,7 +94,7 @@ public sealed class AuthSecurityTests
                     new PersonaContacto
                     {
                         TipoContacto = "Correo",
-                        Valor = "cliente@example.test",
+                        Valor = "notificaciones@example.test",
                         EsPrincipal = true
                     }
                 }
@@ -112,6 +113,8 @@ public sealed class AuthSecurityTests
         token.Audiences.Should().Contain("CasaAndina.Clients");
         token.Claims.Should().Contain(claim => claim.Type == System.Security.Claims.ClaimTypes.Role
             && claim.Value == nameof(RolUsuario.Cliente));
+        token.Claims.Should().Contain(claim => claim.Type == JwtRegisteredClaimNames.Email
+            && claim.Value == "acceso@example.test");
         Math.Abs((token.ValidTo - expectedExpiration).TotalSeconds).Should().BeLessThan(2);
     }
 

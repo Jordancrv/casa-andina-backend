@@ -59,10 +59,6 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
 
         if (_passwordHasher.Verify(request.Password, usuario.PasswordHash))
         {
-            usuario.UltimoAcceso = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
-
-            var token = _jwtService.GenerarToken(usuario);
             var roles = usuario.Roles
                 .Select(x => RolCodigo.Mapear(x.Rol.Codigo))
                 .Where(x => x.HasValue)
@@ -71,6 +67,10 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
                 .ToArray();
             if (roles.Length == 0)
                 throw new UnauthorizedAccessException("Credenciales inválidas.");
+            var token = _jwtService.GenerarToken(usuario);
+            usuario.UltimoAcceso = DateTime.UtcNow;
+            await _context.SaveChangesAsync(cancellationToken);
+
             var nombre = NombrePersona(usuario.Persona);
             return new LoginResponse(token, nombre, roles[0].ToString());
         }
