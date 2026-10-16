@@ -23,7 +23,9 @@ public sealed record HabitacionCalendarioDto(
 
 public sealed record ReservaCalendarioDto(
     DateTime FechaCheckIn,
-    DateTime FechaCheckOut);
+    DateTime FechaCheckOut,
+    string Estado,
+    string NombreReservante);
 
 public sealed record ServicioDisponibleDto(int Id, string Nombre, string? Descripcion, decimal Precio);
 

@@ -16,7 +16,7 @@ public sealed class LoginSecurityTests
     {
         await using var context = CreateContext();
         var hasher = new TestPasswordHasher();
-        var handler = new LoginCommandHandler(context, hasher, new TestJwtService());
+        var handler = new LoginCommandHandler(context, hasher, new TestJwtService(), new TestRecaptchaVerifier());
 
         var action = () => handler.Handle(
             new LoginCommand("inexistente@example.test", "Password123!"), CancellationToken.None);
@@ -43,13 +43,28 @@ public sealed class LoginSecurityTests
             PasswordHash = "test-hash"
         });
         await context.SaveChangesAsync();
-        var handler = new LoginCommandHandler(context, new TestPasswordHasher(validPassword: true), new TestJwtService());
+        var handler = new LoginCommandHandler(context, new TestPasswordHasher(validPassword: true), new TestJwtService(), new TestRecaptchaVerifier());
 
         var action = () => handler.Handle(
             new LoginCommand("sin-rol@example.test", "Password123!"), CancellationToken.None);
 
         var error = await action.Should().ThrowAsync<UnauthorizedAccessException>();
         error.Which.Message.Should().Be("Credenciales inválidas.");
+    }
+
+    [Fact]
+    public async Task Login_RechazaCaptchaInvalidoAntesDeVerificarCredenciales()
+    {
+        await using var context = CreateContext();
+        var hasher = new TestPasswordHasher();
+        var handler = new LoginCommandHandler(context, hasher, new TestJwtService(), new TestRecaptchaVerifier(valid: false));
+
+        var action = () => handler.Handle(
+            new LoginCommand("cliente@example.test", "Password123!", "token-invalido"), CancellationToken.None);
+
+        await action.Should().ThrowAsync<UnauthorizedAccessException>()
+            .WithMessage("Credenciales inválidas.");
+        hasher.DummyVerificationCount.Should().Be(0);
     }
 
     private static ApplicationDbContext CreateContext()
@@ -71,5 +86,11 @@ public sealed class LoginSecurityTests
     private sealed class TestJwtService : IJwtService
     {
         public string GenerarToken(Usuario usuario) => "test-token";
+    }
+
+    private sealed class TestRecaptchaVerifier(bool valid = true) : IRecaptchaVerifier
+    {
+        public Task<bool> VerifyAsync(string? token, CancellationToken cancellationToken)
+            => Task.FromResult(valid);
     }
 }

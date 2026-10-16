@@ -62,18 +62,28 @@ public sealed class CalendarioReservasValidationTests
         result.Should().BeEmpty();
     }
 
-    [Theory]
-    [InlineData(RolUsuario.Administrador)]
-    [InlineData(RolUsuario.Superadministrador)]
-    public async Task Administrador_global_puede_consultar_sede_sin_sede_asignada(RolUsuario rol)
+    [Fact]
+    public async Task Superadministrador_global_puede_consultar_sede_sin_sede_asignada()
     {
         await using var context = CreateContext();
         var handler = new GetCalendarioReservasQueryHandler(
-            context, new CurrentUserStub(rol, sedeId: null));
+            context, new CurrentUserStub(RolUsuario.Superadministrador, sedeId: null));
 
         var result = await handler.Handle(ValidQuery(sedeId: 7), CancellationToken.None);
 
         result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Administrador_sin_sede_asignada_no_puede_consultar_calendario()
+    {
+        await using var context = CreateContext();
+        var handler = new GetCalendarioReservasQueryHandler(
+            context, new CurrentUserStub(RolUsuario.Administrador, sedeId: null));
+
+        var action = () => handler.Handle(ValidQuery(sedeId: 7), CancellationToken.None);
+
+        await action.Should().ThrowAsync<ForbiddenAccessException>();
     }
 
     private static ApplicationDbContext CreateContext()

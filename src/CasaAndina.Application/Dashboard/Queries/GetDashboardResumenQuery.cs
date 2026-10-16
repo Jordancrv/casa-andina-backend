@@ -1,4 +1,6 @@
 using CasaAndina.Application.Common.Interfaces;
+using CasaAndina.Application.Common.Exceptions;
+using CasaAndina.Domain.Enums;
 using CasaAndina.Application.Dashboard.DTOs;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -11,40 +13,56 @@ public class GetDashboardResumenQueryHandler
     : IRequestHandler<GetDashboardResumenQuery, DashboardResumenDto>
 {
     private readonly IApplicationDbContext _context;
+    private readonly ICurrentUserService _currentUser;
 
-    public GetDashboardResumenQueryHandler(IApplicationDbContext context) => _context = context;
+    public GetDashboardResumenQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    {
+        _context = context;
+        _currentUser = currentUser;
+    }
 
     public async Task<DashboardResumenDto> Handle(
         GetDashboardResumenQuery request, CancellationToken cancellationToken)
     {
-        var totalHabitaciones = await _context.Habitaciones
-            .CountAsync(h => h.Activo, cancellationToken);
+        if (_currentUser.Rol != RolUsuario.Superadministrador && !_currentUser.SedeId.HasValue)
+            throw new ForbiddenAccessException("La cuenta administrativa no tiene una sede asignada.");
+        if (!_currentUser.SedeId.HasValue)
+            throw new ForbiddenAccessException("El dashboard requiere una sede específica.");
 
+        var sedeId = _currentUser.SedeId.Value;
         // Reservas activas = Pendiente o Confirmada
         var reservasActivas = await _context.Reservas
-            .CountAsync(r => r.Estado == "Pendiente" || r.Estado == "Confirmada", cancellationToken);
+            .CountAsync(r => r.SedeId == sedeId && (r.Estado == "Pendiente" || r.Estado == "Confirmada"), cancellationToken);
 
         // Habitaciones ocupadas = las que tienen reserva Confirmada en curso hoy
         var hoy = DateTime.UtcNow.Date;
-        var habitacionesOcupadas = await _context.ReservaHabitaciones
-            .Where(detalle => detalle.Reserva.Estado == "Confirmada"
-                     && detalle.FechaCheckIn <= hoy
-                     && detalle.FechaCheckOut > hoy)
-            .Select(detalle => detalle.HabitacionId)
-            .Distinct()
-            .CountAsync(cancellationToken);
+        var habitacionesOcupadas = await _context.Habitaciones
+            .CountAsync(habitacion => habitacion.Activo && habitacion.SedeId == sedeId
+                && (habitacion.Estado == "Ocupada"
+                    || _context.ReservaHabitaciones.Any(detalle => detalle.HabitacionId == habitacion.Id
+                        && detalle.Reserva.Estado == "Confirmada"
+                        && detalle.FechaCheckIn <= hoy && detalle.FechaCheckOut > hoy)), cancellationToken);
 
-        // Ingresos del mes actual (excluyendo canceladas)
-        var ingresosMes = await _context.Reservas
-            .Where(r => r.FechaCreacion.Month == DateTime.UtcNow.Month
+        var habitacionesDisponibles = await _context.Habitaciones
+            .CountAsync(habitacion => habitacion.Activo && habitacion.SedeId == sedeId
+                && habitacion.Estado == "Disponible"
+                && !_context.ReservaHabitaciones.Any(detalle => detalle.HabitacionId == habitacion.Id
+                    && (detalle.Reserva.Estado == "Pendiente" || detalle.Reserva.Estado == "Confirmada"
+                        || detalle.Reserva.Estado == "Bloqueada")
+                    && detalle.FechaCheckIn <= hoy && detalle.FechaCheckOut > hoy), cancellationToken);
+
+        // Importe reservado del mes (no equivale a pagos aprobados).
+        var importeReservadoMes = await _context.Reservas
+            .Where(r => r.SedeId == sedeId
+                     && r.FechaCreacion.Month == DateTime.UtcNow.Month
                      && r.FechaCreacion.Year == DateTime.UtcNow.Year
                      && r.Estado != "Cancelada")
             .SumAsync(r => (decimal?)r.PrecioTotal, cancellationToken) ?? 0;
 
         return new DashboardResumenDto(
             habitacionesOcupadas,
-            totalHabitaciones - habitacionesOcupadas,
+            habitacionesDisponibles,
             reservasActivas,
-            ingresosMes);
+            importeReservadoMes);
     }
 }

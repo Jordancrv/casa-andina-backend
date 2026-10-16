@@ -6,6 +6,18 @@ using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (!builder.Environment.IsDevelopment())
+{
+    var recaptcha = builder.Configuration.GetSection("GoogleRecaptcha");
+    if (!recaptcha.GetValue<bool>("Enabled")
+        || string.IsNullOrWhiteSpace(recaptcha["SecretKey"])
+        || !(recaptcha.GetSection("AllowedHostnames").Get<string[]>()?.Any(hostname => !string.IsNullOrWhiteSpace(hostname)) == true))
+    {
+        throw new InvalidOperationException(
+            "Google reCAPTCHA debe configurarse fuera de Development: habilítelo y configure la clave secreta y los hostnames permitidos.");
+    }
+}
+
 // Cada capa registra sus propios servicios (Clean Architecture):
 // Application no conoce EF/JWT; Infrastructure los implementa.
 builder.Services.AddApplication();

@@ -26,6 +26,9 @@ public static class DependencyInjection
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IRecommendationService, GeminiRecommendationService>();
+        services.Configure<GoogleRecaptchaOptions>(configuration.GetSection("GoogleRecaptcha"));
+        services.AddHttpClient<IRecaptchaVerifier, GoogleRecaptchaVerifier>(client =>
+            client.Timeout = TimeSpan.FromSeconds(5));
 
         return services;
     }

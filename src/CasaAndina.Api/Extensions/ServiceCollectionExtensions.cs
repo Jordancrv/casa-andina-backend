@@ -1,6 +1,9 @@
 using System.Text;
+using System.Security.Claims;
+using CasaAndina.Application.Common.Interfaces;
 using CasaAndina.Domain.Enums;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 namespace CasaAndina.Api.Extensions;
@@ -41,6 +44,25 @@ public static class ServiceCollectionExtensions
                 ValidAudience = jwtSettings["Audience"],
                 IssuerSigningKey = new SymmetricSecurityKey(
                     Encoding.UTF8.GetBytes(jwtKey))
+            };
+            options.Events = new JwtBearerEvents
+            {
+                OnTokenValidated = async context =>
+                {
+                    var userIdValue = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier)
+                        ?? context.Principal?.FindFirstValue("sub");
+                    if (!int.TryParse(userIdValue, out var userId))
+                    {
+                        context.Fail("El token no identifica una cuenta válida.");
+                        return;
+                    }
+
+                    var db = context.HttpContext.RequestServices.GetRequiredService<IApplicationDbContext>();
+                    var isActive = await db.Usuarios.AsNoTracking()
+                        .AnyAsync(user => user.Id == userId && user.Activo, context.HttpContext.RequestAborted);
+                    if (!isActive)
+                        context.Fail("La cuenta ya no está activa.");
+                }
             };
         });
 

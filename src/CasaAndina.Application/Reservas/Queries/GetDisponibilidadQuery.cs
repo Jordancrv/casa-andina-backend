@@ -57,13 +57,12 @@ public sealed class GetCalendarioReservasQueryHandler(
         GetCalendarioReservasQuery request, CancellationToken cancellationToken)
     {
         ValidarRango(request.SedeId, request.FechaDesde, request.FechaHasta);
-        if (currentUser.Rol is not (RolUsuario.Administrador or RolUsuario.Superadministrador)
-            && !currentUser.SedeId.HasValue)
+        if (currentUser.Rol != RolUsuario.Superadministrador && !currentUser.SedeId.HasValue)
         {
             throw new ForbiddenAccessException("El usuario no tiene una sede asignada.");
         }
 
-        if (currentUser.SedeId.HasValue && currentUser.SedeId.Value != request.SedeId)
+        if (currentUser.Rol != RolUsuario.Superadministrador && currentUser.SedeId != request.SedeId)
             throw new ForbiddenAccessException("No tiene permisos para consultar reservas de otra sede.");
 
         var desde = request.FechaDesde.Date;
@@ -77,10 +76,15 @@ public sealed class GetCalendarioReservasQueryHandler(
                 context.ReservaHabitaciones
                     .Where(rh => rh.HabitacionId == h.Id &&
                         rh.FechaCheckIn < hasta && rh.FechaCheckOut > desde &&
-                        rh.Reserva.Estado != "Cancelada")
+                        (rh.Reserva.Estado == "Pendiente" || rh.Reserva.Estado == "Confirmada"))
                     .OrderBy(rh => rh.FechaCheckIn)
                     .Select(rh => new ReservaCalendarioDto(
-                        rh.FechaCheckIn, rh.FechaCheckOut))
+                        rh.FechaCheckIn,
+                        rh.FechaCheckOut,
+                        rh.Reserva.Estado,
+                        rh.Reserva.Cliente.Persona.TipoPersona == "N"
+                            ? ((rh.Reserva.Cliente.Persona.Natural!.Nombres + " ") + (rh.Reserva.Cliente.Persona.Natural.Apellidos ?? "")).Trim()
+                            : (rh.Reserva.Cliente.Persona.Juridica!.NombreComercial ?? rh.Reserva.Cliente.Persona.Juridica.RazonSocial)))
                     .ToArray()))
             .ToListAsync(cancellationToken);
     }
