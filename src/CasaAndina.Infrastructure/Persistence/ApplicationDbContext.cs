@@ -32,6 +32,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<Huesped> Huespedes => Set<Huesped>();
     public DbSet<AsignacionHuesped> AsignacionesHuespedes => Set<AsignacionHuesped>();
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();
+    public DbSet<EstadoPago> EstadosPago => Set<EstadoPago>();
+    public DbSet<MetodoPago> MetodosPago => Set<MetodoPago>();
+    public DbSet<Pago> Pagos => Set<Pago>();
+    public DbSet<DetallePago> DetallesPago => Set<DetallePago>();
 
     public async Task<IApplicationTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default)
         => new ApplicationTransaction(await Database.BeginTransactionAsync(isolationLevel, cancellationToken));

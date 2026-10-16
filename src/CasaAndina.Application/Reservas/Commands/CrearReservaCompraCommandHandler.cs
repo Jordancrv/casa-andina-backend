@@ -65,6 +65,8 @@ public sealed class CrearReservaCompraCommandValidator : AbstractValidator<Crear
             .When(x => string.Equals(x.TipoComprobante, "Factura", StringComparison.OrdinalIgnoreCase));
         RuleFor(x => x.Ruc).NotEmpty().Matches("^\\d{11}$")
             .When(x => string.Equals(x.TipoComprobante, "Factura", StringComparison.OrdinalIgnoreCase));
+        RuleFor(x => x.MetodoPagoCodigo).NotEmpty().MaximumLength(30)
+            .WithMessage("Selecciona un método de pago disponible.");
     }
 }
 
@@ -130,6 +132,12 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
         if (services.Count != servicesRequested.Length) throw Invalid("Uno o más servicios no están activos en la sede seleccionada.");
 
         var tipoComprobante = Enum.Parse<TipoComprobante>(request.TipoComprobante, true);
+        var metodoPago = await _context.MetodosPago.SingleOrDefaultAsync(
+            x => x.Codigo == request.MetodoPagoCodigo && x.Activo, cancellationToken)
+            ?? throw Invalid("El método de pago seleccionado no está disponible.");
+        var estadoPago = await _context.EstadosPago.SingleOrDefaultAsync(
+            x => x.Codigo == "APROBADO" && x.Activo, cancellationToken)
+            ?? throw new InvalidOperationException("No está configurado el estado de pago simulado APROBADO.");
         if (tipoComprobante == TipoComprobante.Factura)
         {
             var registeredRuc = await _context.PersonaDocumentos
@@ -194,6 +202,8 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
             reservation.PrecioTotal = ReservaCompraRules.ValidarImportePersistible(
                 reservation.PrecioTotal + serviceSubtotal, "Total de reserva");
         }
+        if (reservation.PrecioTotal <= 0)
+            throw Invalid("El total debe ser mayor a cero para registrar el pago simulado.");
 
         var bookingNumber = $"B{DateTime.UtcNow:yyyyMMdd}{reservation.CodigoReserva[^5..]}";
         reservation.Comprobante = new Comprobante
@@ -203,7 +213,27 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
             FechaEmision = DateTime.UtcNow,
             MontoTotal = reservation.PrecioTotal
         };
+        var fechaPago = DateTime.UtcNow;
+        var pago = new Pago
+        {
+            MetodoPago = metodoPago,
+            EstadoPago = estadoPago,
+            Importe = reservation.PrecioTotal,
+            Moneda = "PEN",
+            FechaCreacion = fechaPago,
+            Detalles =
+            {
+                new DetallePago
+                {
+                    Reserva = reservation,
+                    MontoAplicado = reservation.PrecioTotal,
+                    FechaAplicacion = fechaPago
+                }
+            }
+        };
+        reservation.Pagos.Add(pago.Detalles.Single());
         _context.Reservas.Add(reservation);
+        _context.Pagos.Add(pago);
 
         _context.Auditoria.Add(new Auditoria
         {
@@ -220,7 +250,9 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
                 Habitaciones = reservation.Habitaciones.Count,
                 Servicios = reservation.Servicios.Count,
                 TipoComprobante = tipoComprobante.ToString(),
-                Pago = "Simulado"
+                MetodoPago = metodoPago.Codigo,
+                EstadoPago = estadoPago.Codigo,
+                PagoSimulado = true
             })
         });
 
@@ -228,7 +260,8 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
         await transaction.CommitAsync(cancellationToken);
         return new ReservaCompraResponseDto(reservation.Id, reservation.CodigoReserva,
             reservation.Estado, reservation.PrecioTotal, tipoComprobante.ToString(),
-            "Compra simulada correctamente. No se realizó ningún cobro real.");
+            metodoPago.Nombre, estadoPago.Nombre,
+            "Pago aprobado en modo simulado. No se realizó ningún cobro real.");
     }
 
     private async Task<int> FindOrCreateGuest(HuespedCompraDto guest, CancellationToken cancellationToken)

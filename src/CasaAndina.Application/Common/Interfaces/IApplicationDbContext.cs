@@ -33,6 +33,10 @@ public interface IApplicationDbContext
     DbSet<Huesped> Huespedes { get; }
     DbSet<AsignacionHuesped> AsignacionesHuespedes { get; }
     DbSet<Auditoria> Auditoria { get; }
+    DbSet<EstadoPago> EstadosPago { get; }
+    DbSet<MetodoPago> MetodosPago { get; }
+    DbSet<Pago> Pagos { get; }
+    DbSet<DetallePago> DetallesPago { get; }
 
     Task<IApplicationTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default);
 

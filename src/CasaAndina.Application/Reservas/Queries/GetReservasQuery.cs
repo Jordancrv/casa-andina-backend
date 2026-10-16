@@ -45,7 +45,16 @@ public class GetReservasQueryHandler
                 r.Sede.Nombre,
                 r.Sede.Ciudad,
                 r.Habitaciones.OrderBy(detalle => detalle.FechaCheckIn)
-                    .Select(detalle => detalle.Habitacion.Numero).ToArray()))
+                    .Select(detalle => detalle.Habitacion.Numero).ToArray(),
+                r.Pagos.OrderBy(detalle => detalle.Pago.FechaCreacion)
+                    .Select(detalle => new PagoReservaDto(
+                        detalle.PagoId,
+                        detalle.Pago.MetodoPago.Nombre,
+                        detalle.Pago.EstadoPago.Nombre,
+                        detalle.Pago.Importe,
+                        detalle.Pago.Moneda,
+                        detalle.Pago.FechaCreacion,
+                        detalle.MontoAplicado)).ToArray()))
             .ToListAsync(cancellationToken);
     }
 }

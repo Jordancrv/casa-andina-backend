@@ -50,7 +50,8 @@ public sealed record CrearReservaCompraCommand(
     IReadOnlyList<ServicioCompraDto> Servicios,
     string TipoComprobante,
     string? RazonSocial,
-    string? Ruc) : MediatR.IRequest<ReservaCompraResponseDto>;
+    string? Ruc,
+    string MetodoPagoCodigo) : MediatR.IRequest<ReservaCompraResponseDto>;
 
 public sealed record ReservaCompraResponseDto(
     int ReservaId,
@@ -58,4 +59,17 @@ public sealed record ReservaCompraResponseDto(
     string Estado,
     decimal PrecioTotal,
     string TipoComprobante,
+    string MetodoPago,
+    string EstadoPago,
     string MensajePago);
+
+public sealed record MetodoPagoDto(string Codigo, string Nombre, string Categoria);
+
+public sealed record PagoReservaDto(
+    int PagoId,
+    string MetodoPago,
+    string Estado,
+    decimal Importe,
+    string Moneda,
+    DateTime FechaCreacion,
+    decimal MontoAplicado);

@@ -25,6 +25,10 @@ public class ReservasController : ControllerBase
     public async Task<IActionResult> GetMisReservas()
         => Ok(await _mediator.Send(new GetReservasQuery()));
 
+    [HttpGet("metodos-pago")]
+    public async Task<ActionResult<IReadOnlyList<MetodoPagoDto>>> GetMetodosPago(CancellationToken cancellationToken)
+        => Ok(await _mediator.Send(new GetMetodosPagoQuery(), cancellationToken));
+
     /// <summary>GET /api/reservas/disponibilidad?SedeId=1&amp;FechaCheckIn=...&amp;FechaCheckOut=...</summary>
     [AllowAnonymous]
     [HttpGet("disponibilidad")]

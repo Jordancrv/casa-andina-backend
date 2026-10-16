@@ -184,7 +184,7 @@ public sealed class ReservaCompraValidationTests
 
     private static CrearReservaCompraCommand ValidCommand() => new(
         1, DateTime.Today.AddDays(1), DateTime.Today.AddDays(2),
-        [new HabitacionCompraDto(1, [Guest(true)])], [], "Boleta", null, null);
+        [new HabitacionCompraDto(1, [Guest(true)])], [], "Boleta", null, null, "YAPE");
 
     private static HuespedCompraDto Guest(bool titular) =>
         new("Jordan", "Prueba", "jordan@example.test", null, titular);

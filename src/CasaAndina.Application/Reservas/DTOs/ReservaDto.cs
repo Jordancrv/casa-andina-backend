@@ -12,4 +12,5 @@ public record ReservaDto(
     string Estado,
     string SedeNombre,
     string Ciudad,
-    IReadOnlyList<string> HabitacionesNumeros);
+    IReadOnlyList<string> HabitacionesNumeros,
+    IReadOnlyList<PagoReservaDto> Pagos);
