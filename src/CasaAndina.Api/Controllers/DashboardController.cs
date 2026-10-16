@@ -18,4 +18,8 @@ public class DashboardController : ControllerBase
     [HttpGet("resumen")]
     public async Task<IActionResult> GetResumen()
         => Ok(await _mediator.Send(new GetDashboardResumenQuery()));
+
+    [HttpGet("bi")]
+    public async Task<IActionResult> GetBi([FromQuery] string periodo = "30d")
+        => Ok(await _mediator.Send(new GetDashboardBiQuery(periodo)));
 }

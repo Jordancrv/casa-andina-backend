@@ -57,6 +57,42 @@ public sealed class DashboardResumenQueryTests
         await action.Should().ThrowAsync<CasaAndina.Application.Common.Exceptions.ForbiddenAccessException>();
     }
 
+    [Fact]
+    public async Task Dashboard_BI_calcula_graficas_y_metricas_desde_reservas_de_la_sede()
+    {
+        await using var context = CreateContext();
+        var site = NewSite(1);
+        var otherSite = NewSite(2);
+        var roomType = new TipoHabitacion { Id = 1, Nombre = "Doble" };
+        var confirmedRoom = NewRoom(1, site, roomType, "Disponible");
+        var freeRoom = NewRoom(2, site, roomType, "Disponible");
+        var foreignRoom = NewRoom(3, otherSite, roomType, "Disponible");
+        context.Habitaciones.AddRange(confirmedRoom, freeRoom, foreignRoom);
+        var persona = new Persona { Id = 1, Natural = new PersonaNatural { PersonaId = 1, Nombres = "Cliente" } };
+        var client = new Cliente { Id = 1, PersonaId = persona.Id, Persona = persona };
+        context.Clientes.Add(client);
+        var today = DateTime.UtcNow.Date;
+        context.Reservas.AddRange(
+            NewReservation(10, client, site, confirmedRoom, "Confirmada", today, 300),
+            NewReservation(11, client, site, freeRoom, "Pendiente", today, 200),
+            NewReservation(12, client, otherSite, foreignRoom, "Confirmada", today, 900));
+        await context.SaveChangesAsync();
+        var handler = new GetDashboardBiQueryHandler(context, new CurrentUserStub(1));
+
+        var result = await handler.Handle(new GetDashboardBiQuery("30d"), CancellationToken.None);
+
+        result.SedeNombre.Should().Be("Sede 1");
+        result.Kpis.TotalReservas.Should().Be(2);
+        result.Kpis.ImporteReservadoSoles.Should().Be(500);
+        result.Kpis.TotalClientesActivos.Should().Be(1);
+        result.OcupacionSedes.Should().ContainSingle().Which.Cantidad.Should().Be(1);
+        result.ReservasSemana.Sum(semana => semana.Confirmadas).Should().Be(1);
+        result.ReservasSemana.Sum(semana => semana.Canceladas).Should().Be(0);
+        result.Canales.ReservasDirectas.Should().Be(2);
+        result.Canales.TicketPromedioSoles.Should().Be(250);
+        result.Canales.EstadiaPromedioNoches.Should().Be(1);
+    }
+
     private static ApplicationDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
