@@ -1,5 +1,6 @@
 using CasaAndina.Application.Common.Exceptions;
 using CasaAndina.Application.Common.Interfaces;
+using CasaAndina.Application.Common;
 using CasaAndina.Application.Dashboard.DTOs;
 using FluentValidation;
 using MediatR;
@@ -29,8 +30,12 @@ public sealed class GetDashboardBiQueryHandler(
             throw new ForbiddenAccessException("El dashboard requiere una sede asignada.");
 
         var sedeId = currentUser.SedeId.Value;
-        var hoy = DateTime.UtcNow.Date;
-        var (inicioPeriodo, finPeriodo, inicioAnterior, finAnterior) = ObtenerRangos(request.Periodo, hoy);
+        var hoy = PeruBusinessTime.Today;
+        var (inicioPeriodoLocal, finPeriodoLocal, inicioAnteriorLocal, finAnteriorLocal) = ObtenerRangos(request.Periodo, hoy);
+        var inicioPeriodo = PeruBusinessTime.UtcStartOfDay(inicioPeriodoLocal);
+        var finPeriodo = PeruBusinessTime.UtcStartOfDay(finPeriodoLocal);
+        var inicioAnterior = PeruBusinessTime.UtcStartOfDay(inicioAnteriorLocal);
+        var finAnterior = PeruBusinessTime.UtcStartOfDay(finAnteriorLocal);
         var reservasSede = context.Reservas.AsNoTracking().Where(reserva => reserva.SedeId == sedeId);
         var reservasPeriodo = reservasSede.Where(reserva => reserva.FechaCreacion >= inicioPeriodo && reserva.FechaCreacion < finPeriodo);
         var reservasAnterior = reservasSede.Where(reserva => reserva.FechaCreacion >= inicioAnterior && reserva.FechaCreacion < finAnterior);
@@ -63,11 +68,17 @@ public sealed class GetDashboardBiQueryHandler(
                     && detalle.FechaCheckIn <= hoy && detalle.FechaCheckOut > hoy), cancellationToken);
 
         var inicioSemanas = InicioSemana(hoy).AddDays(-35);
-        var datosSemanales = await reservasSede
-            .Where(reserva => reserva.FechaCreacion >= inicioSemanas && reserva.FechaCreacion < hoy.AddDays(1)
+        var datosSemanalesUtc = await reservasSede
+            .Where(reserva => reserva.FechaCreacion >= PeruBusinessTime.UtcStartOfDay(inicioSemanas)
+                && reserva.FechaCreacion < PeruBusinessTime.UtcStartOfDay(hoy.AddDays(1))
                 && (reserva.Estado == "Confirmada" || reserva.Estado == "Cancelada"))
             .Select(reserva => new { reserva.FechaCreacion, reserva.Estado })
             .ToListAsync(cancellationToken);
+        var datosSemanales = datosSemanalesUtc.Select(reserva => new
+        {
+            FechaCreacion = PeruBusinessTime.FromUtc(reserva.FechaCreacion),
+            reserva.Estado
+        }).ToArray();
         var series = Enumerable.Range(0, 6).Select(indice =>
         {
             var inicio = inicioSemanas.AddDays(indice * 7);

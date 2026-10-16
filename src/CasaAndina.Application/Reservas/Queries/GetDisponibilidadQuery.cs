@@ -1,5 +1,6 @@
 using CasaAndina.Application.Common.Interfaces;
 using CasaAndina.Application.Common.Exceptions;
+using CasaAndina.Application.Common;
 using CasaAndina.Application.Reservas.DTOs;
 using CasaAndina.Domain.Enums;
 using FluentValidation.Results;
@@ -39,7 +40,7 @@ public sealed class GetDisponibilidadQueryHandler(IApplicationDbContext context)
 
     public static void ValidarFechas(int sedeId, DateTime checkIn, DateTime checkOut)
     {
-        if (sedeId <= 0 || checkIn.Date < DateTime.Today || checkOut.Date <= checkIn.Date)
+        if (sedeId <= 0 || checkIn.Date < PeruBusinessTime.Today || checkOut.Date <= checkIn.Date)
             throw new ValidationException([new ValidationFailure(nameof(GetDisponibilidadQuery.FechaCheckIn),
                 "Indica una sede y un rango de fechas válido, con salida posterior a la entrada.")]);
     }

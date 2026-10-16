@@ -1,4 +1,5 @@
 using CasaAndina.Application.Common.Interfaces;
+using CasaAndina.Application.Common;
 using CasaAndina.Application.Reservas.Commands;
 using CasaAndina.Application.Reservas.DTOs;
 using CasaAndina.Domain.Entities;
@@ -62,9 +63,12 @@ public sealed class ReservaCompraSqlServerTests
                 var handler = new CrearReservaCompraCommandHandler(writeContext, new ClientUserStub(1));
                 result = await handler.Handle(new CrearReservaCompraCommand(
                     1,
-                    DateTime.Today.AddDays(2),
-                    DateTime.Today.AddDays(4),
-                    [new HabitacionCompraDto(1, [new HuespedCompraDto("Huésped", "Prueba", "guest@example.test", null, true)])],
+                    PeruBusinessTime.Today.AddDays(2),
+                    PeruBusinessTime.Today.AddDays(4),
+                    [new HabitacionCompraDto(1, [
+                        new HuespedCompraDto("Cliente", "Integración", "cliente@example.test", null, true),
+                        new HuespedCompraDto("Huésped", "Prueba", "guest@example.test", null, false)
+                    ])],
                     [],
                     "Boleta",
                     null,
@@ -90,8 +94,14 @@ public sealed class ReservaCompraSqlServerTests
                 reservation.PrecioTotal.Should().Be(200m);
                 reservation.Habitaciones.Should().ContainSingle();
                 reservation.Habitaciones.Single().CantidadPersonas.Should().Be(1);
-                reservation.Habitaciones.Single().Huespedes.Should().ContainSingle()
-                    .Which.Huesped.PersonaNatural.Nombres.Should().Be("Huésped");
+                reservation.Habitaciones.Single().Huespedes.Should().HaveCount(2);
+                reservation.Habitaciones.Single().Huespedes
+                    .Should().Contain(item => item.Huesped.PersonaNatural.Nombres == "Cliente");
+                reservation.Habitaciones.Single().Huespedes
+                    .Should().Contain(item => item.Huesped.PersonaNatural.Nombres == "Huésped");
+                var clientPersonId = await verifyContext.Clientes.Select(item => item.PersonaId).SingleAsync();
+                reservation.Habitaciones.Single().Huespedes
+                    .Should().Contain(item => item.Huesped.PersonaId == clientPersonId, "the account email reuses the client's person");
                 reservation.Comprobante.Should().NotBeNull();
                 reservation.Comprobante!.Tipo.Should().Be(TipoComprobante.Boleta);
                 payment.MetodoPago.Codigo.Should().Be("YAPE");
@@ -153,6 +163,7 @@ public sealed class ReservaCompraSqlServerTests
         };
         var cliente = new Cliente { Persona = persona, Estado = "Activo", FechaRegistro = DateTime.UtcNow };
         persona.Cliente = cliente;
+        persona.Usuario = new Usuario { Correo = "cliente@example.test", PasswordHash = "test-only-hash" };
 
         context.AddRange(
             sede,

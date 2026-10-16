@@ -1,5 +1,6 @@
 using CasaAndina.Application.Common.Exceptions;
 using CasaAndina.Application.Common.Interfaces;
+using CasaAndina.Application.Common;
 using CasaAndina.Application.Reservas.DTOs;
 using CasaAndina.Application.Reservas.Queries;
 using CasaAndina.Domain.Entities;
@@ -15,12 +16,16 @@ namespace CasaAndina.Application.Reservas.Commands;
 
 public sealed class CrearReservaCompraCommandValidator : AbstractValidator<CrearReservaCompraCommand>
 {
+    private static readonly System.Text.RegularExpressions.Regex NombrePersona = new(
+        @"^[\p{L}\p{M}]+(?:[ '\u2019-][\p{L}\p{M}]+)*$",
+        System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
     public CrearReservaCompraCommandValidator()
     {
         RuleFor(x => x.SedeId).GreaterThan(0);
         RuleFor(x => x).Must(x => x.FechaCheckIn.TimeOfDay == TimeSpan.Zero && x.FechaCheckOut.TimeOfDay == TimeSpan.Zero)
             .WithMessage("Las fechas de entrada y salida deben ser fechas de calendario, sin hora.");
-        RuleFor(x => x.FechaCheckIn).Must((x, start) => start.Date >= DateTime.Today && x.FechaCheckOut.Date > start.Date)
+        RuleFor(x => x.FechaCheckIn).Must((x, start) => start.Date >= PeruBusinessTime.Today && x.FechaCheckOut.Date > start.Date)
             .WithMessage("El rango de estadía no es válido.");
         RuleFor(x => x.Habitaciones).Cascade(CascadeMode.Stop)
             .NotNull().NotEmpty().Must(x => x.Count <= 8)
@@ -40,8 +45,12 @@ public sealed class CrearReservaCompraCommandValidator : AbstractValidator<Crear
                 .WithMessage("Cada habitación debe tener exactamente un huésped titular.");
             room.RuleForEach(x => x.Huespedes).Where(guest => guest is not null).ChildRules(guest =>
             {
-                guest.RuleFor(x => x.Nombres).NotEmpty().MaximumLength(200);
-                guest.RuleFor(x => x.Apellidos).NotEmpty().MaximumLength(100);
+                guest.RuleFor(x => x.Nombres).Cascade(CascadeMode.Stop).NotEmpty().MaximumLength(200)
+                    .Must(name => NombrePersona.IsMatch(name.Trim()))
+                    .WithMessage("El nombre solo puede incluir letras, espacios, apóstrofes y guiones.");
+                guest.RuleFor(x => x.Apellidos).Cascade(CascadeMode.Stop).NotEmpty().MaximumLength(100)
+                    .Must(name => NombrePersona.IsMatch(name.Trim()))
+                    .WithMessage("El apellido solo puede incluir letras, espacios, apóstrofes y guiones.");
                 guest.RuleFor(x => x.Correo).NotEmpty().EmailAddress().MaximumLength(150);
                 guest.RuleFor(x => x.Telefono).MaximumLength(16)
                     .Matches(@"^\+?[1-9]\d{7,14}$")
@@ -57,7 +66,9 @@ public sealed class CrearReservaCompraCommandValidator : AbstractValidator<Crear
             service.RuleFor(x => x.ServicioId).GreaterThan(0);
             service.RuleFor(x => x.Cantidad).InclusiveBetween(1, 20);
         });
-        RuleFor(x => x.TipoComprobante).Must(x => Enum.TryParse<TipoComprobante>(x, true, out _))
+        RuleFor(x => x.TipoComprobante).Must(x =>
+                string.Equals(x, nameof(TipoComprobante.Boleta), StringComparison.OrdinalIgnoreCase)
+                || string.Equals(x, nameof(TipoComprobante.Factura), StringComparison.OrdinalIgnoreCase))
             .WithMessage("El comprobante debe ser Boleta o Factura.");
         RuleFor(x => x.RazonSocial).Null().When(x => string.Equals(x.TipoComprobante, "Boleta", StringComparison.OrdinalIgnoreCase));
         RuleFor(x => x.Ruc).Null().When(x => string.Equals(x.TipoComprobante, "Boleta", StringComparison.OrdinalIgnoreCase));
@@ -267,6 +278,28 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
     private async Task<int> FindOrCreateGuest(HuespedCompraDto guest, CancellationToken cancellationToken)
     {
         var email = guest.Correo.Trim().ToLowerInvariant();
+        var account = await _context.Usuarios.Include(x => x.Persona).ThenInclude(x => x.Natural)
+            .SingleOrDefaultAsync(x => x.Correo.ToLower() == email, cancellationToken);
+        if (account is not null)
+        {
+            if (account.Persona.Natural is null)
+                throw new ConflictException("El correo indicado corresponde a una persona jurídica y no puede registrarse como huésped.");
+
+            var accountGuest = await _context.Huespedes.SingleOrDefaultAsync(
+                x => x.PersonaId == account.PersonaId, cancellationToken);
+            if (accountGuest is not null) return accountGuest.Id;
+
+            var linkedAccountGuest = new Huesped
+            {
+                PersonaId = account.PersonaId,
+                PersonaNatural = account.Persona.Natural,
+                FechaRegistro = DateTime.UtcNow
+            };
+            _context.Huespedes.Add(linkedAccountGuest);
+            await _context.SaveChangesAsync(cancellationToken);
+            return linkedAccountGuest.Id;
+        }
+
         var existingContact = await _context.PersonaContactos.Include(x => x.Persona)
             .ThenInclude(x => x.Natural)
             .SingleOrDefaultAsync(x => x.TipoContacto == "Correo" && x.Valor.ToLower() == email, cancellationToken);

@@ -1,6 +1,7 @@
 using CasaAndina.Application.Reservas.Commands;
 using CasaAndina.Application.Reservas.DTOs;
 using CasaAndina.Application.Common.Exceptions;
+using CasaAndina.Application.Common;
 using FluentAssertions;
 using Xunit;
 
@@ -120,10 +121,24 @@ public sealed class ReservaCompraValidationTests
         result.IsValid.Should().BeFalse();
     }
 
+    [Theory]
+    [InlineData("1")]
+    [InlineData("2")]
+    [InlineData("Desconocido")]
+    public async Task Tipo_comprobante_solo_acepta_los_codigos_textuales_permitidos(string tipo)
+    {
+        var command = ValidCommand() with { TipoComprobante = tipo };
+
+        var result = await new CrearReservaCompraCommandValidator().ValidateAsync(command);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(error => error.PropertyName == nameof(command.TipoComprobante));
+    }
+
     [Fact]
     public async Task Compra_debe_rechazar_horas_en_las_fechas_de_estadia()
     {
-        var command = ValidCommand() with { FechaCheckIn = DateTime.Today.AddDays(1).AddHours(1) };
+        var command = ValidCommand() with { FechaCheckIn = PeruBusinessTime.Today.AddDays(1).AddHours(1) };
 
         var result = await new CrearReservaCompraCommandValidator().ValidateAsync(command);
 
@@ -163,6 +178,46 @@ public sealed class ReservaCompraValidationTests
         result.IsValid.Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData("Jordan2", "Carhuallay")]
+    [InlineData("Jordan", "Carhuallay!")]
+    [InlineData("<script>", "Carhuallay")]
+    public async Task Compra_debe_rechazar_nombres_con_numeros_o_simbolos(string nombres, string apellidos)
+    {
+        var command = ValidCommand() with
+        {
+            Habitaciones = [new HabitacionCompraDto(1, [Guest(true) with { Nombres = nombres, Apellidos = apellidos }])]
+        };
+
+        var result = await new CrearReservaCompraCommandValidator().ValidateAsync(command);
+
+        result.IsValid.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("María José", "De la Cruz")]
+    [InlineData("O’Neil", "Jean-Luc")]
+    [InlineData("D'Angelo", "Muñoz")]
+    public async Task Compra_debe_aceptar_nombres_con_acentos_y_separadores_validos(string nombres, string apellidos)
+    {
+        var command = ValidCommand() with
+        {
+            Habitaciones = [new HabitacionCompraDto(1, [Guest(true) with { Nombres = nombres, Apellidos = apellidos }])]
+        };
+
+        var result = await new CrearReservaCompraCommandValidator().ValidateAsync(command);
+
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Inicio_del_dia_operativo_corresponde_a_medianoche_de_Peru_en_UTC()
+    {
+        var utc = PeruBusinessTime.UtcStartOfDay(new DateTime(2026, 10, 17));
+
+        utc.Should().Be(new DateTime(2026, 10, 17, 5, 0, 0, DateTimeKind.Utc));
+    }
+
     [Fact]
     public void Importe_maximo_decimal_10_2_es_aceptado()
     {
@@ -183,7 +238,7 @@ public sealed class ReservaCompraValidationTests
     }
 
     private static CrearReservaCompraCommand ValidCommand() => new(
-        1, DateTime.Today.AddDays(1), DateTime.Today.AddDays(2),
+        1, PeruBusinessTime.Today.AddDays(1), PeruBusinessTime.Today.AddDays(2),
         [new HabitacionCompraDto(1, [Guest(true)])], [], "Boleta", null, null, "YAPE");
 
     private static HuespedCompraDto Guest(bool titular) =>

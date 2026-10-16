@@ -1,5 +1,6 @@
 using CasaAndina.Application.Common.Exceptions;
 using CasaAndina.Application.Common.Interfaces;
+using CasaAndina.Application.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -28,7 +29,7 @@ public class DeactivateHabitacionCommandHandler : IRequestHandler<DeactivateHabi
         HabitacionRules.ValidarAccesoASede(_currentUser, habitacion.SedeId);
         var tieneReservas = await _context.ReservaHabitaciones.AnyAsync(detalle =>
             detalle.HabitacionId == request.Id &&
-            detalle.FechaCheckOut >= DateTime.UtcNow.Date &&
+            detalle.FechaCheckOut >= PeruBusinessTime.Today &&
             (detalle.Reserva.Estado == "Pendiente"
                 || detalle.Reserva.Estado == "Confirmada"
                 || detalle.Reserva.Estado == "Bloqueada"),

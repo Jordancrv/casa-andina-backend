@@ -1,4 +1,5 @@
 using CasaAndina.Application.Common.Interfaces;
+using CasaAndina.Application.Common;
 using CasaAndina.Application.Dashboard.Queries;
 using CasaAndina.Domain.Entities;
 using CasaAndina.Domain.Enums;
@@ -28,7 +29,7 @@ public sealed class DashboardResumenQueryTests
         var persona = new Persona { Id = 1, Natural = new PersonaNatural { PersonaId = 1, Nombres = "Cliente" } };
         var client = new Cliente { Id = 1, PersonaId = persona.Id, Persona = persona };
         context.Clientes.Add(client);
-        var today = DateTime.UtcNow.Date;
+        var today = PeruBusinessTime.Today;
         context.Reservas.AddRange(
             NewReservation(10, client, site, confirmedRoom, "Confirmada", today, 300),
             NewReservation(11, client, site, pendingRoom, "Pendiente", today, 200),
@@ -71,7 +72,7 @@ public sealed class DashboardResumenQueryTests
         var persona = new Persona { Id = 1, Natural = new PersonaNatural { PersonaId = 1, Nombres = "Cliente" } };
         var client = new Cliente { Id = 1, PersonaId = persona.Id, Persona = persona };
         context.Clientes.Add(client);
-        var today = DateTime.UtcNow.Date;
+        var today = PeruBusinessTime.Today;
         context.Reservas.AddRange(
             NewReservation(10, client, site, confirmedRoom, "Confirmada", today, 300),
             NewReservation(11, client, site, freeRoom, "Pendiente", today, 200),
@@ -91,6 +92,17 @@ public sealed class DashboardResumenQueryTests
         result.Canales.ReservasDirectas.Should().Be(2);
         result.Canales.TicketPromedioSoles.Should().Be(250);
         result.Canales.EstadiaPromedioNoches.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Dashboard_BI_rechaza_usuario_sin_sede()
+    {
+        await using var context = CreateContext();
+        var handler = new GetDashboardBiQueryHandler(context, new CurrentUserStub(null));
+
+        var action = () => handler.Handle(new GetDashboardBiQuery("30d"), CancellationToken.None);
+
+        await action.Should().ThrowAsync<CasaAndina.Application.Common.Exceptions.ForbiddenAccessException>();
     }
 
     private static ApplicationDbContext CreateContext()

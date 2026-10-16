@@ -1,4 +1,5 @@
 using CasaAndina.Application.Common.Interfaces;
+using CasaAndina.Application.Common;
 using CasaAndina.Application.Common.Exceptions;
 using CasaAndina.Domain.Enums;
 using CasaAndina.Application.Dashboard.DTOs;
@@ -38,7 +39,7 @@ public class GetDashboardResumenQueryHandler
         var reservasActivas = reservasPendientes + reservasConfirmadas;
 
         // Habitaciones ocupadas = las que tienen reserva Confirmada en curso hoy
-        var hoy = DateTime.UtcNow.Date;
+        var hoy = PeruBusinessTime.Today;
         var habitacionesOcupadas = await _context.Habitaciones
             .CountAsync(habitacion => habitacion.Activo && habitacion.SedeId == sedeId
                 && (habitacion.Estado == "Ocupada"
@@ -55,10 +56,12 @@ public class GetDashboardResumenQueryHandler
                     && detalle.FechaCheckIn <= hoy && detalle.FechaCheckOut > hoy), cancellationToken);
 
         // Importe reservado del mes (no equivale a pagos aprobados).
+        var inicioMesUtc = PeruBusinessTime.UtcStartOfDay(new DateTime(hoy.Year, hoy.Month, 1));
+        var inicioMesSiguienteUtc = PeruBusinessTime.UtcStartOfDay(new DateTime(hoy.Year, hoy.Month, 1).AddMonths(1));
         var importeReservadoMes = await _context.Reservas
             .Where(r => r.SedeId == sedeId
-                     && r.FechaCreacion.Month == DateTime.UtcNow.Month
-                     && r.FechaCreacion.Year == DateTime.UtcNow.Year
+                     && r.FechaCreacion >= inicioMesUtc
+                     && r.FechaCreacion < inicioMesSiguienteUtc
                      && r.Estado != "Cancelada")
             .SumAsync(r => (decimal?)r.PrecioTotal, cancellationToken) ?? 0;
 
