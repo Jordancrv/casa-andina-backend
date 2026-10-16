@@ -4,7 +4,9 @@ using CasaAndina.Application.Habitaciones;
 using CasaAndina.Application.Habitaciones.Commands;
 using CasaAndina.Application.Habitaciones.Queries;
 using CasaAndina.Domain.Enums;
+using CasaAndina.Infrastructure.Persistence;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace CasaAndina.Application.Tests;
@@ -49,6 +51,7 @@ public class HabitacionValidationTests
     [Theory]
     [InlineData(RolUsuario.Recepcion, 5)]
     [InlineData(RolUsuario.Operaciones, null)]
+    [InlineData(RolUsuario.Administrador, null)]
     public void Acceso_a_habitacion_rechaza_sede_fuera_del_alcance(RolUsuario rol, int? sedeId)
     {
         var usuario = new CurrentUserStub(rol, sedeId);
@@ -58,16 +61,33 @@ public class HabitacionValidationTests
         validar.Should().Throw<ForbiddenAccessException>();
     }
 
-    [Theory]
-    [InlineData(RolUsuario.Administrador)]
-    [InlineData(RolUsuario.Superadministrador)]
-    public void Administrador_global_puede_acceder_sin_sede_asignada(RolUsuario rol)
+    [Fact]
+    public void Superadministrador_global_puede_acceder_sin_sede_asignada()
     {
-        var usuario = new CurrentUserStub(rol, sedeId: null);
+        var usuario = new CurrentUserStub(RolUsuario.Superadministrador, sedeId: null);
 
         var validar = () => HabitacionRules.ValidarAccesoASede(usuario, 4);
 
         validar.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task Listado_rechaza_administrador_sin_sede()
+    {
+        await using var context = CreateContext();
+        var handler = new GetHabitacionesQueryHandler(
+            context, new CurrentUserStub(RolUsuario.Administrador, null));
+
+        var action = () => handler.Handle(new GetHabitacionesQuery(null, null), CancellationToken.None);
+
+        await action.Should().ThrowAsync<ForbiddenAccessException>();
+    }
+
+    private static ApplicationDbContext CreateContext()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        return new ApplicationDbContext(options);
     }
 
     private sealed class CurrentUserStub(RolUsuario rol, int? sedeId) : ICurrentUserService

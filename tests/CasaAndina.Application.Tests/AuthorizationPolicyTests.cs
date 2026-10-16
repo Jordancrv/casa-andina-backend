@@ -59,6 +59,16 @@ public sealed class AuthorizationPolicyTests
         authorize.Policy.Should().Be("Cliente");
     }
 
+    [Fact]
+    public void Calendario_de_reservas_deberia_restringirse_al_rol_administrador()
+    {
+        var method = typeof(HabitacionesController).GetMethod(nameof(HabitacionesController.GetCalendarioReservas));
+        var authorize = method!.GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true)
+            .Cast<AuthorizeAttribute>().Single();
+
+        authorize.Policy.Should().Be("Administrador");
+    }
+
     private static ServiceProvider CreateAuthorizationProvider()
     {
         var configuration = new ConfigurationBuilder()

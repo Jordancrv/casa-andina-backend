@@ -3,8 +3,10 @@ using CasaAndina.Application.Common.Interfaces;
 using CasaAndina.Application.Servicios;
 using CasaAndina.Application.Servicios.Commands;
 using CasaAndina.Application.Servicios.Queries;
+using CasaAndina.Infrastructure.Persistence;
 using CasaAndina.Domain.Enums;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace CasaAndina.Application.Tests;
@@ -45,13 +47,54 @@ public class ServicioValidationTests
     }
 
     [Fact]
-    public void Administrador_deberia_gestionar_varias_sedes()
+    public void Administrador_deberia_limitar_servicios_a_su_sede()
+    {
+        var currentUser = new CurrentUserStub(RolUsuario.Administrador, 1);
+
+        var result = ServicioRules.ValidarSedes(currentUser, [1, 1]);
+
+        result.Should().BeEquivalentTo([1]);
+        var action = () => ServicioRules.ValidarSedes(currentUser, [2]);
+        action.Should().Throw<ForbiddenAccessException>();
+    }
+
+    [Fact]
+    public void Administrador_sin_sede_no_puede_gestionar_servicios()
     {
         var currentUser = new CurrentUserStub(RolUsuario.Administrador, null);
+
+        var action = () => ServicioRules.ValidarSedes(currentUser, [1]);
+
+        action.Should().Throw<ForbiddenAccessException>();
+    }
+
+    [Fact]
+    public void Superadministrador_puede_gestionar_varias_sedes()
+    {
+        var currentUser = new CurrentUserStub(RolUsuario.Superadministrador, null);
 
         var result = ServicioRules.ValidarSedes(currentUser, [1, 2, 2]);
 
         result.Should().BeEquivalentTo([1, 2]);
+    }
+
+    [Fact]
+    public async Task Listado_rechaza_administrador_sin_sede()
+    {
+        await using var context = CreateContext();
+        var handler = new GetServiciosQueryHandler(
+            context, new CurrentUserStub(RolUsuario.Administrador, SedeId: null));
+
+        var action = () => handler.Handle(new GetServiciosQuery(null, null), CancellationToken.None);
+
+        await action.Should().ThrowAsync<ForbiddenAccessException>();
+    }
+
+    private static ApplicationDbContext CreateContext()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        return new ApplicationDbContext(options);
     }
 
     private sealed record CurrentUserStub(RolUsuario? Rol, int? SedeId) : ICurrentUserService

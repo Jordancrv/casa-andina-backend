@@ -11,7 +11,7 @@ public static class HabitacionRules
 
     public static void ValidarAccesoASede(ICurrentUserService currentUser, int sedeId)
     {
-        if (currentUser.Rol is not (RolUsuario.Administrador or RolUsuario.Superadministrador) && !currentUser.SedeId.HasValue)
+        if (currentUser.Rol != RolUsuario.Superadministrador && !currentUser.SedeId.HasValue)
             throw new ForbiddenAccessException("El usuario no tiene una sede asignada.");
 
         if (currentUser.SedeId.HasValue && currentUser.SedeId.Value != sedeId)

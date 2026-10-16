@@ -40,7 +40,7 @@ public class GetServiciosQueryHandler : IRequestHandler<GetServiciosQuery, Pagin
     public async Task<PaginatedList<ServicioDto>> Handle(
         GetServiciosQuery request, CancellationToken cancellationToken)
     {
-        if (_currentUser.Rol is not (RolUsuario.Administrador or RolUsuario.Superadministrador) && !_currentUser.SedeId.HasValue)
+        if (_currentUser.Rol != RolUsuario.Superadministrador && !_currentUser.SedeId.HasValue)
             throw new ForbiddenAccessException("El usuario no tiene una sede asignada.");
         if (_currentUser.SedeId.HasValue && request.SedeId.HasValue &&
             _currentUser.SedeId.Value != request.SedeId.Value)
