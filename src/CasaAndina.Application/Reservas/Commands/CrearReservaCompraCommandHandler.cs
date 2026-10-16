@@ -18,6 +18,8 @@ public sealed class CrearReservaCompraCommandValidator : AbstractValidator<Crear
     public CrearReservaCompraCommandValidator()
     {
         RuleFor(x => x.SedeId).GreaterThan(0);
+        RuleFor(x => x).Must(x => x.FechaCheckIn.TimeOfDay == TimeSpan.Zero && x.FechaCheckOut.TimeOfDay == TimeSpan.Zero)
+            .WithMessage("Las fechas de entrada y salida deben ser fechas de calendario, sin hora.");
         RuleFor(x => x.FechaCheckIn).Must((x, start) => start.Date >= DateTime.Today && x.FechaCheckOut.Date > start.Date)
             .WithMessage("El rango de estadía no es válido.");
         RuleFor(x => x.Habitaciones).Cascade(CascadeMode.Stop)
@@ -41,7 +43,10 @@ public sealed class CrearReservaCompraCommandValidator : AbstractValidator<Crear
                 guest.RuleFor(x => x.Nombres).NotEmpty().MaximumLength(200);
                 guest.RuleFor(x => x.Apellidos).NotEmpty().MaximumLength(100);
                 guest.RuleFor(x => x.Correo).NotEmpty().EmailAddress().MaximumLength(150);
-                guest.RuleFor(x => x.Telefono).MaximumLength(20);
+                guest.RuleFor(x => x.Telefono).MaximumLength(16)
+                    .Matches(@"^\+?[1-9]\d{7,14}$")
+                    .When(x => !string.IsNullOrWhiteSpace(x.Telefono))
+                    .WithMessage("El teléfono debe tener de 8 a 15 dígitos y puede iniciar con +.");
             });
         });
         RuleFor(x => x.Servicios).Cascade(CascadeMode.Stop).NotNull()

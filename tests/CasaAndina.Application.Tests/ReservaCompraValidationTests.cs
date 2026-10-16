@@ -121,6 +121,49 @@ public sealed class ReservaCompraValidationTests
     }
 
     [Fact]
+    public async Task Compra_debe_rechazar_horas_en_las_fechas_de_estadia()
+    {
+        var command = ValidCommand() with { FechaCheckIn = DateTime.Today.AddDays(1).AddHours(1) };
+
+        var result = await new CrearReservaCompraCommandValidator().ValidateAsync(command);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(x => x.ErrorMessage.Contains("sin hora", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("telefono-invalido")]
+    [InlineData("12345")]
+    [InlineData("+0123456789")]
+    public async Task Compra_debe_rechazar_telefono_de_huesped_invalido(string telefono)
+    {
+        var command = ValidCommand() with
+        {
+            Habitaciones = [new HabitacionCompraDto(1, [Guest(true) with { Telefono = telefono }])]
+        };
+
+        var result = await new CrearReservaCompraCommandValidator().ValidateAsync(command);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(x => x.PropertyName.Contains("Telefono", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("987654321")]
+    [InlineData("+51987654321")]
+    public async Task Compra_debe_aceptar_telefono_nacional_o_internacional(string telefono)
+    {
+        var command = ValidCommand() with
+        {
+            Habitaciones = [new HabitacionCompraDto(1, [Guest(true) with { Telefono = telefono }])]
+        };
+
+        var result = await new CrearReservaCompraCommandValidator().ValidateAsync(command);
+
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
     public void Importe_maximo_decimal_10_2_es_aceptado()
     {
         var importe = () => ReservaCompraRules.ValidarImportePersistible(
