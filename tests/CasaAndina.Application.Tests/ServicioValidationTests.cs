@@ -26,6 +26,20 @@ public class ServicioValidationTests
     }
 
     [Fact]
+    public async Task Crear_y_actualizar_deberian_rechazar_nombre_de_servicio_en_blanco()
+    {
+        var create = await new CreateServicioCommandValidator().ValidateAsync(
+            new CreateServicioCommand("   ", null, 10m, [1]));
+        var update = await new UpdateServicioCommandValidator().ValidateAsync(new UpdateServicioCommand
+        {
+            Id = 1, Nombre = "  ", Precio = 10m, SedesIds = [1]
+        });
+
+        create.Errors.Should().Contain(x => x.PropertyName == nameof(CreateServicioCommand.Nombre));
+        update.Errors.Should().Contain(x => x.PropertyName == nameof(UpdateServicioCommand.Nombre));
+    }
+
+    [Fact]
     public async Task Listado_deberia_validar_paginacion()
     {
         var query = new GetServiciosQuery(null, null, 0, 101);

@@ -26,7 +26,9 @@ public class UpdateHabitacionCommandValidator : AbstractValidator<UpdateHabitaci
         RuleFor(x => x.Id).GreaterThan(0);
         RuleFor(x => x.SedeId).GreaterThan(0);
         RuleFor(x => x.TipoHabitacionId).GreaterThan(0);
-        RuleFor(x => x.Numero).NotEmpty().MaximumLength(10);
+        RuleFor(x => x.Numero).NotEmpty().MaximumLength(10)
+            .Must(value => !string.IsNullOrWhiteSpace(value))
+            .WithMessage("El número de habitación no puede contener solo espacios.");
         RuleFor(x => x.Piso).InclusiveBetween(0, 255);
         RuleFor(x => x.PrecioBase).InclusiveBetween(0, 99_999_999.99m).PrecisionScale(10, 2, false);
         RuleFor(x => x.Estado).Must(HabitacionRules.EstadosPermitidos.Contains);

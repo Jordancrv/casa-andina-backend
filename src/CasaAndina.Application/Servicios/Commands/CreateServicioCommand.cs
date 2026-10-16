@@ -17,7 +17,9 @@ public class CreateServicioCommandValidator : AbstractValidator<CreateServicioCo
 {
     public CreateServicioCommandValidator()
     {
-        RuleFor(x => x.Nombre).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.Nombre).NotEmpty().MaximumLength(100)
+            .Must(value => !string.IsNullOrWhiteSpace(value))
+            .WithMessage("El nombre del servicio no puede contener solo espacios.");
         RuleFor(x => x.Descripcion).MaximumLength(300);
         RuleFor(x => x.Precio).InclusiveBetween(0, 99_999_999.99m).PrecisionScale(10, 2, false);
         RuleFor(x => x.SedesIds).NotNull().NotEmpty();

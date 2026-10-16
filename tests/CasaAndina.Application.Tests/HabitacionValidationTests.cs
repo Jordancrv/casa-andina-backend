@@ -27,6 +27,21 @@ public class HabitacionValidationTests
     }
 
     [Fact]
+    public async Task Crear_y_actualizar_deberian_rechazar_numero_de_habitacion_en_blanco()
+    {
+        var create = await new CreateHabitacionCommandValidator().ValidateAsync(
+            new CreateHabitacionCommand(1, 1, "   ", 1, 100m, "Disponible", null, []));
+        var update = await new UpdateHabitacionCommandValidator().ValidateAsync(new UpdateHabitacionCommand
+        {
+            Id = 1, SedeId = 1, TipoHabitacionId = 1, Numero = "  ", Piso = 1,
+            PrecioBase = 100m, Estado = "Disponible", ComodidadesIds = []
+        });
+
+        create.Errors.Should().Contain(x => x.PropertyName == nameof(CreateHabitacionCommand.Numero));
+        update.Errors.Should().Contain(x => x.PropertyName == nameof(UpdateHabitacionCommand.Numero));
+    }
+
+    [Fact]
     public async Task Listado_deberia_limitar_el_tamano_de_pagina()
     {
         var query = new GetHabitacionesQuery(null, null, 0, 101);
