@@ -1,6 +1,7 @@
 -- Esquema aditivo para registrar pagos simulados de reservas.
 -- No procesa cobros y nunca almacena PAN, CVV, PIN, tokens o credenciales.
 -- Ejecutar sobre una copia/entorno de desarrollo; no elimina ni altera tablas existentes.
+SET QUOTED_IDENTIFIER ON;
 SET XACT_ABORT ON;
 
 BEGIN TRY
