@@ -27,6 +27,9 @@ public sealed class PagosSimuladosTests
         var detail = context.Model.FindEntityType(typeof(DetallePago))!;
         var method = context.Model.FindEntityType(typeof(MetodoPago))!;
         var state = context.Model.FindEntityType(typeof(EstadoPago))!;
+        var reservation = context.Model.FindEntityType(typeof(Reserva))!;
+        reservation.FindProperty(nameof(Reserva.Activo)).Should().BeNull();
+        reservation.FindProperty(nameof(Reserva.FechaActualizacion)).Should().BeNull();
         var paymentTable = StoreObjectIdentifier.Table("Pago", payment.GetSchema());
         var detailTable = StoreObjectIdentifier.Table("DetallePago", detail.GetSchema());
 

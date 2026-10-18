@@ -1,0 +1,152 @@
+
+
+USE CasaAndinaDB;
+GO
+SET NOCOUNT ON;
+GO
+
+/* ============================================================================
+   1. LIMPIEZA DE SEDES ANTERIORES
+   ============================================================================ */
+DECLARE @CodigosAEliminar TABLE (Codigo NVARCHAR(20));
+INSERT INTO @CodigosAEliminar VALUES
+    (N'MIR'), (N'CUS'), (N'ARQ'), (N'PUN'), (N'PIU'), (N'TRU'), (N'TAC'),          -- lote genérico inicial
+    (N'TRU-PLZ'), (N'MIR-PRE'), (N'SIS-PRE'), (N'GLI-PRE'), (N'MIR-SEL'),          -- lote v1 (10 sedes, versión anterior)
+    (N'CUS-PRE'), (N'VSA-PRE'), (N'MPI-STD'), (N'ARQ-PRE'), (N'ARQ-SEL');
+
+IF NOT EXISTS (
+    SELECT 1 FROM dbo.Habitacion h JOIN dbo.Sede s ON s.SedeId = h.SedeId
+        WHERE s.Codigo IN (SELECT Codigo FROM @CodigosAEliminar)
+    UNION ALL
+    SELECT 1 FROM dbo.Usuario u JOIN dbo.Sede s ON s.SedeId = u.SedeId
+        WHERE s.Codigo IN (SELECT Codigo FROM @CodigosAEliminar)
+)
+BEGIN
+    DELETE FROM dbo.ServicioSede WHERE SedeId IN (
+        SELECT SedeId FROM dbo.Sede WHERE Codigo IN (SELECT Codigo FROM @CodigosAEliminar));
+    DELETE FROM dbo.Sede WHERE Codigo IN (SELECT Codigo FROM @CodigosAEliminar);
+    PRINT 'Sedes de iteraciones anteriores eliminadas.';
+END
+ELSE
+BEGIN
+    PRINT 'AVISO: ya existen Habitaciones/Usuarios ligados a sedes previas; no se eliminaron. Revisar manualmente.';
+END
+GO
+
+/* ============================================================================
+   2. EXTENDER CATEGORÍA DE SEDE
+   ============================================================================ */
+IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_Sede_Categoria')
+    ALTER TABLE dbo.Sede DROP CONSTRAINT CK_Sede_Categoria;
+GO
+ALTER TABLE dbo.Sede WITH CHECK ADD CONSTRAINT CK_Sede_Categoria
+    CHECK (Categoria IN (N'Premium', N'Select', N'Standard', N'Asociado'));
+GO
+
+/* ============================================================================
+   3. DATOS MAESTROS REALES: 10 sedes de Casa Andina
+   ============================================================================ */
+
+BEGIN TRY
+    BEGIN TRANSACTION;
+
+    DECLARE @SedesSeed TABLE (
+        Codigo      NVARCHAR(20),
+        Nombre      NVARCHAR(150),
+        Region      NVARCHAR(30),
+        Ciudad      NVARCHAR(100),
+        Direccion   NVARCHAR(250),
+        Categoria   NVARCHAR(30),
+        Telefono    NVARCHAR(20)
+    );
+
+    INSERT INTO @SedesSeed (Codigo, Nombre, Region, Ciudad, Direccion, Categoria, Telefono) VALUES
+    -- TRUJILLO (La Libertad) - 1 sede (único hotel Casa Andina en la ciudad)
+    (N'TRU-STD', N'Casa Andina Standard Trujillo Plaza',                  N'Costa',  N'Trujillo',        N'Jr. Diego de Almagro 586, Trujillo',                    N'Standard', N'+51 44 481018'),
+    -- LIMA - 2 sedes (máximo permitido)
+    (N'MIR-PRE', N'Casa Andina Premium Miraflores',                       N'Costa',  N'Lima',            N'Av. La Paz 463, Miraflores, Lima',                      N'Premium',  N'+51 1 213 9739'),
+    (N'SIS-PRE', N'Casa Andina Premium San Isidro',                       N'Costa',  N'Lima',            N'Calle Las Orquídeas 505-527, San Isidro, Lima',         N'Premium',  N'+51 1 391 6500'),
+    -- ICA (Nazca) - 2° destino más visitado (10%)
+    (N'NAZ-STD', N'Casa Andina Standard Nasca',                           N'Costa',  N'Nazca (Ica)',     N'Jr. Bolognesi 367, Nazca, Ica',                         N'Standard', N'+51 56 523563'),
+    -- AREQUIPA - 3° destino más visitado (8%)
+    (N'ARQ-PRE', N'Casa Andina Premium Arequipa',                         N'Sierra', N'Arequipa',        N'Centro histórico de Arequipa (dirección referencial, confirmar con Sede)', N'Premium', N'+51 54 000000'),
+    -- CUSCO - 4° destino más visitado (8%)
+    (N'CUS-PRE', N'Casa Andina Premium Cusco',                            N'Sierra', N'Cusco',           N'Cerca de la Plaza de Armas, Cusco (dirección referencial, confirmar con Sede)', N'Premium', N'+51 84 000000'),
+    -- PIURA - 5° destino más visitado (7%)
+    (N'PIU-PRE', N'Casa Andina Premium Piura',                            N'Costa',  N'Piura',           N'Av. Ramón Mujica S/N, Urb. San Eduardo, Piura',         N'Premium',  N'+51 73 000000'),
+    -- JUNÍN (Huancayo) - 7° destino más visitado (5%) - Hotel Asociado
+    (N'HYO-ASO', N'Hotel de Turistas Huancayo - Hotel Asociado Casa Andina', N'Sierra', N'Huancayo (Junín)', N'Jr. Ancash 729, Huancayo',                          N'Asociado', N'+51 64 000000'),
+    -- ÁNCASH (Huaraz) - 8° destino más visitado (5%) - Hotel Asociado
+    (N'HRZ-ASO', N'Hotel Andino Club - Hotel Asociado Casa Andina',       N'Sierra', N'Huaraz (Áncash)', N'Jr. Pedro Cochachín 357, Huaraz',                       N'Asociado', N'+51 43 421662'),
+    -- LAMBAYEQUE (Chiclayo) - 9° destino más visitado (4%)
+    (N'CHI-SEL', N'Casa Andina Select Chiclayo',                          N'Costa',  N'Chiclayo (Lambayeque)', N'Av. Federico Villarreal 115, Chiclayo',           N'Select',   N'+51 74 000000');
+
+    -- Validación previa: exactamente 10 filas y códigos únicos en el lote
+    IF (SELECT COUNT(*) FROM @SedesSeed) <> 10
+        THROW 51000, 'El lote de datos semilla no contiene exactamente 10 sedes.', 1;
+
+    IF (SELECT COUNT(DISTINCT Codigo) FROM @SedesSeed) <> (SELECT COUNT(*) FROM @SedesSeed)
+        THROW 51001, 'Hay códigos de sede duplicados en el lote de datos semilla.', 1;
+
+    -- Validación de distribución: máximo 2 en Lima
+    IF (SELECT COUNT(*) FROM @SedesSeed WHERE Ciudad = N'Lima') > 2
+        THROW 51002, 'Se excede el máximo de 2 sedes en Lima.', 1;
+
+    MERGE dbo.Sede AS target
+    USING @SedesSeed AS source
+        ON target.Codigo = source.Codigo
+    WHEN MATCHED THEN
+        UPDATE SET
+            target.Nombre    = source.Nombre,
+            target.Region    = source.Region,
+            target.Ciudad    = source.Ciudad,
+            target.Direccion = source.Direccion,
+            target.Categoria = source.Categoria,
+            target.Telefono  = source.Telefono,
+            target.Activo    = 1
+    WHEN NOT MATCHED BY TARGET THEN
+        INSERT (Nombre, Codigo, Region, Ciudad, Direccion, Categoria, Telefono, Activo)
+        VALUES (source.Nombre, source.Codigo, source.Region, source.Ciudad,
+                source.Direccion, source.Categoria, source.Telefono, 1);
+
+    COMMIT TRANSACTION;
+    PRINT 'Data seed de Sedes aplicado correctamente (10 sedes: Trujillo, Lima x2, Ica, Arequipa, Cusco, Piura, Junín, Áncash, Lambayeque).';
+END TRY
+BEGIN CATCH
+    IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+    PRINT 'ERROR al poblar Sedes: ' + ERROR_MESSAGE();
+    THROW;
+END CATCH
+GO
+
+/* ============================================================================
+   4. VALIDACIÓN POST-CARGA
+   ============================================================================ */
+
+-- Debe devolver exactamente 10
+SELECT COUNT(*) AS TotalSedes FROM dbo.Sede;
+
+-- Detalle completo, ordenado por ciudad
+SELECT SedeId, Codigo, Nombre, Categoria, Region, Ciudad, Direccion, Activo
+FROM dbo.Sede
+ORDER BY Ciudad, Categoria;
+
+-- Verificación de duplicados por código (debe devolver 0 filas)
+SELECT Codigo, COUNT(*) AS Repeticiones
+FROM dbo.Sede
+GROUP BY Codigo
+HAVING COUNT(*) > 1;
+
+-- Conteo de sedes por ciudad (confirma máximo 2 en Lima, 1 en el resto)
+SELECT Ciudad, COUNT(*) AS NumSedes
+FROM dbo.Sede
+GROUP BY Ciudad
+ORDER BY NumSedes DESC;
+
+-- Conteo de sedes por región (para el widget "Ocupación por región" del Dashboard BI)
+SELECT Region, COUNT(*) AS NumSedes
+FROM dbo.Sede
+GROUP BY Region;
+GO
+
+/* 
