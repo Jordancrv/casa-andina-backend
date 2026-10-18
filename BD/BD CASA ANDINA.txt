@@ -1,0 +1,504 @@
+IF DB_ID('CasaAndinaDB') IS NULL
+BEGIN
+    CREATE DATABASE CasaAndinaDB;
+END
+GO
+
+USE CasaAndinaDB;
+GO
+
+/* ============================================================================
+   1. LIMPIEZA (permite re-ejecutar el script en desarrollo)
+   ============================================================================ */
+IF OBJECT_ID('dbo.ConsultaChatbot', 'U') IS NOT NULL DROP TABLE dbo.ConsultaChatbot;
+IF OBJECT_ID('dbo.Comprobante', 'U') IS NOT NULL DROP TABLE dbo.Comprobante;
+IF OBJECT_ID('dbo.ReservaServicio', 'U') IS NOT NULL DROP TABLE dbo.ReservaServicio;
+IF OBJECT_ID('dbo.AsignacionHuesped', 'U') IS NOT NULL DROP TABLE dbo.AsignacionHuesped;
+IF OBJECT_ID('dbo.ReservaHabitacion', 'U') IS NOT NULL DROP TABLE dbo.ReservaHabitacion;
+IF OBJECT_ID('dbo.Reserva', 'U') IS NOT NULL DROP TABLE dbo.Reserva;
+IF OBJECT_ID('dbo.Huesped', 'U') IS NOT NULL DROP TABLE dbo.Huesped;
+IF OBJECT_ID('dbo.UsuarioRol', 'U') IS NOT NULL DROP TABLE dbo.UsuarioRol;
+IF OBJECT_ID('dbo.Auditoria', 'U') IS NOT NULL DROP TABLE dbo.Auditoria;
+IF OBJECT_ID('dbo.PersonaContacto', 'U') IS NOT NULL DROP TABLE dbo.PersonaContacto;
+IF OBJECT_ID('dbo.PersonaTelefono', 'U') IS NOT NULL DROP TABLE dbo.PersonaTelefono;
+IF OBJECT_ID('dbo.PersonaCorreo', 'U') IS NOT NULL DROP TABLE dbo.PersonaCorreo;
+IF OBJECT_ID('dbo.PersonaDocumento', 'U') IS NOT NULL DROP TABLE dbo.PersonaDocumento;
+IF OBJECT_ID('dbo.PersonaJuridica', 'U') IS NOT NULL DROP TABLE dbo.PersonaJuridica;
+IF OBJECT_ID('dbo.PersonaNatural', 'U') IS NOT NULL DROP TABLE dbo.PersonaNatural;
+IF OBJECT_ID('dbo.ServicioSede', 'U') IS NOT NULL DROP TABLE dbo.ServicioSede;
+IF OBJECT_ID('dbo.HabitacionComodidad', 'U') IS NOT NULL DROP TABLE dbo.HabitacionComodidad;
+IF OBJECT_ID('dbo.Habitacion', 'U') IS NOT NULL DROP TABLE dbo.Habitacion;
+IF OBJECT_ID('dbo.Usuario', 'U') IS NOT NULL DROP TABLE dbo.Usuario;
+IF OBJECT_ID('dbo.Cliente', 'U') IS NOT NULL DROP TABLE dbo.Cliente;
+IF OBJECT_ID('dbo.Servicio', 'U') IS NOT NULL DROP TABLE dbo.Servicio;
+IF OBJECT_ID('dbo.Comodidad', 'U') IS NOT NULL DROP TABLE dbo.Comodidad;
+IF OBJECT_ID('dbo.TipoHabitacion', 'U') IS NOT NULL DROP TABLE dbo.TipoHabitacion;
+IF OBJECT_ID('dbo.TipoDocumento', 'U') IS NOT NULL DROP TABLE dbo.TipoDocumento;
+IF OBJECT_ID('dbo.Persona', 'U') IS NOT NULL DROP TABLE dbo.Persona;
+IF OBJECT_ID('dbo.Rol', 'U') IS NOT NULL DROP TABLE dbo.Rol;
+IF OBJECT_ID('dbo.Sede', 'U') IS NOT NULL DROP TABLE dbo.Sede;
+GO
+
+/* ============================================================================
+   2. TABLAS MAESTRAS / CATÁLOGOS
+   ============================================================================ */
+
+-- Sedes: dato maestro fijo. Sin CRUD en frontend (Restricción #2 del Business
+-- Case). Se administra únicamente vía scripts SQL por el Responsable de Datos.
+CREATE TABLE dbo.Sede (
+    SedeId          INT             IDENTITY(1,1)   NOT NULL,
+    Nombre          NVARCHAR(150)   NOT NULL,
+    Codigo          NVARCHAR(20)    NOT NULL,           -- ej. 'CUS', 'MIR', 'ARQ'
+    Region          NVARCHAR(30)    NOT NULL,           -- Costa / Sierra / Selva (dashboard BI)
+    Ciudad          NVARCHAR(100)   NOT NULL,
+    Direccion       NVARCHAR(250)   NULL,
+    Categoria       NVARCHAR(30)    NOT NULL,           -- Premium / Select / Standard
+    Telefono        NVARCHAR(20)    NULL,
+    Activo          BIT             NOT NULL DEFAULT (1),
+    FechaCreacion   DATETIME2       NOT NULL DEFAULT (SYSDATETIME()),
+    CONSTRAINT PK_Sede PRIMARY KEY (SedeId),
+    CONSTRAINT UQ_Sede_Codigo UNIQUE (Codigo),
+    CONSTRAINT CK_Sede_Region CHECK (Region IN (N'Costa', N'Sierra', N'Selva')),
+    CONSTRAINT CK_Sede_Categoria CHECK (Categoria IN
+        (N'Premium', N'Select', N'Standard', N'Asociado'))
+);
+GO
+
+-- Roles del personal interno (Hito 3: Administrador, Recepción, Operaciones, Mantenimiento)
+CREATE TABLE dbo.Rol (
+    RolId           INT             IDENTITY(1,1)   NOT NULL,
+    Codigo          NVARCHAR(30)    NOT NULL,
+    Nombre          NVARCHAR(50)    NOT NULL,
+    Descripcion     NVARCHAR(200)   NULL,
+    CONSTRAINT PK_Rol PRIMARY KEY (RolId),
+    CONSTRAINT UQ_Rol_Codigo UNIQUE (Codigo),
+    CONSTRAINT UQ_Rol_Nombre UNIQUE (Nombre)
+);
+GO
+
+CREATE TABLE dbo.TipoDocumento (
+    TipoDocumentoId INT IDENTITY(1,1) NOT NULL,
+    Codigo NVARCHAR(20) NOT NULL,
+    Nombre NVARCHAR(80) NOT NULL,
+    TipoPersonaPermitida NCHAR(1) NOT NULL,
+    LongitudMinima TINYINT NOT NULL,
+    LongitudMaxima TINYINT NOT NULL,
+    Activo BIT NOT NULL DEFAULT (1),
+    CONSTRAINT PK_TipoDocumento PRIMARY KEY (TipoDocumentoId),
+    CONSTRAINT UQ_TipoDocumento_Codigo UNIQUE (Codigo),
+    CONSTRAINT CK_TipoDocumento_Persona CHECK (TipoPersonaPermitida IN (N'N', N'J', N'A')),
+    CONSTRAINT CK_TipoDocumento_Longitud CHECK (LongitudMinima > 0 AND LongitudMaxima >= LongitudMinima)
+);
+GO
+
+CREATE TABLE dbo.Persona (
+    PersonaId INT IDENTITY(1,1) NOT NULL,
+    TipoPersona NCHAR(1) NOT NULL,
+    Estado NVARCHAR(20) NOT NULL DEFAULT (N'Activo'),
+    FechaRegistro DATETIME2 NOT NULL DEFAULT (SYSDATETIME()),
+    CONSTRAINT PK_Persona PRIMARY KEY (PersonaId),
+    CONSTRAINT CK_Persona_Tipo CHECK (TipoPersona IN (N'N', N'J')),
+    CONSTRAINT CK_Persona_Estado CHECK (Estado IN (N'Activo', N'Inactivo'))
+);
+GO
+
+CREATE TABLE dbo.PersonaNatural (
+    PersonaId INT NOT NULL,
+    Nombres NVARCHAR(200) NOT NULL,
+    Apellidos NVARCHAR(100) NULL,
+    FechaNacimiento DATE NULL,
+    Genero NCHAR(1) NULL,
+    Nacionalidad NVARCHAR(60) NULL,
+    CONSTRAINT PK_PersonaNatural PRIMARY KEY (PersonaId),
+    CONSTRAINT FK_PersonaNatural_Persona FOREIGN KEY (PersonaId) REFERENCES dbo.Persona (PersonaId),
+    CONSTRAINT CK_PersonaNatural_Genero CHECK (Genero IS NULL OR Genero IN (N'F', N'M', N'O', N'N'))
+);
+GO
+
+CREATE TABLE dbo.PersonaJuridica (
+    PersonaId INT NOT NULL,
+    RazonSocial NVARCHAR(200) NOT NULL,
+    NombreComercial NVARCHAR(150) NULL,
+    CONSTRAINT PK_PersonaJuridica PRIMARY KEY (PersonaId),
+    CONSTRAINT FK_PersonaJuridica_Persona FOREIGN KEY (PersonaId) REFERENCES dbo.Persona (PersonaId)
+);
+GO
+
+CREATE TABLE dbo.PersonaDocumento (
+    PersonaDocumentoId INT IDENTITY(1,1) NOT NULL,
+    PersonaId INT NOT NULL,
+    TipoDocumentoId INT NOT NULL,
+    Numero NVARCHAR(20) NOT NULL,
+    PaisEmision NVARCHAR(60) NULL,
+    FechaVencimiento DATE NULL,
+    EsPrincipal BIT NOT NULL DEFAULT (0),
+    CONSTRAINT PK_PersonaDocumento PRIMARY KEY (PersonaDocumentoId),
+    CONSTRAINT FK_PersonaDocumento_Persona FOREIGN KEY (PersonaId) REFERENCES dbo.Persona (PersonaId),
+    CONSTRAINT FK_PersonaDocumento_Tipo FOREIGN KEY (TipoDocumentoId) REFERENCES dbo.TipoDocumento (TipoDocumentoId),
+    CONSTRAINT UQ_PersonaDocumento_TipoNumero UNIQUE (TipoDocumentoId, Numero)
+);
+CREATE UNIQUE INDEX UX_PersonaDocumento_Principal ON dbo.PersonaDocumento (PersonaId) WHERE EsPrincipal = 1;
+GO
+
+CREATE TABLE dbo.PersonaContacto (
+    PersonaContactoId INT IDENTITY(1,1) NOT NULL,
+    PersonaId INT NOT NULL,
+    TipoContacto NVARCHAR(20) NOT NULL,
+    Valor NVARCHAR(150) NOT NULL,
+    EsPrincipal BIT NOT NULL DEFAULT (0),
+    Verificado BIT NOT NULL DEFAULT (0),
+    CONSTRAINT PK_PersonaContacto PRIMARY KEY (PersonaContactoId),
+    CONSTRAINT FK_PersonaContacto_Persona FOREIGN KEY (PersonaId) REFERENCES dbo.Persona (PersonaId),
+    CONSTRAINT CK_PersonaContacto_Tipo CHECK (TipoContacto IN (N'Correo', N'Telefono')),
+    CONSTRAINT CK_PersonaContacto_Valor CHECK (LEN(LTRIM(RTRIM(Valor))) > 0)
+);
+CREATE UNIQUE INDEX UX_PersonaContacto_Correo ON dbo.PersonaContacto (Valor) WHERE TipoContacto = N'Correo';
+CREATE UNIQUE INDEX UX_PersonaContacto_Principal ON dbo.PersonaContacto (PersonaId, TipoContacto) WHERE EsPrincipal = 1;
+GO
+
+CREATE TABLE dbo.Huesped (
+    HuespedId INT IDENTITY(1,1) NOT NULL,
+    PersonaId INT NOT NULL,
+    FechaRegistro DATETIME2 NOT NULL DEFAULT (SYSDATETIME()),
+    CONSTRAINT PK_Huesped PRIMARY KEY (HuespedId),
+    CONSTRAINT UQ_Huesped_Persona UNIQUE (PersonaId),
+    CONSTRAINT FK_Huesped_PersonaNatural FOREIGN KEY (PersonaId) REFERENCES dbo.PersonaNatural (PersonaId)
+);
+GO
+
+-- Tipos de habitación (mockup Calendario: Superior King, Superior Twin, Andina Suite...)
+CREATE TABLE dbo.TipoHabitacion (
+    TipoHabitacionId    INT             IDENTITY(1,1)   NOT NULL,
+    Nombre              NVARCHAR(60)    NOT NULL,
+    Descripcion         NVARCHAR(250)   NULL,
+    CapacidadAdultos    TINYINT         NOT NULL DEFAULT (2),
+    CapacidadNinos      TINYINT         NOT NULL DEFAULT (0),
+    CONSTRAINT PK_TipoHabitacion PRIMARY KEY (TipoHabitacionId),
+    CONSTRAINT UQ_TipoHabitacion_Nombre UNIQUE (Nombre)
+);
+GO
+
+-- Comodidades (mockup Nueva Habitación: WiFi, AC, TV/Cable, Jacuzzi)
+CREATE TABLE dbo.Comodidad (
+    ComodidadId     INT             IDENTITY(1,1)   NOT NULL,
+    Nombre          NVARCHAR(60)    NOT NULL,
+    CONSTRAINT PK_Comodidad PRIMARY KEY (ComodidadId),
+    CONSTRAINT UQ_Comodidad_Nombre UNIQUE (Nombre)
+);
+GO
+
+/* ============================================================================
+   3. HABITACIONES Y SU RELACIÓN N:M CON COMODIDADES
+   ============================================================================ */
+
+CREATE TABLE dbo.Habitacion (
+    HabitacionId        INT             IDENTITY(1,1)   NOT NULL,
+    SedeId               INT             NOT NULL,
+    TipoHabitacionId     INT             NOT NULL,
+    Numero               NVARCHAR(10)    NOT NULL,          -- ej. '101', '202'
+    Piso                 TINYINT         NOT NULL,
+    PrecioBase           DECIMAL(10,2)   NOT NULL,
+    Estado               NVARCHAR(20)    NOT NULL DEFAULT (N'Disponible'),
+    FotoUrl               NVARCHAR(500)   NULL,
+    Activo                BIT             NOT NULL DEFAULT (1),
+    FechaCreacion         DATETIME2       NOT NULL DEFAULT (SYSDATETIME()),
+    CONSTRAINT PK_Habitacion PRIMARY KEY (HabitacionId),
+    CONSTRAINT UQ_Habitacion_Sede_Numero UNIQUE (SedeId, Numero),
+    CONSTRAINT FK_Habitacion_Sede FOREIGN KEY (SedeId)
+        REFERENCES dbo.Sede (SedeId),
+    CONSTRAINT FK_Habitacion_TipoHabitacion FOREIGN KEY (TipoHabitacionId)
+        REFERENCES dbo.TipoHabitacion (TipoHabitacionId),
+    CONSTRAINT CK_Habitacion_Estado CHECK (Estado IN
+        (N'Disponible', N'Ocupada', N'Mantenimiento', N'Bloqueada')),
+    CONSTRAINT CK_Habitacion_PrecioBase CHECK (PrecioBase >= 0)
+);
+GO
+
+-- Tabla puente: una habitación puede tener varias comodidades y una
+-- comodidad puede estar en varias habitaciones (mockup Nueva Habitación)
+CREATE TABLE dbo.HabitacionComodidad (
+    HabitacionId    INT     NOT NULL,
+    ComodidadId     INT     NOT NULL,
+    CONSTRAINT PK_HabitacionComodidad PRIMARY KEY (HabitacionId, ComodidadId),
+    CONSTRAINT FK_HabComodidad_Habitacion FOREIGN KEY (HabitacionId)
+        REFERENCES dbo.Habitacion (HabitacionId) ON DELETE CASCADE,
+    CONSTRAINT FK_HabComodidad_Comodidad FOREIGN KEY (ComodidadId)
+        REFERENCES dbo.Comodidad (ComodidadId)
+);
+GO
+
+/* ============================================================================
+   4. SERVICIOS Y SU RELACIÓN N:M CON SEDES
+   ============================================================================ */
+
+CREATE TABLE dbo.Servicio (
+    ServicioId      INT             IDENTITY(1,1)   NOT NULL,
+    Nombre          NVARCHAR(100)   NOT NULL,
+    Descripcion     NVARCHAR(300)   NULL,
+    Precio          DECIMAL(10,2)   NOT NULL DEFAULT (0),
+    Activo          BIT             NOT NULL DEFAULT (1),
+    FechaCreacion   DATETIME2       NOT NULL DEFAULT (SYSDATETIME()),
+    CONSTRAINT PK_Servicio PRIMARY KEY (ServicioId),
+    CONSTRAINT CK_Servicio_Precio CHECK (Precio >= 0)
+);
+GO
+
+-- Tabla puente: "vinculación múltiple a sedes específicas" (Business Case, 6.1.d)
+CREATE TABLE dbo.ServicioSede (
+    ServicioId      INT     NOT NULL,
+    SedeId          INT     NOT NULL,
+    CONSTRAINT PK_ServicioSede PRIMARY KEY (ServicioId, SedeId),
+    CONSTRAINT FK_ServicioSede_Servicio FOREIGN KEY (ServicioId)
+        REFERENCES dbo.Servicio (ServicioId) ON DELETE CASCADE,
+    CONSTRAINT FK_ServicioSede_Sede FOREIGN KEY (SedeId)
+        REFERENCES dbo.Sede (SedeId)
+);
+GO
+
+/* ============================================================================
+   5. CUENTAS, ROLES Y AUDITORÍA
+   ============================================================================ */
+
+CREATE TABLE dbo.Usuario (
+    UsuarioId           INT             IDENTITY(1,1)   NOT NULL,
+    PersonaId            INT             NOT NULL,
+    SedeId               INT             NULL,               -- NULL = cliente o cuenta corporativa
+    ContrasenaHash       NVARCHAR(256)   NOT NULL,
+    Estado               NVARCHAR(20)    NOT NULL DEFAULT (N'Activo'),
+    UltimoAcceso         DATETIME2       NULL,
+    FechaRegistro        DATETIME2       NOT NULL DEFAULT (SYSDATETIME()),
+    CONSTRAINT PK_Usuario PRIMARY KEY (UsuarioId),
+    CONSTRAINT FK_Usuario_Persona FOREIGN KEY (PersonaId)
+        REFERENCES dbo.Persona (PersonaId),
+    CONSTRAINT FK_Usuario_Sede FOREIGN KEY (SedeId)
+        REFERENCES dbo.Sede (SedeId),
+    CONSTRAINT CK_Usuario_Estado CHECK (Estado IN (N'Activo', N'Inactivo'))
+);
+CREATE UNIQUE INDEX UX_Usuario_Persona ON dbo.Usuario (PersonaId);
+GO
+
+CREATE TABLE dbo.UsuarioRol (
+    UsuarioId INT NOT NULL,
+    RolId INT NOT NULL,
+    FechaAsignacion DATETIME2 NOT NULL DEFAULT (SYSUTCDATETIME()),
+    CONSTRAINT PK_UsuarioRol PRIMARY KEY (UsuarioId, RolId),
+    CONSTRAINT FK_UsuarioRol_Usuario FOREIGN KEY (UsuarioId) REFERENCES dbo.Usuario (UsuarioId) ON DELETE CASCADE,
+    CONSTRAINT FK_UsuarioRol_Rol FOREIGN KEY (RolId) REFERENCES dbo.Rol (RolId)
+);
+GO
+
+CREATE TABLE dbo.Auditoria (
+    AuditoriaId BIGINT IDENTITY(1,1) NOT NULL,
+    FechaUtc DATETIME2 NOT NULL DEFAULT (SYSUTCDATETIME()),
+    UsuarioId INT NULL,
+    SedeId INT NULL,
+    Accion NVARCHAR(30) NOT NULL,
+    Entidad NVARCHAR(128) NOT NULL,
+    EntidadId NVARCHAR(100) NOT NULL,
+    Antes NVARCHAR(MAX) NULL,
+    Despues NVARCHAR(MAX) NULL,
+    DireccionIp NVARCHAR(45) NULL,
+    CorrelationId UNIQUEIDENTIFIER NULL,
+    CONSTRAINT PK_Auditoria PRIMARY KEY (AuditoriaId),
+    CONSTRAINT FK_Auditoria_Usuario FOREIGN KEY (UsuarioId) REFERENCES dbo.Usuario (UsuarioId) ON DELETE SET NULL,
+    CONSTRAINT FK_Auditoria_Sede FOREIGN KEY (SedeId) REFERENCES dbo.Sede (SedeId) ON DELETE SET NULL,
+    CONSTRAINT CK_Auditoria_Accion CHECK (Accion IN (N'INSERT', N'UPDATE', N'DELETE', N'LOGIN', N'LOGOUT', N'OTRA'))
+);
+CREATE INDEX IX_Auditoria_FechaUtc ON dbo.Auditoria (FechaUtc);
+CREATE INDEX IX_Auditoria_Entidad ON dbo.Auditoria (Entidad, EntidadId, FechaUtc);
+CREATE INDEX IX_Auditoria_Usuario_Fecha ON dbo.Auditoria (UsuarioId, FechaUtc);
+CREATE INDEX IX_Auditoria_Sede_Fecha ON dbo.Auditoria (SedeId, FechaUtc);
+GO
+
+CREATE TABLE dbo.Cliente (
+    ClienteId           INT             IDENTITY(1,1)   NOT NULL,
+    PersonaId            INT             NOT NULL,
+    Estado               NVARCHAR(20)    NOT NULL DEFAULT (N'Activo'),
+    FechaRegistro        DATETIME2       NOT NULL DEFAULT (SYSDATETIME()),
+    CONSTRAINT PK_Cliente PRIMARY KEY (ClienteId),
+    CONSTRAINT FK_Cliente_Persona FOREIGN KEY (PersonaId)
+        REFERENCES dbo.Persona (PersonaId),
+    CONSTRAINT CK_Cliente_Estado CHECK (Estado IN (N'Activo', N'Inactivo'))
+    -- Nota: las etiquetas "Frecuente" / "Nuevo" del mockup de Clientes son
+    -- estados DERIVADOS (según N° de reservas), no se almacenan aquí; se
+    -- calculan con una vista o consulta (ver notas al final).
+);
+CREATE UNIQUE INDEX UX_Cliente_Persona ON dbo.Cliente (PersonaId);
+GO
+
+/* ============================================================================
+   6. RESERVAS (núcleo transaccional del sistema)
+   ============================================================================ */
+
+CREATE TABLE dbo.Reserva (
+    ReservaId               INT             IDENTITY(1,1)   NOT NULL,
+    CodigoReserva            NVARCHAR(12)    NOT NULL,           -- formato CA-XXXXX
+    ClienteId                INT             NOT NULL,
+    SedeId                   INT             NOT NULL,
+    CreadoPorUsuarioId       INT             NULL,               -- si el staff la registró
+    Estado                    NVARCHAR(20)    NOT NULL DEFAULT (N'Pendiente'),
+    Canal                     NVARCHAR(20)    NOT NULL DEFAULT (N'Directo'),
+    PrecioTotal                DECIMAL(10,2)   NOT NULL,
+    FechaCreacion              DATETIME2       NOT NULL DEFAULT (SYSDATETIME()),
+    CONSTRAINT PK_Reserva PRIMARY KEY (ReservaId),
+    CONSTRAINT UQ_Reserva_Codigo UNIQUE (CodigoReserva),
+    CONSTRAINT FK_Reserva_Cliente FOREIGN KEY (ClienteId)
+        REFERENCES dbo.Cliente (ClienteId),
+    CONSTRAINT FK_Reserva_Sede FOREIGN KEY (SedeId)
+        REFERENCES dbo.Sede (SedeId),
+    CONSTRAINT FK_Reserva_Usuario FOREIGN KEY (CreadoPorUsuarioId)
+        REFERENCES dbo.Usuario (UsuarioId),
+    CONSTRAINT CK_Reserva_Estado CHECK (Estado IN
+        (N'Pendiente', N'Confirmada', N'Bloqueada', N'Completada', N'Cancelada')),
+    CONSTRAINT CK_Reserva_Canal CHECK (Canal IN (N'Directo', N'OTA')),
+    CONSTRAINT CK_Reserva_PrecioTotal CHECK (PrecioTotal >= 0)
+);
+GO
+
+CREATE TABLE dbo.ReservaHabitacion (
+    ReservaHabitacionId INT IDENTITY(1,1) NOT NULL,
+    ReservaId INT NOT NULL,
+    HabitacionId INT NOT NULL,
+    FechaCheckIn DATE NOT NULL,
+    FechaCheckOut DATE NOT NULL,
+    CantidadPersonas SMALLINT NOT NULL,
+    PrecioAcordado DECIMAL(10,2) NOT NULL,
+    Subtotal DECIMAL(10,2) NOT NULL,
+    CONSTRAINT PK_ReservaHabitacion PRIMARY KEY (ReservaHabitacionId),
+    CONSTRAINT FK_ReservaHabitacion_Reserva FOREIGN KEY (ReservaId) REFERENCES dbo.Reserva (ReservaId) ON DELETE CASCADE,
+    CONSTRAINT FK_ReservaHabitacion_Habitacion FOREIGN KEY (HabitacionId) REFERENCES dbo.Habitacion (HabitacionId),
+    CONSTRAINT CK_ReservaHabitacion_Fechas CHECK (FechaCheckOut > FechaCheckIn),
+    CONSTRAINT CK_ReservaHabitacion_CantidadPersonas CHECK (CantidadPersonas > 0),
+    CONSTRAINT CK_ReservaHabitacion_PrecioAcordado CHECK (PrecioAcordado >= 0),
+    CONSTRAINT CK_ReservaHabitacion_Subtotal CHECK (Subtotal >= 0)
+);
+CREATE INDEX IX_ReservaHabitacion_Habitacion_Fechas ON dbo.ReservaHabitacion (HabitacionId, FechaCheckIn, FechaCheckOut);
+CREATE UNIQUE INDEX UQ_ReservaHabitacion_Reserva_Habitacion_Fechas
+    ON dbo.ReservaHabitacion (ReservaId, HabitacionId, FechaCheckIn, FechaCheckOut);
+GO
+
+CREATE TABLE dbo.AsignacionHuesped (
+    ReservaHabitacionId INT NOT NULL,
+    HuespedId INT NOT NULL,
+    EsTitular BIT NOT NULL DEFAULT (0),
+    Observacion NVARCHAR(250) NULL,
+    CONSTRAINT PK_AsignacionHuesped PRIMARY KEY (ReservaHabitacionId, HuespedId),
+    CONSTRAINT FK_AsignacionHuesped_Detalle FOREIGN KEY (ReservaHabitacionId) REFERENCES dbo.ReservaHabitacion (ReservaHabitacionId) ON DELETE CASCADE,
+    CONSTRAINT FK_AsignacionHuesped_Huesped FOREIGN KEY (HuespedId) REFERENCES dbo.Huesped (HuespedId)
+);
+CREATE UNIQUE INDEX UX_AsignacionHuesped_Titular ON dbo.AsignacionHuesped (ReservaHabitacionId) WHERE EsTitular = 1;
+GO
+
+-- Servicios adicionales contratados dentro de una reserva (venta cruzada:
+-- WiFi, AC, Jacuzzi, traslados... mencionada en Oportunidad del Business Case)
+CREATE TABLE dbo.ReservaServicio (
+    ReservaId           INT             NOT NULL,
+    ServicioId           INT             NOT NULL,
+    Cantidad              INT             NOT NULL DEFAULT (1),
+    PrecioUnitario        DECIMAL(10,2)   NOT NULL,
+    Subtotal              AS (CONVERT(DECIMAL(10,2), Cantidad * PrecioUnitario)) PERSISTED,
+    CONSTRAINT PK_ReservaServicio PRIMARY KEY (ReservaId, ServicioId),
+    CONSTRAINT FK_ReservaServicio_Reserva FOREIGN KEY (ReservaId)
+        REFERENCES dbo.Reserva (ReservaId) ON DELETE CASCADE,
+    CONSTRAINT FK_ReservaServicio_Servicio FOREIGN KEY (ServicioId)
+        REFERENCES dbo.Servicio (ServicioId),
+    CONSTRAINT CK_ReservaServicio_Cantidad CHECK (Cantidad > 0),
+    CONSTRAINT CK_ReservaServicio_PrecioUnitario CHECK (PrecioUnitario >= 0)
+);
+GO
+
+-- Comprobante / voucher de la reserva (mockup "Mis Reservas": botón Comprobante)
+CREATE TABLE dbo.Comprobante (
+    ComprobanteId        INT             IDENTITY(1,1)   NOT NULL,
+    ReservaId              INT             NOT NULL,
+    NumeroComprobante      NVARCHAR(30)    NOT NULL,
+    TipoComprobante        NVARCHAR(10)    NOT NULL DEFAULT (N'Boleta'),
+    FechaEmision            DATETIME2       NOT NULL DEFAULT (SYSDATETIME()),
+    MontoTotal              DECIMAL(10,2)   NOT NULL,
+    UrlPdf                  NVARCHAR(500)   NULL,
+    CONSTRAINT PK_Comprobante PRIMARY KEY (ComprobanteId),
+    CONSTRAINT UQ_Comprobante_Reserva UNIQUE (ReservaId),      -- 1 a 1 con Reserva
+    CONSTRAINT UQ_Comprobante_Numero UNIQUE (NumeroComprobante),
+    CONSTRAINT CK_Comprobante_TipoComprobante CHECK (TipoComprobante IN (N'Boleta', N'Factura')),
+    CONSTRAINT FK_Comprobante_Reserva FOREIGN KEY (ReservaId)
+        REFERENCES dbo.Reserva (ReservaId)
+);
+GO
+
+/* ============================================================================
+   7. ASISTENTE VIRTUAL / PLANIFICADOR INTELIGENTE (log para BI y OE2)
+   ============================================================================ */
+
+-- Registra cada interacción del chatbot (presupuesto + clima -> sede
+-- recomendada) para medir OE2 ("tasa de interacción exitosa") y el
+-- indicador de BI "conversiones del asistente AI"
+CREATE TABLE dbo.ConsultaChatbot (
+    ConsultaId              INT             IDENTITY(1,1)   NOT NULL,
+    ClienteId                 INT             NULL,               -- NULL si es visitante anónimo
+    Presupuesto                NVARCHAR(20)    NOT NULL,
+    Clima                      NVARCHAR(20)    NOT NULL,
+    SedeRecomendadaId          INT             NULL,
+    ReservaGeneradaId          INT             NULL,               -- si la consulta terminó en reserva
+    FechaConsulta               DATETIME2       NOT NULL DEFAULT (SYSDATETIME()),
+    CONSTRAINT PK_ConsultaChatbot PRIMARY KEY (ConsultaId),
+    CONSTRAINT FK_Consulta_Cliente FOREIGN KEY (ClienteId)
+        REFERENCES dbo.Cliente (ClienteId),
+    CONSTRAINT FK_Consulta_Sede FOREIGN KEY (SedeRecomendadaId)
+        REFERENCES dbo.Sede (SedeId),
+    CONSTRAINT FK_Consulta_Reserva FOREIGN KEY (ReservaGeneradaId)
+        REFERENCES dbo.Reserva (ReservaId),
+    CONSTRAINT CK_Consulta_Presupuesto CHECK (Presupuesto IN
+        (N'Económico', N'Estándar', N'Lujo')),
+    CONSTRAINT CK_Consulta_Clima CHECK (Clima IN
+        (N'Cálido', N'Frío', N'Templado'))
+);
+GO
+
+/* ============================================================================
+   8. ÍNDICES DE APOYO (consultas frecuentes del Dashboard BI y buscadores)
+   ============================================================================ */
+
+CREATE INDEX IX_Habitacion_Sede ON dbo.Habitacion (SedeId);
+CREATE INDEX IX_Habitacion_Estado ON dbo.Habitacion (Estado);
+CREATE INDEX IX_Reserva_Cliente ON dbo.Reserva (ClienteId);
+CREATE INDEX IX_Reserva_Estado ON dbo.Reserva (Estado);
+CREATE INDEX IX_Usuario_Sede ON dbo.Usuario (SedeId);
+CREATE INDEX IX_ConsultaChatbot_Sede ON dbo.ConsultaChatbot (SedeRecomendadaId);
+GO
+
+/* ============================================================================
+   9. DATOS SEMILLA (catálogos + sedes maestras según Restricción #2)
+   ============================================================================ */
+
+INSERT INTO dbo.Rol (Codigo, Nombre, Descripcion) VALUES
+    (N'SUPERADMINISTRADOR', N'Superadministrador', N'Acceso global al sistema'),
+    (N'ADMINISTRADOR', N'Administrador', N'Administración de una sede'),
+    (N'RECEPCIONISTA', N'Recepcionista', N'Gestión de reservas, huéspedes y clientes'),
+    (N'CLIENTE', N'Cliente', N'Acceso al portal de reservas');
+GO
+
+INSERT INTO dbo.TipoDocumento (Codigo, Nombre, TipoPersonaPermitida, LongitudMinima, LongitudMaxima) VALUES
+    (N'DNI', N'Documento Nacional de Identidad', N'N', 8, 8),
+    (N'CE', N'Carné de Extranjería', N'N', 9, 12),
+    (N'PASAPORTE', N'Pasaporte', N'N', 6, 20),
+    (N'RUC', N'Registro Único de Contribuyentes', N'J', 11, 11);
+GO
+
+INSERT INTO dbo.Comodidad (Nombre) VALUES
+    (N'WiFi'), (N'Aire Acondicionado'), (N'TV/Cable'), (N'Jacuzzi');
+GO
+
+INSERT INTO dbo.TipoHabitacion (Nombre, CapacidadAdultos, CapacidadNinos) VALUES
+    (N'Superior King', 2, 1),
+    (N'Superior Twin', 2, 0),
+    (N'Andina Suite', 3, 2),
+    (N'Matrimonial', 2, 1);
+GO
+
+-- Las sedes se cargan después de este DDL con el script canónico e idempotente:
+-- casa-andina-backend/scripts/seed-sedes.sql.
+-- Se mantienen fuera del esquema para evitar catálogos duplicados o divergentes.
+
+PRINT 'Modelo de base de datos CasaAndinaDB creado correctamente.';
+GO
+

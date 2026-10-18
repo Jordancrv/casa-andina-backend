@@ -21,7 +21,8 @@ public class ReservaConfiguration : IEntityTypeConfiguration<Reserva>
         builder.Property(r => r.Estado).HasMaxLength(20);
         builder.Property(r => r.Canal).HasMaxLength(20);
 
-        // BaseEntity.FechaActualizacion no existe en Reserva
+        // Estas propiedades heredadas no existen en la tabla Reserva.
+        builder.Ignore(r => r.Activo);
         builder.Ignore(r => r.FechaActualizacion);
 
         builder.HasIndex(r => r.Estado).HasDatabaseName("IX_Reserva_Estado");
