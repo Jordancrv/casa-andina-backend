@@ -2,6 +2,8 @@ namespace CasaAndina.Application.Habitaciones.DTOs;
 
 public record HabitacionDto(
     int Id,
+    int SedeId,
+    int TipoHabitacionId,
     string Numero,
     int Piso,
     decimal PrecioNoche,
@@ -11,4 +13,6 @@ public record HabitacionDto(
     string TipoHabitacionNombre,
     byte CapacidadAdultos,
     byte CapacidadNinos,
-    IReadOnlyList<string> Comodidades);
+    IReadOnlyList<int> ComodidadesIds,
+    IReadOnlyList<string> Comodidades,
+    bool Activo);

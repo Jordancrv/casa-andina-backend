@@ -13,6 +13,7 @@ public class TipoHabitacionConfiguration : IEntityTypeConfiguration<TipoHabitaci
         builder.Property(t => t.Id).HasColumnName("TipoHabitacionId");
 
         builder.Property(t => t.Nombre).HasMaxLength(60).IsRequired();
+        builder.HasIndex(t => t.Nombre).IsUnique();
         builder.Property(t => t.Descripcion).HasMaxLength(250);
         builder.Property(t => t.CapacidadAdultos).HasColumnType("tinyint").HasDefaultValue((byte)2);
         builder.Property(t => t.CapacidadNinos).HasColumnType("tinyint").HasDefaultValue((byte)0);

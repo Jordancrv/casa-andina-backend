@@ -13,14 +13,23 @@ public class CurrentUserService : ICurrentUserService
         => _httpContextAccessor = httpContextAccessor;
 
     public int? UsuarioId
+        => GetIdentityId();
+
+    public int? ClienteId
+    {
+        get
+        {
+            var value = _httpContextAccessor.HttpContext?.User.FindFirstValue(AuthClaimTypes.ClienteId);
+            return int.TryParse(value, out var id) ? id : null;
+        }
+    }
+
+    public int? SedeId
     {
         get
         {
             var value = _httpContextAccessor.HttpContext?.User
-                .FindFirstValue(ClaimTypes.NameIdentifier)
-                ?? _httpContextAccessor.HttpContext?.User
-                .FindFirstValue("sub");
-
+                .FindFirstValue(AuthClaimTypes.SedeId);
             return int.TryParse(value, out var id) ? id : null;
         }
     }
@@ -32,5 +41,14 @@ public class CurrentUserService : ICurrentUserService
             var value = _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.Role);
             return Enum.TryParse<RolUsuario>(value, out var rol) ? rol : null;
         }
+    }
+
+    private int? GetIdentityId()
+    {
+        var value = _httpContextAccessor.HttpContext?.User
+            .FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? _httpContextAccessor.HttpContext?.User.FindFirstValue("sub");
+
+        return int.TryParse(value, out var id) ? id : null;
     }
 }

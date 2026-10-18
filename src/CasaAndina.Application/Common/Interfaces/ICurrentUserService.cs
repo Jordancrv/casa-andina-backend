@@ -6,5 +6,7 @@ namespace CasaAndina.Application.Common.Interfaces;
 public interface ICurrentUserService
 {
     int? UsuarioId { get; }
+    int? ClienteId { get; }
+    int? SedeId { get; }
     RolUsuario? Rol { get; }
 }

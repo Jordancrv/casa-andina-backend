@@ -47,6 +47,14 @@ public class ExceptionHandlingMiddleware
                 HttpStatusCode.NotFound,
                 new { title = exception.Message }),
 
+            ConflictException => (
+                HttpStatusCode.Conflict,
+                new { title = exception.Message }),
+
+            ForbiddenAccessException => (
+                HttpStatusCode.Forbidden,
+                new { title = exception.Message }),
+
             UnauthorizedAccessException => (
                 HttpStatusCode.Unauthorized,
                 new { title = exception.Message }),

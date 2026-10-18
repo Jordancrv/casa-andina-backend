@@ -29,6 +29,7 @@ public class HabitacionConfiguration : IEntityTypeConfiguration<Habitacion>
         builder.Ignore(h => h.FechaActualizacion);
 
         builder.HasIndex(h => new { h.SedeId, h.Numero }).IsUnique();
+        builder.HasIndex(h => h.Estado).HasDatabaseName("IX_Habitacion_Estado");
 
         builder.HasOne(h => h.Sede)
             .WithMany(s => s.Habitaciones)
@@ -44,7 +45,7 @@ public class HabitacionConfiguration : IEntityTypeConfiguration<Habitacion>
             .WithMany(c => c.Habitaciones)
             .UsingEntity<Dictionary<string, object>>(
                 "HabitacionComodidad",
-                j => j.HasOne<Comodidad>().WithMany().HasForeignKey("ComodidadId").OnDelete(DeleteBehavior.Cascade),
+                j => j.HasOne<Comodidad>().WithMany().HasForeignKey("ComodidadId").OnDelete(DeleteBehavior.Restrict),
                 j => j.HasOne<Habitacion>().WithMany().HasForeignKey("HabitacionId").OnDelete(DeleteBehavior.Cascade)
             );
     }

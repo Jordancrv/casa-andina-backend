@@ -4,6 +4,20 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CasaAndina.Infrastructure.Persistence.Configurations;
 
+public sealed class UsuarioRolConfiguration : IEntityTypeConfiguration<UsuarioRol>
+{
+    public void Configure(EntityTypeBuilder<UsuarioRol> builder)
+    {
+        builder.ToTable("UsuarioRol");
+        builder.HasKey(x => new { x.UsuarioId, x.RolId });
+        builder.Property(x => x.FechaAsignacion).HasColumnType("datetime2");
+        builder.HasOne(x => x.Usuario).WithMany(x => x.Roles)
+            .HasForeignKey(x => x.UsuarioId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(x => x.Rol).WithMany(x => x.Usuarios)
+            .HasForeignKey(x => x.RolId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
 public class UsuarioConfiguration : IEntityTypeConfiguration<Usuario>
 {
     public void Configure(EntityTypeBuilder<Usuario> builder)
@@ -13,25 +27,13 @@ public class UsuarioConfiguration : IEntityTypeConfiguration<Usuario>
         // PK: UsuarioId en BD → Id en dominio
         builder.Property(u => u.Id).HasColumnName("UsuarioId");
 
-        // Correo → Email
-        builder.Property(u => u.Email)
-            .HasColumnName("Correo")
-            .HasMaxLength(150)
-            .IsRequired();
-
-        builder.HasIndex(u => u.Email).IsUnique();
-
-        // ContrasenaHash → PasswordHash
         builder.Property(u => u.PasswordHash)
             .HasColumnName("ContrasenaHash")
             .HasMaxLength(256)
             .IsRequired();
-
-        // Nombre → NombreCompleto
-        builder.Property(u => u.NombreCompleto)
-            .HasColumnName("Nombre")
-            .HasMaxLength(150)
-            .IsRequired();
+        builder.Property(u => u.Correo).HasMaxLength(150).IsRequired();
+        builder.HasIndex(u => u.Correo).IsUnique().HasDatabaseName("UX_Usuario_Correo");
+        builder.Property(u => u.UltimoAcceso);
 
         // FechaRegistro → FechaCreacion (BaseEntity)
         builder.Property(u => u.FechaCreacion)
@@ -45,11 +47,14 @@ public class UsuarioConfiguration : IEntityTypeConfiguration<Usuario>
                 v => v == "Activo")
             .HasMaxLength(20);
 
-        // RolId: FK a tabla Rol
-        builder.Property(u => u.RolId).HasColumnName("RolId");
+        builder.Property(u => u.PersonaId).HasColumnName("PersonaId");
+        builder.HasIndex(u => u.PersonaId).IsUnique().HasDatabaseName("UX_Usuario_Persona");
 
-        // 'Rol' es una propiedad calculada (no stored) → EF no debe mapearla a columna
-        builder.Ignore(u => u.Rol);
+        builder.HasOne(u => u.Sede)
+            .WithMany()
+            .HasForeignKey(u => u.SedeId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // 'FechaActualizacion' de BaseEntity no existe en la tabla Usuario
         builder.Ignore(u => u.FechaActualizacion);

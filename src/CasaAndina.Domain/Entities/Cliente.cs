@@ -1,19 +1,14 @@
 namespace CasaAndina.Domain.Entities;
 
 /// <summary>
-/// Huéspedes / clientes del Portal Cliente.
-/// Columnas BD: ClienteId, NombreCompleto, DNI, Correo, Telefono,
-///              ContrasenaHash, FotoUrl, Estado, FechaRegistro
+/// Perfil comercial de una persona que compra o figura como titular.
 /// </summary>
 public class Cliente
 {
     public int Id { get; set; }   // → ClienteId en BD
-    public string NombreCompleto { get; set; } = default!;
-    public string DNI { get; set; } = default!;
-    public string Correo { get; set; } = default!;
-    public string? Telefono { get; set; }
-    public string? ContrasenaHash { get; set; }
-    public string? FotoUrl { get; set; }
+    public int PersonaId { get; set; }
+    public Persona Persona { get; set; } = default!;
+
     public string Estado { get; set; } = "Activo";
     public DateTime FechaRegistro { get; set; }
 

@@ -1,5 +1,6 @@
 using CasaAndina.Application.Common.Interfaces;
 using CasaAndina.Domain.Enums;
+using FluentValidation;
 using MediatR;
 
 namespace CasaAndina.Application.Chatbot.Queries;
@@ -12,6 +13,19 @@ namespace CasaAndina.Application.Chatbot.Queries;
 public record GetRecomendacionesQuery(
     NivelPresupuesto Presupuesto,
     TipoClima Clima) : IRequest<IReadOnlyList<DestinoRecomendadoDto>>;
+
+public sealed class GetRecomendacionesQueryValidator : AbstractValidator<GetRecomendacionesQuery>
+{
+    public GetRecomendacionesQueryValidator()
+    {
+        RuleFor(x => x.Presupuesto)
+            .IsInEnum()
+            .WithMessage("El presupuesto seleccionado no es válido.");
+        RuleFor(x => x.Clima)
+            .IsInEnum()
+            .WithMessage("El clima seleccionado no es válido.");
+    }
+}
 
 public class GetRecomendacionesQueryHandler
     : IRequestHandler<GetRecomendacionesQuery, IReadOnlyList<DestinoRecomendadoDto>>
