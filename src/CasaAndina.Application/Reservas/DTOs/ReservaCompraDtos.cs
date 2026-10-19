@@ -11,7 +11,8 @@ public sealed record HabitacionDisponibleDto(
     int CapacidadAdultos,
     int CapacidadNinos,
     decimal PrecioNoche,
-    IReadOnlyList<string> Comodidades);
+    IReadOnlyList<string> Comodidades,
+    string? FotoUrl = null);
 
 public sealed record HabitacionCalendarioDto(
     int HabitacionId,
