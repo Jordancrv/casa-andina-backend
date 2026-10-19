@@ -13,4 +13,5 @@ public record ReservaDto(
     string SedeNombre,
     string Ciudad,
     IReadOnlyList<string> HabitacionesNumeros,
-    IReadOnlyList<PagoReservaDto> Pagos);
+    IReadOnlyList<PagoReservaDto> Pagos,
+    string EstadoEstadia = "Reserva confirmada");

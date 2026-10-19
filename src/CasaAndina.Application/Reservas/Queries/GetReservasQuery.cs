@@ -54,7 +54,11 @@ public class GetReservasQueryHandler
                         detalle.Pago.Importe,
                         detalle.Pago.Moneda,
                         detalle.Pago.FechaCreacion,
-                        detalle.MontoAplicado)).ToArray()))
+                        detalle.MontoAplicado)).ToArray(),
+                r.Estado == "Cancelada" ? "Reserva cancelada" :
+                r.Estado == "Completada" || r.Habitaciones.All(x => x.FechaCheckOutReal != null) ? "Estadía finalizada" :
+                r.Habitaciones.Any(x => x.FechaCheckInReal != null && x.FechaCheckOutReal == null) ? "Estadía en curso" :
+                r.Estado == "Confirmada" ? "Reserva confirmada" : r.Estado))
             .ToListAsync(cancellationToken);
     }
 }
