@@ -1,0 +1,31 @@
+using CasaAndina.Application.Recepcion;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace CasaAndina.Api.Controllers;
+
+[ApiController]
+[Route("api/recepcion")]
+[Authorize(Roles = "Administrador,Recepcion")]
+public sealed class RecepcionController(ISender sender) : ControllerBase
+{
+    [HttpGet]
+    public async Task<IActionResult> Get([FromQuery] string vista = "llegadas", [FromQuery] DateTime? fecha = null,
+        [FromQuery] string? codigo = null, CancellationToken cancellationToken = default)
+        => Ok(await sender.Send(new GetRecepcionQuery(vista, fecha, codigo), cancellationToken));
+
+    [HttpPost("{id:int}/check-in")]
+    public async Task<IActionResult> CheckIn(int id, CancellationToken cancellationToken)
+    {
+        await sender.Send(new RegistrarMovimientoCommand(id, false), cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:int}/check-out")]
+    public async Task<IActionResult> CheckOut(int id, CancellationToken cancellationToken)
+    {
+        await sender.Send(new RegistrarMovimientoCommand(id, true), cancellationToken);
+        return NoContent();
+    }
+}

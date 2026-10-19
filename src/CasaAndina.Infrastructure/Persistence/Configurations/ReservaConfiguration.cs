@@ -53,6 +53,13 @@ public sealed class ReservaHabitacionConfiguration : IEntityTypeConfiguration<Re
         builder.Property(x => x.Id).HasColumnName("ReservaHabitacionId");
         builder.Property(x => x.FechaCheckIn).HasColumnType("date");
         builder.Property(x => x.FechaCheckOut).HasColumnType("date");
+        builder.Property(x => x.FechaCheckInReal).HasColumnType("datetime2(7)").IsConcurrencyToken();
+        builder.Property(x => x.FechaCheckOutReal).HasColumnType("datetime2(7)").IsConcurrencyToken();
+        builder.HasOne<Usuario>().WithMany().HasForeignKey(x => x.CheckInPorUsuarioId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Usuario>().WithMany().HasForeignKey(x => x.CheckOutPorUsuarioId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(x => x.HabitacionId).IsUnique()
+            .HasFilter("[FechaCheckInReal] IS NOT NULL AND [FechaCheckOutReal] IS NULL")
+            .HasDatabaseName("UX_ReservaHabitacion_EstadiaActiva");
         builder.Property(x => x.CantidadPersonas).HasColumnType("smallint");
         builder.Property(x => x.PrecioAcordado).HasColumnType("decimal(10,2)");
         builder.Property(x => x.Subtotal).HasColumnType("decimal(10,2)");

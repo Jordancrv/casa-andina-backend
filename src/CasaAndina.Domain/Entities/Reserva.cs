@@ -36,6 +36,10 @@ public class ReservaHabitacion
     public Habitacion Habitacion { get; set; } = default!;
     public DateTime FechaCheckIn { get; set; }
     public DateTime FechaCheckOut { get; set; }
+    public DateTime? FechaCheckInReal { get; set; }
+    public int? CheckInPorUsuarioId { get; set; }
+    public DateTime? FechaCheckOutReal { get; set; }
+    public int? CheckOutPorUsuarioId { get; set; }
     public int CantidadPersonas { get; set; }
     public decimal PrecioAcordado { get; set; }
     public decimal Subtotal { get; set; }
