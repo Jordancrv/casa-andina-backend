@@ -34,7 +34,7 @@ public sealed class GetDisponibilidadQueryHandler(IApplicationDbContext context)
                 h.Id, h.SedeId, h.Sede.Nombre, h.Sede.Ciudad, h.Numero, h.Piso,
                 h.TipoHabitacion.Nombre, h.TipoHabitacion.CapacidadAdultos,
                 h.TipoHabitacion.CapacidadNinos, h.PrecioNoche,
-                h.Comodidades.Select(c => c.Nombre).ToArray()))
+                h.Comodidades.Select(c => c.Nombre).ToArray(), h.FotoUrl))
             .ToListAsync(cancellationToken);
     }
 
