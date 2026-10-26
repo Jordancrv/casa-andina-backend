@@ -22,4 +22,13 @@ public class DashboardController : ControllerBase
     [HttpGet("bi")]
     public async Task<IActionResult> GetBi([FromQuery] string periodo = "30d")
         => Ok(await _mediator.Send(new GetDashboardBiQuery(periodo)));
+
+    [HttpGet("reporte/pdf")]
+    [Produces("application/pdf")]
+    public async Task<IActionResult> GetReporte([FromQuery] string periodo = "30d", CancellationToken cancellationToken = default)
+    {
+        var reporte = await _mediator.Send(new GetDashboardReportQuery(periodo), cancellationToken);
+        Response.Headers.CacheControl = "no-store, private";
+        return File(reporte.Contenido, "application/pdf", reporte.Nombre);
+    }
 }

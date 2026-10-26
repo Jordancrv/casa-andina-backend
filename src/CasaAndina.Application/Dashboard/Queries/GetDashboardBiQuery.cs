@@ -30,7 +30,8 @@ public sealed class GetDashboardBiQueryHandler(
             throw new ForbiddenAccessException("El dashboard requiere una sede asignada.");
 
         var sedeId = currentUser.SedeId.Value;
-        var hoy = PeruBusinessTime.Today;
+        var generadoUtc = DateTime.UtcNow;
+        var hoy = PeruBusinessTime.FromUtc(generadoUtc).Date;
         var (inicioPeriodoLocal, finPeriodoLocal, inicioAnteriorLocal, finAnteriorLocal) = ObtenerRangos(request.Periodo, hoy);
         var inicioPeriodo = PeruBusinessTime.UtcStartOfDay(inicioPeriodoLocal);
         var finPeriodo = PeruBusinessTime.UtcStartOfDay(finPeriodoLocal);
@@ -119,7 +120,9 @@ public sealed class GetDashboardBiQueryHandler(
             new DashboardBiKpisDto(totalReservas, totalReservasAnterior, importeReservado,
                 importeReservadoAnterior, ocupacion, clientesActivos, clientesAnteriores),
             reservasSemana, [ocupacionSede], canceladasPeriodo,
-            new CanalReservasBiDto(directas, ota, totalCanales, ticketPromedio, estadiaPromedio));
+            new CanalReservasBiDto(directas, ota, totalCanales, ticketPromedio, estadiaPromedio),
+            new DashboardPeriodoDto(request.Periodo, inicioPeriodoLocal, finPeriodoLocal.AddDays(-1),
+                inicioAnteriorLocal, finAnteriorLocal.AddDays(-1), inicioSemanas, generadoUtc));
     }
 
     private static (DateTime Inicio, DateTime Fin, DateTime InicioAnterior, DateTime FinAnterior) ObtenerRangos(string periodo, DateTime hoy)

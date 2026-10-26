@@ -15,21 +15,9 @@ public sealed class ComprobantePdfService : IComprobantePdfService
     private const string Borde = "#DAE4DE";
     private const string Gris = "#667570";
     private static readonly CultureInfo Peru = CultureInfo.GetCultureInfo("es-PE");
-    private static readonly Lazy<byte[]> Logo = new(() =>
-    {
-        // Proyecto académico / uso individual: licencia Community de QuestPDF.
-        QuestPDF.Settings.License = LicenseType.Community;
-        using var font = typeof(ComprobantePdfService).Assembly.GetManifestResourceStream("CasaAndina.Infrastructure.Assets.HankenGrotesk.ttf")
-            ?? throw new InvalidOperationException("No se encontró la tipografía del comprobante.");
-        QuestPDF.Drawing.FontManager.RegisterFontFromStream(font);
-        using var logo = typeof(ComprobantePdfService).Assembly.GetManifestResourceStream("CasaAndina.Infrastructure.Assets.casa-andina.png")
-            ?? throw new InvalidOperationException("No se encontró el logo del comprobante.");
-        using var memory = new MemoryStream(); logo.CopyTo(memory); return memory.ToArray();
-    });
-
     public byte[] Generar(ComprobanteDocumentoDto d)
     {
-        var logo = Logo.Value;
+        var logo = PdfBranding.Logo;
         return Document.Create(container => container.Page(page =>
         {
             page.Size(PageSizes.A4);

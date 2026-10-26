@@ -6,7 +6,12 @@ public sealed record DashboardBiDto(
     IReadOnlyList<ReservaSemanaBiDto> ReservasSemana,
     IReadOnlyList<OcupacionSedeBiDto> OcupacionSedes,
     int CanceladasPeriodo,
-    CanalReservasBiDto Canales);
+    CanalReservasBiDto Canales,
+    DashboardPeriodoDto? Periodo = null);
+
+public sealed record DashboardPeriodoDto(
+    string Codigo, DateTime Inicio, DateTime Fin, DateTime InicioAnterior,
+    DateTime FinAnterior, DateTime InicioSemanas, DateTime GeneradoUtc);
 
 public sealed record DashboardBiKpisDto(
     int TotalReservas,
