@@ -15,7 +15,8 @@ Las sedes son datos maestros y su carga canónica está en [`scripts/seed-sedes.
 - `Reserva` exige un `ClienteId` y un `SedeId`.
 - Las habitaciones y fechas de una operación residen en `ReservaHabitacion`; cada reserva debe pertenecer a una sola sede.
 - `AsignacionHuesped` identifica ocupantes por habitación reservada.
-- `Comprobante` se relaciona 1:1 con `Reserva` y guarda si se emite boleta o factura; RUC/razón social se consultan desde Persona y sus documentos, no se repiten.
+- `Comprobante` se relaciona 1:1 con `Reserva` y guarda si se emite boleta o factura; la identidad actual del receptor se mantiene en Persona y sus documentos.
+- `Comprobante.DatosEmisionJson` conserva la copia de emisión para sus PDF: identidad del receptor, sede, detalles e importes. Esta copia histórica se captura al pagar y mantiene el comprobante frente a ediciones posteriores del CRM o catálogo. Aplicar [`migrate-comprobante-pdf.sql`](../scripts/migrate-comprobante-pdf.sql); ver [comprobantes PDF](comprobantes-pdf.md).
 - `Habitacion` debe tener sede y tipo; las comodidades se relacionan mediante `HabitacionComodidad`.
 - `Auditoria` mantiene el historial técnico. Su tabla no implica que todos los eventos de aplicación ya estén instrumentados.
 - Los estados de cliente derivados, como frecuente/nuevo, se calculan y no se almacenan como duplicados.

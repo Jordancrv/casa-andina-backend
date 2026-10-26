@@ -186,7 +186,8 @@ public sealed class PagosSimuladosTests
             Id = 20, SedeId = sede.Id, Sede = sede, TipoHabitacionId = type.Id, TipoHabitacion = type,
             Numero = "201", Piso = 2, PrecioNoche = 150, Estado = "Disponible", Activo = true
         };
-        var person = new Persona { Id = 100, TipoPersona = "N", Estado = "Activo", FechaRegistro = DateTime.Today };
+        var person = new Persona { Id = 100, TipoPersona = "N", Estado = "Activo", FechaRegistro = DateTime.Today,
+            Natural = new PersonaNatural { PersonaId = 100, Nombres = "Cliente", Apellidos = "Prueba" } };
         var client = new Cliente { Id = 10, PersonaId = person.Id, Persona = person, Estado = "Activo" };
         person.Cliente = client;
         context.Sedes.Add(sede);

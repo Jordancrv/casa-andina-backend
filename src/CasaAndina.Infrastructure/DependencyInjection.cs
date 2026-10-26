@@ -25,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
+        services.AddSingleton<IComprobantePdfService, ComprobantePdfService>();
         services.AddScoped<IRecommendationService, GeminiRecommendationService>();
         services.Configure<GoogleRecaptchaOptions>(configuration.GetSection("GoogleRecaptcha"));
         services.AddHttpClient<IRecaptchaVerifier, GoogleRecaptchaVerifier>(client =>

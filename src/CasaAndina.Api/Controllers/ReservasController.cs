@@ -25,6 +25,16 @@ public class ReservasController : ControllerBase
     public async Task<IActionResult> GetMisReservas()
         => Ok(await _mediator.Send(new GetReservasQuery()));
 
+    /// <summary>Genera el PDF del comprobante propio, solo si el pago aprobado cubre el total.</summary>
+    [HttpPost("{id:int}/comprobante/pdf")]
+    public async Task<IActionResult> ComprobantePdf(int id, CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GenerarComprobantePdfCommand(id), cancellationToken);
+        Response.Headers.CacheControl = "no-store, private";
+        Response.Headers["X-Content-Type-Options"] = "nosniff";
+        return File(result.Contenido, "application/pdf", result.NombreArchivo);
+    }
+
     [HttpGet("metodos-pago")]
     public async Task<ActionResult<IReadOnlyList<MetodoPagoDto>>> GetMetodosPago(CancellationToken cancellationToken)
         => Ok(await _mediator.Send(new GetMetodosPagoQuery(), cancellationToken));

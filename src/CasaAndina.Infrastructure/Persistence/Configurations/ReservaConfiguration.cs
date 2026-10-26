@@ -112,6 +112,7 @@ public sealed class ComprobanteConfiguration : IEntityTypeConfiguration<Comproba
         builder.Property(x => x.FechaEmision).HasColumnType("datetime2");
         builder.Property(x => x.MontoTotal).HasColumnType("decimal(10,2)");
         builder.Property(x => x.UrlPdf).HasMaxLength(500);
+        builder.Property(x => x.DatosEmisionJson).HasColumnType("nvarchar(max)");
         builder.HasOne(x => x.Reserva).WithOne(x => x.Comprobante)
             .HasForeignKey<Comprobante>(x => x.ReservaId)
             .OnDelete(DeleteBehavior.Restrict);

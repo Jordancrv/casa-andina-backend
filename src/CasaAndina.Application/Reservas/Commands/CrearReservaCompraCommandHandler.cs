@@ -216,7 +216,7 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
         if (reservation.PrecioTotal <= 0)
             throw Invalid("El total debe ser mayor a cero para registrar el pago simulado.");
 
-        var bookingNumber = $"B{DateTime.UtcNow:yyyyMMdd}{reservation.CodigoReserva[^5..]}";
+        var bookingNumber = $"{(tipoComprobante == TipoComprobante.Factura ? "F" : "B")}{DateTime.UtcNow:yyyyMMdd}-{reservation.CodigoReserva[3..]}";
         reservation.Comprobante = new Comprobante
         {
             NumeroComprobante = bookingNumber,
@@ -268,11 +268,14 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
         });
 
         await _context.SaveChangesAsync(cancellationToken);
+        var documento = await ComprobanteEmision.CrearAsync(_context, reservation, reconstruido: false, cancellationToken);
+        reservation.Comprobante.DatosEmisionJson = System.Text.Json.JsonSerializer.Serialize(documento, ComprobanteEmision.JsonOptions);
+        await _context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return new ReservaCompraResponseDto(reservation.Id, reservation.CodigoReserva,
             reservation.Estado, reservation.PrecioTotal, tipoComprobante.ToString(),
             metodoPago.Nombre, estadoPago.Nombre,
-            "Pago aprobado en modo simulado. No se realizó ningún cobro real.");
+            "Pago aprobado en modo simulado. No se realizó ningún cobro real.", bookingNumber, true);
     }
 
     private async Task<int> FindOrCreateGuest(HuespedCompraDto guest, CancellationToken cancellationToken)

@@ -67,6 +67,7 @@ public sealed class Comprobante
     public DateTime FechaEmision { get; set; }
     public decimal MontoTotal { get; set; }
     public string? UrlPdf { get; set; }
+    public string? DatosEmisionJson { get; set; }
 }
 
 public sealed class EstadoPago

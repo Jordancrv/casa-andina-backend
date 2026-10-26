@@ -62,7 +62,9 @@ public sealed record ReservaCompraResponseDto(
     string TipoComprobante,
     string MetodoPago,
     string EstadoPago,
-    string MensajePago);
+    string MensajePago,
+    string? NumeroComprobante = null,
+    bool ComprobanteDisponible = false);
 
 public sealed record MetodoPagoDto(string Codigo, string Nombre, string Categoria);
 
