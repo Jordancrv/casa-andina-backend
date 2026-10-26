@@ -1,97 +1,100 @@
 using CasaAndina.Application.Clientes.DTOs;
-using CasaAndina.Application.Common.Exceptions;
+using CasaAndina.Application.Common;
 using CasaAndina.Application.Common.Interfaces;
-using CasaAndina.Application.Common.Models;
-using CasaAndina.Domain.Enums;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace CasaAndina.Application.Clientes.Queries;
 
-public sealed record GetClientesAdminQuery(string? Buscar = null, int PageNumber = 1, int PageSize = 20)
-    : IRequest<PaginatedList<ClienteAdminDto>>;
+public sealed record GetClientesAdminQuery(string? Buscar = null, int PageNumber = 1, int PageSize = 20,
+    string? Estado = null, int? SedeId = null, string? Categoria = null, string? Actividad = null)
+    : IRequest<ClientesCrmDto>;
 
 public sealed class GetClientesAdminQueryValidator : AbstractValidator<GetClientesAdminQuery>
 {
     public GetClientesAdminQueryValidator()
     {
-        RuleFor(query => query.PageNumber).GreaterThan(0);
-        RuleFor(query => query.PageSize).InclusiveBetween(1, 100);
-        RuleFor(query => query.Buscar).MaximumLength(100);
+        RuleFor(q => q.PageNumber).InclusiveBetween(1, 1000000);
+        RuleFor(q => q.PageSize).InclusiveBetween(1, 100);
+        RuleFor(q => q.Buscar).MaximumLength(100);
+        RuleFor(q => q.SedeId).GreaterThan(0).When(q => q.SedeId.HasValue);
+        RuleFor(q => q.Estado).Must(v => v is null or "Activo" or "Inactivo");
+        RuleFor(q => q.Categoria).Must(v => v is null or "Ocasional" or "Frecuente" or "VIP");
+        RuleFor(q => q.Actividad).Must(v => v is null or "ConReservasActivas" or "NuevosMes");
     }
 }
 
-public sealed class GetClientesAdminQueryHandler(
-    IApplicationDbContext context,
-    ICurrentUserService currentUser)
-    : IRequestHandler<GetClientesAdminQuery, PaginatedList<ClienteAdminDto>>
+public sealed class GetClientesAdminQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<GetClientesAdminQuery, ClientesCrmDto>
 {
-    public async Task<PaginatedList<ClienteAdminDto>> Handle(
-        GetClientesAdminQuery request, CancellationToken cancellationToken)
+    public async Task<ClientesCrmDto> Handle(GetClientesAdminQuery request, CancellationToken ct)
     {
-        if (currentUser.Rol is not (RolUsuario.Administrador or RolUsuario.Superadministrador))
-            throw new ForbiddenAccessException("No tiene permisos para consultar el directorio de clientes.");
-        if (currentUser.Rol != RolUsuario.Superadministrador && !currentUser.SedeId.HasValue)
-            throw new ForbiddenAccessException("La cuenta administrativa no tiene una sede asignada.");
-
+        var sede = ClientesScope.Sede(currentUser, request.SedeId);
         var buscar = string.IsNullOrWhiteSpace(request.Buscar) ? null : request.Buscar.Trim();
-        var reservas = context.Reservas.AsNoTracking();
-        if (currentUser.SedeId.HasValue)
-            reservas = reservas.Where(reserva => reserva.SedeId == currentUser.SedeId.Value);
+        var hoy = PeruBusinessTime.Today;
+        var mes = new DateTime(hoy.Year, hoy.Month, 1);
+        var inicioMes = PeruBusinessTime.UtcStartOfDay(mes);
+        var finMes = PeruBusinessTime.UtcStartOfDay(mes.AddMonths(1));
+        var reservas = context.Reservas.AsNoTracking().Where(r => !sede.HasValue || r.SedeId == sede);
+        var clientes = ClientesScope.Aplicar(context.Clientes.AsNoTracking(), sede)
+            .Where(c => request.Estado == null || c.Estado == request.Estado)
+            .Where(c => buscar == null
+                || (c.Persona.Natural != null && (c.Persona.Natural.Nombres + " " + (c.Persona.Natural.Apellidos ?? "")).Contains(buscar))
+                || (c.Persona.Juridica != null && (c.Persona.Juridica.RazonSocial.Contains(buscar) || (c.Persona.Juridica.NombreComercial != null && c.Persona.Juridica.NombreComercial.Contains(buscar))))
+                || context.Usuarios.Any(u => u.PersonaId == c.PersonaId && u.Correo.Contains(buscar))
+                || c.Persona.Contactos.Any(p => p.TipoContacto == "Correo" && p.Valor.Contains(buscar))
+                || c.Persona.Documentos.Any(d => d.Numero.Contains(buscar)))
+            .Select(c => new
+            {
+                Cliente = c,
+                Completadas = reservas.Count(r => r.ClienteId == c.Id && r.Estado == "Completada"),
+                Activas = reservas.Count(r => r.ClienteId == c.Id && (r.Estado == "Pendiente" || r.Estado == "Confirmada")
+                    && r.Habitaciones.Any(h => h.FechaCheckOutReal == null && (h.FechaCheckOut > hoy || h.FechaCheckInReal != null))),
+                Nuevo = c.FechaRegistro >= inicioMes && c.FechaRegistro < finMes
+            })
+            .Where(x => request.Categoria == null
+                || (request.Categoria == "Ocasional" && x.Completadas <= 1)
+                || (request.Categoria == "Frecuente" && x.Completadas >= 2 && x.Completadas <= 4)
+                || (request.Categoria == "VIP" && x.Completadas >= 5))
+            .Where(x => request.Actividad == null || (request.Actividad == "ConReservasActivas" && x.Activas > 0)
+                || (request.Actividad == "NuevosMes" && x.Nuevo));
 
-        var clientes = context.Clientes.AsNoTracking()
-            .Where(cliente => cliente.Estado == "Activo")
-            .Where(cliente => !currentUser.SedeId.HasValue || reservas.Any(reserva => reserva.ClienteId == cliente.Id))
-            .Where(cliente => buscar == null
-                || (cliente.Persona.Natural != null &&
-                    (cliente.Persona.Natural.Nombres.Contains(buscar)
-                     || (cliente.Persona.Natural.Apellidos != null && cliente.Persona.Natural.Apellidos.Contains(buscar))))
-                || (cliente.Persona.Juridica != null &&
-                    (cliente.Persona.Juridica.RazonSocial.Contains(buscar)
-                     || (cliente.Persona.Juridica.NombreComercial != null && cliente.Persona.Juridica.NombreComercial.Contains(buscar))))
-                || context.Usuarios.Any(usuario => usuario.PersonaId == cliente.PersonaId
-                    && usuario.Correo.Contains(buscar))
-                || cliente.Persona.Contactos.Any(contacto => contacto.TipoContacto == "Correo" && contacto.Valor.Contains(buscar)))
-            .OrderBy(cliente => cliente.Id);
-
-        var projection = clientes.Select(cliente => new ClienteAdminDto(
-            cliente.Id,
-            cliente.Persona.TipoPersona == "N"
-                ? ((cliente.Persona.Natural!.Nombres + " ") + (cliente.Persona.Natural.Apellidos ?? "")).Trim()
-                : (cliente.Persona.Juridica!.NombreComercial ?? cliente.Persona.Juridica.RazonSocial),
-            cliente.Persona.TipoPersona == "N" ? "Natural" : "Jurídica",
-            context.Usuarios
-                .Where(usuario => usuario.PersonaId == cliente.PersonaId)
-                .Select(usuario => usuario.Correo)
-                .FirstOrDefault(),
-            cliente.Persona.Contactos
-                .Where(contacto => contacto.TipoContacto == "Correo")
-                .OrderByDescending(contacto => contacto.EsPrincipal)
-                .Select(contacto => contacto.Valor)
-                .FirstOrDefault(),
-            reservas.Count(reserva => reserva.ClienteId == cliente.Id),
-            reservas.Where(reserva => reserva.ClienteId == cliente.Id && reserva.Estado != "Cancelada")
-                .Select(reserva => (decimal?)reserva.PrecioTotal).Sum() ?? 0,
-            context.DetallesPago
-                .Where(detalle => detalle.Reserva.ClienteId == cliente.Id
-                    && (!currentUser.SedeId.HasValue || detalle.Reserva.SedeId == currentUser.SedeId.Value)
-                    && detalle.Pago.EstadoPago.Codigo == "APROBADO")
-                .Select(detalle => (decimal?)detalle.MontoAplicado).Sum() ?? 0,
-            reservas.Where(reserva => reserva.ClienteId == cliente.Id)
-                .Where(reserva => reserva.Habitaciones.Any())
-                .OrderByDescending(reserva => reserva.FechaCreacion)
-                .Select(reserva => new ReservaClienteAdminDto(
-                    reserva.Id,
-                    reserva.CodigoReserva,
-                    reserva.Estado,
-                    reserva.Habitaciones.Min(detalle => detalle.FechaCheckIn),
-                    reserva.Habitaciones.Max(detalle => detalle.FechaCheckOut),
-                    reserva.PrecioTotal,
-                    reserva.Sede.Nombre))
-                .ToArray()));
-
-        return await PaginatedList<ClienteAdminDto>.CreateAsync(
-            projection, request.PageNumber, request.PageSize, cancellationToken);
+        // Todos los KPI usan los mismos filtros y alcance que la tabla, antes de paginar.
+        var total = await clientes.CountAsync(ct);
+        var activas = await clientes.CountAsync(x => x.Activas > 0, ct);
+        var nuevos = await clientes.CountAsync(x => x.Nuevo, ct);
+        var page = Math.Min(request.PageNumber, Math.Max(1, (int)Math.Ceiling(total / (double)request.PageSize)));
+        var items = await clientes.OrderByDescending(x => x.Cliente.FechaRegistro).ThenByDescending(x => x.Cliente.Id).Skip((page - 1) * request.PageSize).Take(request.PageSize)
+            .Select(x => new ClienteAdminDto(
+                x.Cliente.Id,
+                x.Cliente.Persona.TipoPersona == "N"
+                    ? (x.Cliente.Persona.Natural!.Nombres + " " + (x.Cliente.Persona.Natural.Apellidos ?? "")).Trim()
+                    : (x.Cliente.Persona.Juridica!.NombreComercial ?? x.Cliente.Persona.Juridica.RazonSocial),
+                x.Cliente.Persona.TipoPersona == "N" ? "Natural" : "Jurídica",
+                context.Usuarios.Where(u => u.PersonaId == x.Cliente.PersonaId).Select(u => u.Correo).FirstOrDefault(),
+                x.Cliente.Persona.Contactos.Where(p => p.TipoContacto == "Correo").OrderByDescending(p => p.EsPrincipal).ThenBy(p => p.Id).Select(p => p.Valor).FirstOrDefault(),
+                reservas.Count(r => r.ClienteId == x.Cliente.Id),
+                reservas.Where(r => r.ClienteId == x.Cliente.Id && r.Estado != "Cancelada").Select(r => (decimal?)r.PrecioTotal).Sum() ?? 0,
+                context.DetallesPago.Where(d => d.Reserva.ClienteId == x.Cliente.Id && (!sede.HasValue || d.Reserva.SedeId == sede)
+                    && d.Pago.EstadoPago.Codigo == "APROBADO").Select(d => (decimal?)d.MontoAplicado).Sum() ?? 0,
+                reservas.Where(r => r.ClienteId == x.Cliente.Id && r.Habitaciones.Any()).OrderByDescending(r => r.FechaCreacion).ThenByDescending(r => r.Id)
+                    .Select(r => new ReservaClienteAdminDto(r.Id, r.CodigoReserva, r.Estado, r.Habitaciones.Min(h => h.FechaCheckIn),
+                        r.Habitaciones.Max(h => h.FechaCheckOut), r.PrecioTotal, r.Sede.Nombre)).ToArray(),
+                x.Cliente.Estado, x.Cliente.FechaRegistro,
+                x.Completadas >= 5 ? "VIP" : x.Completadas >= 2 ? "Frecuente" : "Ocasional", x.Completadas, x.Activas,
+                x.Cliente.Persona.Documentos.OrderByDescending(d => d.EsPrincipal).ThenBy(d => d.Id).Select(d => d.TipoDocumento.Codigo).FirstOrDefault(),
+                x.Cliente.Persona.Documentos.OrderByDescending(d => d.EsPrincipal).ThenBy(d => d.Id).Select(d => d.Numero).FirstOrDefault(),
+                x.Cliente.Persona.Contactos.Where(p => p.TipoContacto == "Telefono").OrderByDescending(p => p.EsPrincipal).ThenBy(p => p.Id).Select(p => p.Valor).FirstOrDefault(),
+                reservas.Where(r => r.ClienteId == x.Cliente.Id).OrderByDescending(r => r.FechaCreacion).ThenByDescending(r => r.Id).Select(r => r.Sede.Nombre).FirstOrDefault()
+                    ?? (x.Cliente.SedeRegistro != null && (!sede.HasValue || x.Cliente.SedeRegistroId == sede) ? x.Cliente.SedeRegistro.Nombre : null),
+                x.Cliente.SedeRegistroId,
+                x.Cliente.Persona.Natural != null ? x.Cliente.Persona.Natural.Nombres : null,
+                x.Cliente.Persona.Natural != null ? x.Cliente.Persona.Natural.Apellidos : null,
+                x.Cliente.Persona.Juridica != null ? x.Cliente.Persona.Juridica.RazonSocial : null,
+                x.Cliente.Persona.Juridica != null ? x.Cliente.Persona.Juridica.NombreComercial : null,
+                x.Cliente.Persona.Documentos.OrderByDescending(d => d.EsPrincipal).ThenBy(d => d.Id).Select(d => (int?)d.TipoDocumentoId).FirstOrDefault()))
+            .ToListAsync(ct);
+        return new(items, total, page, request.PageSize, new(total, activas, nuevos));
     }
 }

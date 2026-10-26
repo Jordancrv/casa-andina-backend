@@ -19,5 +19,6 @@ Las sedes son datos maestros y su carga canónica está en [`scripts/seed-sedes.
 - `Habitacion` debe tener sede y tipo; las comodidades se relacionan mediante `HabitacionComodidad`.
 - `Auditoria` mantiene el historial técnico. Su tabla no implica que todos los eventos de aplicación ya estén instrumentados.
 - Los estados de cliente derivados, como frecuente/nuevo, se calculan y no se almacenan como duplicados.
+- El CRM calcula Ocasional (0–1), Frecuente (2–4) y VIP (5 o más) a partir de reservas completadas en el alcance autorizado. El alta manual conserva `Cliente.SedeRegistroId` para dar visibilidad al perfil antes de su primera reserva. Aplicar [`migrate-crm-clientes.sql`](../scripts/migrate-crm-clientes.sql) sobre bases existentes; ver [contrato del CRM](crm-clientes.md).
 
 La actualización de bases existentes se realiza con [`migrate-usuario-correo-acceso.sql`](../scripts/migrate-usuario-correo-acceso.sql). El script copia cada correo principal actual a `Usuario.Correo`, valida cuentas incompletas/duplicadas y agrega el índice único; no elimina ni altera `PersonaContacto`.

@@ -12,5 +12,9 @@ public class Cliente
     public string Estado { get; set; } = "Activo";
     public DateTime FechaRegistro { get; set; }
 
+    // Conserva el alcance del alta manual aun cuando el cliente no tenga reservas.
+    public int? SedeRegistroId { get; set; }
+    public Sede? SedeRegistro { get; set; }
+
     public ICollection<Reserva> Reservas { get; set; } = new List<Reserva>();
 }

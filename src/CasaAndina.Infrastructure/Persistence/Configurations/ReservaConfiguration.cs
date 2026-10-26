@@ -131,6 +131,10 @@ public class ClienteConfiguration : IEntityTypeConfiguration<Cliente>
 
         builder.Property(c => c.Estado).HasMaxLength(20);
         builder.Property(c => c.FechaRegistro);
+        builder.HasOne(c => c.SedeRegistro).WithMany()
+            .HasForeignKey(c => c.SedeRegistroId).OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("FK_Cliente_SedeRegistro");
+        builder.HasIndex(c => c.SedeRegistroId);
 
         builder.HasOne(c => c.Persona)
             .WithOne(p => p.Cliente)
