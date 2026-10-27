@@ -2,6 +2,7 @@ using CasaAndina.Application.Chatbot.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace CasaAndina.Api.Controllers;
 
@@ -17,6 +18,11 @@ public class ChatbotController : ControllerBase
     public ChatbotController(ISender mediator) => _mediator = mediator;
 
     [HttpGet("recomendaciones")]
-    public async Task<IActionResult> GetRecomendaciones([FromQuery] GetRecomendacionesQuery query)
-        => Ok(await _mediator.Send(query));
+    public async Task<IActionResult> GetRecomendaciones([FromQuery] GetRecomendacionesQuery query, CancellationToken cancellationToken)
+        => Ok(await _mediator.Send(query, cancellationToken));
+
+    [HttpPost("planificar")]
+    [EnableRateLimiting("asistente")]
+    public async Task<IActionResult> Planificar([FromBody] PlanificarViajeQuery query, CancellationToken cancellationToken)
+        => Ok(await _mediator.Send(query, cancellationToken));
 }

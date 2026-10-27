@@ -46,3 +46,8 @@ en `Cliente`. Las contraseñas deben almacenarse exclusivamente con BCrypt.
 
 El inventario de tablas, las reglas de mantenimiento y las brechas pendientes
 del modelo se encuentran en [`docs/data-model.md`](docs/data-model.md).
+
+## Asistente con IA
+
+La configuración de Gemini, el contrato del planificador, sus límites y el guion de
+demostración están en [`docs/asistente-ia.md`](docs/asistente-ia.md).

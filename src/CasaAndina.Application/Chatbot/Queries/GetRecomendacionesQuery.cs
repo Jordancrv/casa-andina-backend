@@ -1,4 +1,5 @@
 using CasaAndina.Application.Common.Interfaces;
+using CasaAndina.Application.Chatbot.DTOs;
 using CasaAndina.Domain.Enums;
 using FluentValidation;
 using MediatR;

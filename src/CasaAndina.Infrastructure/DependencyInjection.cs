@@ -28,6 +28,12 @@ public static class DependencyInjection
         services.AddSingleton<IComprobantePdfService, ComprobantePdfService>();
         services.AddSingleton<IDashboardReportPdfService, DashboardReportPdfService>();
         services.AddScoped<IRecommendationService, GeminiRecommendationService>();
+        services.AddMemoryCache();
+        services.Configure<GeminiOptions>(configuration.GetSection("Gemini"));
+        services.AddHttpClient<ITravelExplanationClient, GeminiTravelClient>(client =>
+            client.Timeout = TimeSpan.FromSeconds(20));
+        services.AddHttpClient<ITravelWeatherService, OpenMeteoWeatherService>(client =>
+            client.Timeout = TimeSpan.FromSeconds(6));
         services.Configure<GoogleRecaptchaOptions>(configuration.GetSection("GoogleRecaptcha"));
         services.AddHttpClient<IRecaptchaVerifier, GoogleRecaptchaVerifier>(client =>
             client.Timeout = TimeSpan.FromSeconds(5));
