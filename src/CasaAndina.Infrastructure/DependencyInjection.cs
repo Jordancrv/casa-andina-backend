@@ -32,6 +32,8 @@ public static class DependencyInjection
         services.Configure<GeminiOptions>(configuration.GetSection("Gemini"));
         services.AddHttpClient<ITravelExplanationClient, GeminiTravelClient>(client =>
             client.Timeout = TimeSpan.FromSeconds(20));
+        services.AddHttpClient<ITravelConversationClient, GeminiConversationClient>(client =>
+            client.Timeout = TimeSpan.FromSeconds(12));
         services.AddHttpClient<ITravelWeatherService, OpenMeteoWeatherService>(client =>
             client.Timeout = TimeSpan.FromSeconds(6));
         services.Configure<GoogleRecaptchaOptions>(configuration.GetSection("GoogleRecaptcha"));

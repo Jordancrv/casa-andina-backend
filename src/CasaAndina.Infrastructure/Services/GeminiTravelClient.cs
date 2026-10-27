@@ -50,8 +50,8 @@ public sealed class GeminiTravelClient(HttpClient http, IOptions<GeminiOptions> 
             Ordena por afinidad con las preferencias; explica el motivo y las limitaciones con honestidad.
             Usa EXCLUSIVAMENTE los datos entregados. No inventes hoteles, comodidades, distancias,
             atracciones, noticias, eventos, descuentos ni servicios. No incluyas enlaces.
-            Los límites obligatorios de ciudad, fechas, adultos y presupuesto son los campos del formulario.
-            Si el mensaje contradice esos campos, indica que el usuario debe ajustar el formulario.
+            Los límites de ciudad, fechas, adultos y presupuesto son los datos confirmados de la consulta.
+            Si el mensaje contradice esos datos, pide aclaración en la conversación, sin exigir formularios.
             Si falta información para una preferencia, dilo; no afirmes que se cumple.
             Solo describe el clima para las fechas presentes en clima.dias. No extrapoles fechas faltantes.
             Si no hay pronóstico, dilo; no sustituyas con el clima actual ni con datos inventados.

@@ -2,10 +2,16 @@
 
 ## Estado de esta entrega
 
-Implementación local de `POST /api/chatbot/planificar` y pantalla `/cliente/asistente`.
+Implementación local de `POST /api/chatbot/conversar`, planificador `POST /api/chatbot/planificar` y pantalla `/cliente/asistente`.
 Requiere JWT con política `Cliente`. No modifica reservas ni requiere cambios de esquema.
 
 ### Experiencia de chat
+
+El mensaje se puede enviar desde el inicio, sin formularios ni datos preseleccionados. La pantalla llama a `/api/chatbot/conversar` con `{ mensaje, preferencias: null, historial: [] }` en el primer intercambio. Gemini interpreta el texto y devuelve preferencias parciales y una respuesta amable. La API valida las ciudades contra el catálogo activo y los límites de las fechas, adultos y presupuesto. Si faltan datos, pregunta dentro de la conversación y devuelve sugerencias opcionales; no consulta inventario todavía.
+
+Cuando hay destino elegido o flexible, fechas válidas, presupuesto explícito y adultos, reutiliza el planificador verificado. Un saludo o una pregunta general puede responderse sin generar tarjetas. No se asignan valores predeterminados de mañana, dos adultos o S/ 500 al mensaje del huésped. Al reiniciar el chat, se descartan preferencias e historial.
+
+Sin Gemini se ofrece un respaldo acotado que entiende ciudades del catálogo, fechas ISO, «desde mañana, por dos noches», importes como «S/ 500» o «500 soles», «en pareja» y cantidades de adultos. El respaldo no pretende comprender todo el lenguaje natural: pregunta por los datos ausentes y usa `usaIa=false`.
 
 - Conversación en pantalla con mensajes del huésped y del asistente, preguntas sugeridas, cancelación, reintento y nuevo chat. Las respuestas anteriores conservan sus fechas, precios y fotos como referencia; se identifican como consultas anteriores.
 - Cada petición puede incluir `historial`: hasta 8 mensajes `{ "rol": "usuario" | "asistente", "texto": "..." }`, con un máximo de 1000 caracteres por mensaje. El frontend envía los últimos cuatro intercambios completos. El historial no sustituye las restricciones vigentes ni los datos actuales del catálogo.
@@ -53,7 +59,7 @@ El proveedor predeterminado usa `gemini-3.5-flash-lite`. Confirmar el modelo y l
 en la cuenta que se utilizará para la demostración. La configuración se obtiene mediante
 `IOptions<GeminiOptions>` y la clave viaja en el header `x-goog-api-key`.
 
-## Contrato
+## Contrato del planificador directo (compatibilidad)
 
 ```json
 {
@@ -70,7 +76,7 @@ en la cuenta que se utilizará para la demostración. La configuración se obtie
 Usar fechas reales desde hoy: entrada hasta 365 días adelante, de 1 a 30 noches,
 de 1 a 8 adultos en una habitación y presupuesto máximo por noche entre S/ 1 y S/ 10 000.
 El mensaje admite hasta 1000 caracteres. `ciudad` debe corresponder al catálogo o ser `null`.
-La ciudad, el presupuesto, los adultos y las fechas del formulario son restricciones obligatorias;
+La ciudad, el presupuesto, los adultos y las fechas confirmados son restricciones obligatorias al buscar inventario;
 el mensaje sirve para ordenar y explicar entre las opciones que las cumplen.
 Esta primera versión no incluye grupos con niños ni varias habitaciones.
 
@@ -81,14 +87,14 @@ motivo y clima. Sin habitaciones compatibles, devuelve una lista vacía sin llam
 Se mantiene el GET anterior para compatibilidad y se corrige su DTO para coincidir con
 el frontend. Ese GET usa bandas orientativas (económico hasta S/ 250, estándar hasta
 S/ 500, lujo hasta S/ 10 000) y preferencia regional orientativa; no verifica fechas ni
-constituye un pronóstico meteorológico. La nueva pantalla usa exclusivamente el POST.
+constituye un pronóstico meteorológico. La pantalla usa el POST de conversación, que llama al planificador cuando dispone de los datos necesarios.
 
 ## Resiliencia y rendimiento
 
 - Hasta 6 consultas por IP por minuto. Compartir una red puede compartir este límite.
 - Clima: ciudades consultadas en paralelo, caché de 30 minutos; geocodificación de 7 días.
 - Geocodificación + pronóstico: espera máxima de 5 segundos por ciudad.
-- Gemini: espera máxima de 20 segundos. Frontend: 35 segundos, con cancelación.
+- Gemini: interpretación hasta 12 segundos y explicación del plan hasta 20 segundos. Frontend de conversación: 60 segundos, con cancelación. El planificador directo conserva 35 segundos.
 - No se reintentan automáticamente peticiones a Gemini que podrían consumir cuota otra vez.
 - No se registran claves ni mensajes de huéspedes en los logs de estos servicios.
 
@@ -99,7 +105,7 @@ la presentación; ajustar modelo, caché o flujo de respuesta si es necesario.
 ## Verificación de esta entrega
 
 - Compilación backend y frontend correctas; ESLint sin errores.
-- Suite backend del 27 de octubre: 226 pruebas correctas y 7 pruebas de SQL Server omitidas por su configuración opcional. Compilación en salida aislada para no detener la API activa.
+- Suite backend del 27 de octubre: 238 pruebas correctas y 7 pruebas de SQL Server omitidas por su configuración opcional. Compilación en salida aislada para no detener la API activa. Incluye saludos sin formulario, preferencias acumuladas, rechazo de fechas fuera de rango y proveedor de interpretación con respuestas simuladas.
 - Frontend: `npm run test:assistant` comprueba códigos meteorológicos ausentes, lluvia/nieve/niebla/tormentas, cambio de estación por mes y URLs de fotos. No requiere nuevas dependencias.
 - 23 casos nuevos sobre disponibilidad, capacidad, presupuesto, fechas, validación de Gemini,
   cuota, cancelación, pronóstico parcial, datos nulos y caché; 7 casos anteriores de enums también comprobados.

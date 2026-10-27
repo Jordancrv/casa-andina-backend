@@ -25,4 +25,9 @@ public class ChatbotController : ControllerBase
     [EnableRateLimiting("asistente")]
     public async Task<IActionResult> Planificar([FromBody] PlanificarViajeQuery query, CancellationToken cancellationToken)
         => Ok(await _mediator.Send(query, cancellationToken));
+
+    [HttpPost("conversar")]
+    [EnableRateLimiting("asistente")]
+    public async Task<IActionResult> Conversar([FromBody] ConversarViajeQuery query, CancellationToken cancellationToken)
+        => Ok(await _mediator.Send(query, cancellationToken));
 }
