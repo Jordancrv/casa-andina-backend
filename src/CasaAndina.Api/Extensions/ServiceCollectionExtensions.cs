@@ -169,6 +169,7 @@ public static class ServiceCollectionExtensions
             options.AddPolicy("FrontendPolicy", policy =>
             {
                 policy.WithOrigins(allowedOrigins)
+                      .AllowCredentials()
                       .AllowAnyHeader()
                       .AllowAnyMethod();
             });

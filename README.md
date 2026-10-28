@@ -1,5 +1,10 @@
 # Casa Andina Backend
 
+## Google Calendar
+
+Configuración local, conexión OAuth y sincronización de reservas:
+[`docs/google-calendar.md`](docs/google-calendar.md).
+
 API REST en .NET 8 organizada en las capas `Domain`, `Application`,
 `Infrastructure` y `Api`.
 

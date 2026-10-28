@@ -5,6 +5,7 @@ using CasaAndina.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace CasaAndina.Infrastructure;
 
@@ -29,6 +30,14 @@ public static class DependencyInjection
         services.AddSingleton<IDashboardReportPdfService, DashboardReportPdfService>();
         services.AddScoped<IRecommendationService, GeminiRecommendationService>();
         services.AddMemoryCache();
+        services.Configure<GoogleCalendarOptions>(configuration.GetSection("GoogleCalendar"));
+        var protection = services.AddDataProtection().SetApplicationName("CasaAndina");
+        var keyPath = configuration["GoogleCalendar:DataProtectionKeysPath"];
+        if (!string.IsNullOrWhiteSpace(keyPath)) protection.PersistKeysToFileSystem(new DirectoryInfo(keyPath));
+        services.AddSingleton<CalendarSyncLock>();
+        services.AddScoped<ICalendarioService, GoogleCalendarService>();
+        services.AddHttpClient<GoogleCalendarClient>(client => client.Timeout = TimeSpan.FromSeconds(20));
+        services.AddHostedService<CalendarSyncWorker>();
         services.Configure<GeminiOptions>(configuration.GetSection("Gemini"));
         services.AddHttpClient<ITravelExplanationClient, GeminiTravelClient>(client =>
             client.Timeout = TimeSpan.FromSeconds(20));
