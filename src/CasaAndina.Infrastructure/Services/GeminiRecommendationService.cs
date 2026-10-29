@@ -1,6 +1,7 @@
 using CasaAndina.Application.Chatbot.DTOs;
 using CasaAndina.Application.Chatbot.Queries;
 using CasaAndina.Application.Common.Interfaces;
+using CasaAndina.Application.Common;
 using CasaAndina.Domain.Enums;
 using CasaAndina.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -43,13 +44,17 @@ public sealed class GeminiRecommendationService(ApplicationDbContext context,
         {
             "Precios de una habitación para los adultos indicados, sin servicios adicionales. La disponibilidad se vuelve a verificar al reservar."
         };
+        var desde = PeruBusinessTime.UtcStartOfDay(PeruBusinessTime.Today.AddDays(-90));
+        var popularidad = await context.Reservas.AsNoTracking()
+            .Where(r => r.FechaCreacion >= desde && r.FechaCreacion < DateTime.UtcNow && (r.Estado == "Reservado" || r.Estado == "Completada"))
+            .GroupBy(r => r.SedeId).Select(g => new { SedeId = g.Key, Cantidad = g.Count() }).ToDictionaryAsync(x => x.SedeId, x => x.Cantidad, cancellationToken);
         var candidatos = habitaciones.GroupBy(h => h.SedeId).Select(g => g.OrderBy(h => h.PrecioNoche).ThenBy(h => h.Id).First())
-            .OrderBy(h => h.PrecioNoche).ThenBy(h => h.SedeId).ToList();
+            .OrderByDescending(h => popularidad.GetValueOrDefault(h.SedeId)).ThenBy(h => h.PrecioNoche).ThenBy(h => h.SedeId).ToList();
         if (candidatos.Count == 0)
             return new("Me encantaría ayudarte a encontrar una buena opción. Por ahora no hay habitaciones que coincidan con los datos de tu viaje. ¿Probamos otras fechas, una ciudad diferente o un poco más de presupuesto? Puedes ajustar los datos del viaje y volvemos a buscar.",
                 false, DateTimeOffset.UtcNow, [], avisos);
 
-        if (candidatos.Count > 12) avisos.Add("Se compararon las 12 sedes con menor precio entre las que cumplen los filtros.");
+        if (candidatos.Count > 12) avisos.Add("Se compararon hasta 12 sedes disponibles priorizadas por reservas de los últimos 90 días y precio.");
         candidatos = candidatos.Take(12).ToList();
         var ciudades = candidatos.Select(c => c.Ciudad).Distinct().ToList();
         var climas = await Task.WhenAll(ciudades.Select(c => weather.ConsultarAsync(c, consulta.FechaEntrada, consulta.FechaSalida, cancellationToken)));
@@ -57,14 +62,14 @@ public sealed class GeminiRecommendationService(ApplicationDbContext context,
         var noches = (consulta.FechaSalida - consulta.FechaEntrada).Days;
         var opciones = candidatos.Select(c => new EstadiaRecomendadaDto(c.SedeId, c.SedeNombre, c.Ciudad, c.Categoria,
             c.PrecioNoche, c.PrecioNoche * noches, noches, c.Tipo,
-            "Esta habitación está disponible para tus fechas y se ajusta al presupuesto y al número de adultos. La seleccioné por precio; todavía no pude evaluar las preferencias de tu mensaje con IA.",
-            climaPorCiudad[c.Ciudad], c.Id, c.FotoUrl)).ToList();
+            "Esta habitación está disponible para tus fechas y se ajusta al presupuesto y al número de adultos. La sede se priorizó por reservas recientes y precio.",
+            climaPorCiudad[c.Ciudad], c.Id, c.FotoUrl, popularidad.GetValueOrDefault(c.SedeId))).ToList();
 
         var explicacion = await assistant.ExplicarAsync(consulta, opciones, cancellationToken);
         if (explicacion is null)
         {
-            avisos.Add("La explicación con IA no está disponible en este momento. Mostramos las opciones del catálogo ordenadas por precio.");
-            return new("¡Vamos a darle forma a tu próxima escapada! Encontré estas opciones disponibles para los datos de tu viaje. Hoy no pude conectar con la IA, así que las ordené por precio para ayudarte a compararlas. Puedes explorar sus fotos y el clima disponible antes de elegir.", false, DateTimeOffset.UtcNow, opciones.Take(3).ToList(), avisos);
+            avisos.Add("Sin explicación de IA: opciones ordenadas por reservas registradas en los últimos 90 días y precio, entre las sedes que cumplen tu búsqueda.");
+            return new("Encontré estas opciones disponibles para tu viaje. Las ordené por reservas recientes y precio para ayudarte a compararlas.", false, DateTimeOffset.UtcNow, opciones.Take(3).ToList(), avisos);
         }
         var seleccion = explicacion.Destinos.Select(d => opciones.Single(o => o.SedeId == d.SedeId) with { Motivo = d.Motivo }).ToList();
         return new(explicacion.Resumen, true, DateTimeOffset.UtcNow, seleccion, avisos);

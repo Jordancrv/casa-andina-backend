@@ -70,7 +70,7 @@ public sealed class PlanificarViajeTests
         AddReservation(db, entraDespues, 4, "Reservado", Consulta.FechaSalida, Consulta.FechaSalida.AddDays(2));
         await db.SaveChangesAsync();
         var result = await new GeminiRecommendationService(db, new AssistantStub(), new WeatherStub()).PlanificarAsync(Consulta, default);
-        result.Recomendaciones.Select(r => r.SedeId).Should().Equal(2, 3, 4);
+        result.Recomendaciones.Select(r => r.SedeId).Should().Equal(3, 4, 2);
     }
 
     [Fact]
@@ -93,6 +93,23 @@ public sealed class PlanificarViajeTests
         result.Recomendaciones[0].HabitacionId.Should().Be(2);
         result.Recomendaciones[0].FotoUrl.Should().Be("https://example.test/disponible.jpg");
         weather.Calls.Should().Be(1); // Dos sedes en una ciudad no duplican consultas externas.
+    }
+
+    [Fact]
+    public async Task Sin_ia_prioriza_reservas_recientes_sin_incluir_canceladas_o_antiguas()
+    {
+        await using var db = Context();
+        db.Habitaciones.AddRange(Room(1, 1, 100), Room(2, 2, 200));
+        db.Reservas.AddRange(
+            new Reserva { Id = 10, SedeId = 2, CodigoReserva = "REC1", Estado = "Reservado", FechaCreacion = DateTime.UtcNow.AddDays(-3) },
+            new Reserva { Id = 11, SedeId = 2, CodigoReserva = "REC2", Estado = "Completada", FechaCreacion = DateTime.UtcNow.AddDays(-5) },
+            new Reserva { Id = 12, SedeId = 1, CodigoReserva = "OLD", Estado = "Reservado", FechaCreacion = DateTime.UtcNow.AddDays(-100) },
+            new Reserva { Id = 13, SedeId = 1, CodigoReserva = "CAN", Estado = "Cancelada", FechaCreacion = DateTime.UtcNow.AddDays(-2) });
+        await db.SaveChangesAsync();
+        var result = await new GeminiRecommendationService(db, new AssistantStub(), new WeatherStub()).PlanificarAsync(Consulta, default);
+        result.Recomendaciones.Select(x => x.SedeId).Should().Equal(2, 1);
+        result.Recomendaciones[0].ReservasRecientes.Should().Be(2);
+        result.Recomendaciones[1].ReservasRecientes.Should().Be(0);
     }
 
     [Fact]
