@@ -17,6 +17,14 @@ public sealed class SedesController : ControllerBase
 
     public SedesController(ISender sender) => _sender = sender;
 
+    [HttpGet("populares")]
+    public async Task<ActionResult<IReadOnlyList<SedePopularDto>>> GetPopulares(CancellationToken cancellationToken)
+        => Ok(await _sender.Send(new GetSedesPopularesQuery(), cancellationToken));
+
+    [HttpGet("recomendaciones")]
+    public async Task<ActionResult<IReadOnlyList<SedeRecomendadaPublicaDto>>> GetRecomendaciones([FromQuery] DateTime entrada, [FromQuery] int noches, [FromQuery] int huespedes, [FromQuery] decimal presupuesto, CancellationToken cancellationToken)
+        => Ok(await _sender.Send(new GetSedesRecomendadasQuery(entrada, noches, huespedes, presupuesto), cancellationToken));
+
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<SedeDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<SedeDto>>> Get(

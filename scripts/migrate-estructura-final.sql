@@ -291,16 +291,8 @@ BEGIN TRY
         ALTER TABLE dbo.Usuario DROP COLUMN RolId;
     END;
 
-    IF EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.Usuario') AND name=N'UQ_Usuario_Correo')
-    BEGIN
-        IF EXISTS(SELECT 1 FROM sys.key_constraints WHERE parent_object_id=OBJECT_ID(N'dbo.Usuario') AND name=N'UQ_Usuario_Correo')
-            ALTER TABLE dbo.Usuario DROP CONSTRAINT UQ_Usuario_Correo;
-        ELSE DROP INDEX UQ_Usuario_Correo ON dbo.Usuario;
-    END;
-    IF EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.Usuario') AND name=N'UX_Usuario_Correo')
-        DROP INDEX UX_Usuario_Correo ON dbo.Usuario;
+    -- El correo de acceso pertenece a Usuario y debe conservarse junto con sus índices.
     IF COL_LENGTH(N'dbo.Usuario', N'Nombre') IS NOT NULL ALTER TABLE dbo.Usuario DROP COLUMN Nombre;
-    IF COL_LENGTH(N'dbo.Usuario', N'Correo') IS NOT NULL ALTER TABLE dbo.Usuario DROP COLUMN Correo;
     IF COL_LENGTH(N'dbo.Usuario', N'Telefono') IS NOT NULL ALTER TABLE dbo.Usuario DROP COLUMN Telefono;
 
     IF EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.Cliente') AND name=N'UQ_Cliente_DNI')

@@ -32,6 +32,13 @@ public class ReservasController : ControllerBase
         return Ok(await _mediator.Send(new GetReservaDetalleQuery(id), cancellationToken));
     }
 
+    [HttpPost("{id:int}/cancelar")]
+    public async Task<IActionResult> Cancelar(int id, CancellationToken cancellationToken)
+    {
+        await _mediator.Send(new CancelarReservaCommand(id), cancellationToken);
+        return NoContent();
+    }
+
     /// <summary>Genera el PDF del comprobante propio, solo si el pago aprobado cubre el total.</summary>
     [HttpPost("{id:int}/comprobante/pdf")]
     public async Task<IActionResult> ComprobantePdf(int id, CancellationToken cancellationToken)
