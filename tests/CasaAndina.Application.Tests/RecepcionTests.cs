@@ -119,6 +119,49 @@ public sealed class RecepcionTests
     }
 
     [Fact]
+    public async Task Historial_incluye_solo_habitaciones_finalizadas_y_filtra_numero_exacto()
+    {
+        await using var context = Context(); Seed(context);
+        var movements = new RegistrarMovimientoCommandHandler(context, new User());
+        await movements.Handle(new(1, false), default);
+        await movements.Handle(new(1, true), default);
+        var query = new GetRecepcionQueryHandler(context, new User());
+        (await query.Handle(new("historial"), default)).Should().ContainSingle().Which.Numero.Should().Be("1");
+        (await query.Handle(new("historial", Habitacion: " 1 "), default)).Should().ContainSingle();
+        (await query.Handle(new("historial", Habitacion: "2"), default)).Should().BeEmpty();
+        (await query.Handle(new("historial", Habitacion: "10"), default)).Should().BeEmpty();
+        (await query.Handle(new(Habitacion: "2"), default)).Should().ContainSingle();
+    }
+
+    [Theory]
+    [InlineData("Cancelada")]
+    [InlineData("Completada")]
+    public async Task Historial_respeta_fecha_codigo_y_sede(string estado)
+    {
+        await using var context = Context();
+        var reservation = Seed(context);
+        reservation.Estado = estado;
+        await context.SaveChangesAsync();
+        var query = new GetRecepcionQueryHandler(context, new User());
+        (await query.Handle(new("historial"), default)).Should().HaveCount(2);
+        (await query.Handle(new("historial", PeruBusinessTime.Today.AddDays(-1)), default)).Should().BeEmpty();
+        (await query.Handle(new("historial", PeruBusinessTime.Today.AddDays(-1), "ca-test00001", "1"), default)).Should().ContainSingle();
+        (await query.Handle(new("historial", Codigo: "CA-NOEXISTE"), default)).Should().BeEmpty();
+        (await query.Handle(new(), default)).Should().BeEmpty();
+        var otherBranch = new GetRecepcionQueryHandler(context, new User(SedeId: 2));
+        (await otherBranch.Handle(new("historial", Codigo: "CA-TEST00001", Habitacion: "1"), default)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Filtro_de_habitacion_rechaza_longitud_excesiva()
+    {
+        await using var context = Context();
+        var query = new GetRecepcionQueryHandler(context, new User());
+        await FluentActions.Awaiting(() => query.Handle(new("historial", Habitacion: new string('1', 21)), default))
+            .Should().ThrowAsync<ConflictException>();
+    }
+
+    [Fact]
     public async Task Busqueda_y_pestanas_separan_llegadas_y_estadias()
     {
         await using var context = Context(); Seed(context);

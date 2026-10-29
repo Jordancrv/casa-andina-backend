@@ -13,7 +13,7 @@ public sealed record RecepcionHuespedDto(string Nombre, bool EsTitular);
 public sealed record RecepcionHabitacionDto(int Id, string CodigoReserva, string Numero, string Tipo,
     DateTime EntradaPrevista, DateTime SalidaPrevista, DateTime? EntradaReal, DateTime? SalidaReal,
     string EstadoReserva, string EstadoHabitacion, IReadOnlyList<RecepcionHuespedDto> Huespedes);
-public sealed record GetRecepcionQuery(string Vista = "llegadas", DateTime? Fecha = null, string? Codigo = null)
+public sealed record GetRecepcionQuery(string Vista = "llegadas", DateTime? Fecha = null, string? Codigo = null, string? Habitacion = null)
     : IRequest<IReadOnlyList<RecepcionHabitacionDto>>;
 public sealed record RegistrarMovimientoCommand(int Id, bool EsCheckOut) : IRequest;
 
@@ -53,17 +53,23 @@ public sealed class GetRecepcionQueryHandler(IApplicationDbContext context, ICur
     public async Task<IReadOnlyList<RecepcionHabitacionDto>> Handle(GetRecepcionQuery request, CancellationToken ct)
     {
         var sede = RecepcionRules.Sede(user);
-        if (request.Vista is not ("llegadas" or "estadia" or "salidas"))
+        if (request.Vista is not ("llegadas" or "estadia" or "salidas" or "historial"))
             throw new ConflictException("Seleccione una vista válida de recepción.");
         if (request.Codigo?.Length > 12) throw new ConflictException("El código de reserva admite hasta 12 caracteres.");
         var fecha = (request.Fecha ?? PeruBusinessTime.Today).Date;
         var query = context.ReservaHabitaciones.AsNoTracking()
-            .Where(x => x.Reserva.SedeId == sede && x.Reserva.Estado == "Confirmada");
+            .Where(x => x.Reserva.SedeId == sede);
+        if (request.Habitacion?.Length > 20) throw new ConflictException("El número de habitación admite hasta 20 caracteres.");
+        if (!string.IsNullOrWhiteSpace(request.Habitacion)) query = query.Where(x => x.Habitacion.Numero == request.Habitacion.Trim());
+        query = request.Vista == "historial"
+            ? query.Where(x => x.FechaCheckOutReal != null || x.Reserva.Estado == "Completada" || x.Reserva.Estado == "Cancelada")
+            : query.Where(x => x.Reserva.Estado == "Confirmada");
         if (!string.IsNullOrWhiteSpace(request.Codigo))
             query = query.Where(x => x.Reserva.CodigoReserva == request.Codigo.Trim().ToUpper());
         else
             query = request.Vista switch
             {
+                "historial" => query.Where(x => x.FechaCheckIn <= fecha),
                 "estadia" => query.Where(x => x.FechaCheckInReal != null && x.FechaCheckOutReal == null),
                 "salidas" => query.Where(x => x.FechaCheckInReal != null && x.FechaCheckOutReal == null && x.FechaCheckOut <= fecha),
                 _ => query.Where(x => x.FechaCheckInReal == null && x.FechaCheckIn <= fecha && x.FechaCheckOut > fecha)

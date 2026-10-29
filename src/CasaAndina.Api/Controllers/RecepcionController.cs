@@ -12,8 +12,8 @@ public sealed class RecepcionController(ISender sender) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> Get([FromQuery] string vista = "llegadas", [FromQuery] DateTime? fecha = null,
-        [FromQuery] string? codigo = null, CancellationToken cancellationToken = default)
-        => Ok(await sender.Send(new GetRecepcionQuery(vista, fecha, codigo), cancellationToken));
+        [FromQuery] string? codigo = null, [FromQuery] string? habitacion = null, CancellationToken cancellationToken = default)
+        => Ok(await sender.Send(new GetRecepcionQuery(vista, fecha, codigo, habitacion), cancellationToken));
 
     [HttpPost("{id:int}/check-in")]
     public async Task<IActionResult> CheckIn(int id, CancellationToken cancellationToken)

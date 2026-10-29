@@ -14,11 +14,11 @@ La migración agrega cuatro columnas opcionales, dos FK de usuario, una restricc
 Solo Administrador y Recepcionista (rol JWT `Recepcion`) con usuario y sede asignados.
 No se acepta una sede enviada por el cliente: se utiliza la del JWT validado.
 
-- `GET /api/recepcion?vista=llegadas|estadia|salidas&fecha=AAAA-MM-DD&codigo=CA-...`
+- `GET /api/recepcion?vista=llegadas|estadia|salidas|historial&fecha=AAAA-MM-DD&codigo=CA-...&habitacion=201`
 - `POST /api/recepcion/{reservaHabitacionId}/check-in`
 - `POST /api/recepcion/{reservaHabitacionId}/check-out`
 
-La búsqueda por código exacto ignora fecha/pestaña, pero conserva el aislamiento por sede y solo incluye reservas confirmadas. Las listas se limitan a 100 habitaciones. Llegadas muestra ingresos pendientes dentro del periodo contratado; salidas incluye salidas vencidas. Las horas reales se guardan en UTC y la interfaz las presenta en America/Lima.
+La búsqueda por código exacto ignora la fecha y las condiciones de llegada/estadía/salida, pero conserva el aislamiento por sede, el filtro de habitación y el alcance de la pestaña: en Historial incluye reservas canceladas, completadas o habitaciones con check-out registrado; en las demás vistas solo reservas confirmadas. Sin código, Historial muestra entradas previstas hasta la fecha elegida. El filtro de habitación compara el número exacto (hasta 20 caracteres, sin espacios exteriores) y funciona en todas las pestañas. Las listas se limitan a 100 habitaciones. Llegadas muestra ingresos pendientes dentro del periodo contratado; salidas incluye salidas vencidas. Las horas reales se guardan en UTC y la interfaz las presenta en America/Lima.
 
 ## Reglas operativas
 
