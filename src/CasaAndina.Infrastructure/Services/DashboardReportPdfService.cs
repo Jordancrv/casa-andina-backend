@@ -48,7 +48,7 @@ public sealed class DashboardReportPdfService : IDashboardReportPdfService
                     body.Item().Row(row =>
                     {
                         row.Spacing(18);
-                        row.AutoItem().Text("VERDE  Confirmadas").FontSize(8).FontColor(Green);
+                        row.AutoItem().Text("VERDE  Reservadas").FontSize(8).FontColor(Green);
                         row.AutoItem().Text("GRIS  Canceladas").FontSize(8).FontColor(Muted);
                     });
                     body.Item().Column(chart =>
@@ -110,7 +110,7 @@ public sealed class DashboardReportPdfService : IDashboardReportPdfService
                     body.Item().Column(notes =>
                     {
                         notes.Spacing(10);
-                        Note(notes.Item(), "Cómo leer los datos", "Fuente: reservas de la sede asignada, por fecha de creación y estado al consultar. Reservas incluye todos los estados; clientes cuenta personas distintas con reservas no canceladas. Ocupación: habitaciones activas ocupadas o con reserva confirmada vigente hoy, sin incluir el día de check-out.");
+                        Note(notes.Item(), "Cómo leer los datos", "Fuente: reservas de la sede asignada, por fecha de creación y estado al consultar. Reservas incluye todos los estados; clientes cuenta personas distintas con reservas no canceladas. Ocupación: habitaciones activas ocupadas o con reserva vigente hoy, sin incluir el día de check-out.");
                         Note(notes.Item(), "Disponibilidad de datos", "Cero indica ausencia de actividad registrada. Proyección de demanda aún no disponible. Sin métricas de uso del asistente IA registradas.");
                     });
                 });

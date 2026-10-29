@@ -166,7 +166,7 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
             ClienteId = clienteId,
             SedeId = request.SedeId,
             CreadoPorUsuarioId = _currentUser.UsuarioId,
-            Estado = "Confirmada",
+            Estado = "Reservado",
             Canal = "Directo",
             PrecioTotal = 0,
             FechaCreacion = DateTime.UtcNow

@@ -59,8 +59,8 @@ public sealed class GoogleCalendarTests
     {
         using var f = new Fixture();
         await f.Connect();
-        f.AddReservation(100, 10, "Confirmada");
-        f.AddReservation(200, 20, "Confirmada");
+        f.AddReservation(100, 10, "Reservado");
+        f.AddReservation(200, 20, "Reservado");
         f.AddReservation(300, 10, "Pendiente");
         await f.Db.SaveChangesAsync();
         var first = await f.Service.SincronizarAsync(10, default);
@@ -89,7 +89,7 @@ public sealed class GoogleCalendarTests
     public async Task A_timeout_after_google_creates_the_event_does_not_duplicate_it_on_retry()
     {
         using var f = new Fixture();
-        await f.Connect(); f.AddReservation(100, 10, "Confirmada"); await f.Db.SaveChangesAsync();
+        await f.Connect(); f.AddReservation(100, 10, "Reservado"); await f.Db.SaveChangesAsync();
         f.Http.FailAfterInsert = true;
         var first = () => f.Service.SincronizarAsync(10, default);
         await first.Should().ThrowAsync<HttpRequestException>();
@@ -112,7 +112,7 @@ public sealed class GoogleCalendarTests
     [Fact]
     public async Task Disconnect_revokes_access_and_preserves_existing_calendar_events()
     {
-        using var f = new Fixture(); await f.Connect(); f.AddReservation(100, 10, "Confirmada"); await f.Db.SaveChangesAsync();
+        using var f = new Fixture(); await f.Connect(); f.AddReservation(100, 10, "Reservado"); await f.Db.SaveChangesAsync();
         await f.Service.SincronizarAsync(10, default);
         await f.Service.DesconectarAsync(10, default);
         f.Http.Requests.Should().Contain(x => x.Contains("/revoke"));

@@ -31,9 +31,9 @@ public sealed class DashboardResumenQueryTests
         context.Clientes.Add(client);
         var today = PeruBusinessTime.Today;
         context.Reservas.AddRange(
-            NewReservation(10, client, site, confirmedRoom, "Confirmada", today, 300),
+            NewReservation(10, client, site, confirmedRoom, "Reservado", today, 300),
             NewReservation(11, client, site, pendingRoom, "Pendiente", today, 200),
-            NewReservation(12, client, otherSite, foreignRoom, "Confirmada", today, 900));
+            NewReservation(12, client, otherSite, foreignRoom, "Reservado", today, 900));
         await context.SaveChangesAsync();
         var handler = new GetDashboardResumenQueryHandler(context, new CurrentUserStub(1));
 
@@ -74,9 +74,9 @@ public sealed class DashboardResumenQueryTests
         context.Clientes.Add(client);
         var today = PeruBusinessTime.Today;
         context.Reservas.AddRange(
-            NewReservation(10, client, site, confirmedRoom, "Confirmada", today, 300),
+            NewReservation(10, client, site, confirmedRoom, "Reservado", today, 300),
             NewReservation(11, client, site, freeRoom, "Pendiente", today, 200),
-            NewReservation(12, client, otherSite, foreignRoom, "Confirmada", today, 900));
+            NewReservation(12, client, otherSite, foreignRoom, "Reservado", today, 900));
         await context.SaveChangesAsync();
         var handler = new GetDashboardBiQueryHandler(context, new CurrentUserStub(1));
 

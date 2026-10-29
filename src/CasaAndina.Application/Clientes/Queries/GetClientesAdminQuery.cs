@@ -49,7 +49,7 @@ public sealed class GetClientesAdminQueryHandler(IApplicationDbContext context, 
             {
                 Cliente = c,
                 Completadas = reservas.Count(r => r.ClienteId == c.Id && r.Estado == "Completada"),
-                Activas = reservas.Count(r => r.ClienteId == c.Id && (r.Estado == "Pendiente" || r.Estado == "Confirmada")
+                Activas = reservas.Count(r => r.ClienteId == c.Id && (r.Estado == "Pendiente" || r.Estado == "Reservado")
                     && r.Habitaciones.Any(h => h.FechaCheckOutReal == null && (h.FechaCheckOut > hoy || h.FechaCheckInReal != null))),
                 Nuevo = c.FechaRegistro >= inicioMes && c.FechaRegistro < finMes
             })

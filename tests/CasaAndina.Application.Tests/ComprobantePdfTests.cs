@@ -163,7 +163,7 @@ public sealed class ComprobantePdfTests
         var sede = new Sede { Id = 1, Nombre = "Sede de prueba", Codigo = "TST", Ciudad = "Lima", Region = "Costa", Categoria = "Standard" };
         var persona = new Persona { Id = 10, TipoPersona = "N", Natural = new PersonaNatural { PersonaId = 10, Nombres = "Ana", Apellidos = "Torres" },
             Documentos = { new PersonaDocumento { TipoDocumento = new TipoDocumento { Id = 1, Codigo = "DNI", Nombre = "DNI", TipoPersonaPermitida = "N", LongitudMinima = 8, LongitudMaxima = 8 }, Numero = "12345678", EsPrincipal = true } } };
-        var r = new Reserva { Id = 1, CodigoReserva = "CA-TEST00001", ClienteId = 10, Cliente = new Cliente { Id = 10, PersonaId = 10, Persona = persona }, SedeId = 1, Sede = sede, PrecioTotal = 500, Estado = "Confirmada",
+        var r = new Reserva { Id = 1, CodigoReserva = "CA-TEST00001", ClienteId = 10, Cliente = new Cliente { Id = 10, PersonaId = 10, Persona = persona }, SedeId = 1, Sede = sede, PrecioTotal = 500, Estado = "Reservado",
             Comprobante = new Comprobante { NumeroComprobante = "B-DEMO", Tipo = TipoComprobante.Boleta, MontoTotal = 500, FechaEmision = DateTime.UtcNow },
             Habitaciones = { new ReservaHabitacion { Habitacion = new Habitacion { Id = 1, Sede = sede, TipoHabitacion = new TipoHabitacion { Id = 1, Nombre = "Doble", CapacidadAdultos = 2 }, Numero = "101", PrecioNoche = 250 },
                 FechaCheckIn = PeruBusinessTime.Today, FechaCheckOut = PeruBusinessTime.Today.AddDays(2), PrecioAcordado = 250, Subtotal = 500, CantidadPersonas = 1 } } };

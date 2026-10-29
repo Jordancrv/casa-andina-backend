@@ -14,7 +14,7 @@ public record ReservaDto(
     string Ciudad,
     IReadOnlyList<string> HabitacionesNumeros,
     IReadOnlyList<PagoReservaDto> Pagos,
-    string EstadoEstadia = "Reserva confirmada",
+    string EstadoEstadia = "Reservado",
     bool ComprobanteDisponible = false,
     string? TipoComprobante = null,
     string? NumeroComprobante = null);

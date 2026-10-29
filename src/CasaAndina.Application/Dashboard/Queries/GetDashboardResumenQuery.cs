@@ -35,7 +35,7 @@ public class GetDashboardResumenQueryHandler
         var reservasPendientes = await _context.Reservas
             .CountAsync(r => r.SedeId == sedeId && r.Estado == "Pendiente", cancellationToken);
         var reservasConfirmadas = await _context.Reservas
-            .CountAsync(r => r.SedeId == sedeId && r.Estado == "Confirmada", cancellationToken);
+            .CountAsync(r => r.SedeId == sedeId && r.Estado == "Reservado", cancellationToken);
         var reservasActivas = reservasPendientes + reservasConfirmadas;
 
         // Habitaciones ocupadas = las que tienen reserva Confirmada en curso hoy
@@ -44,14 +44,14 @@ public class GetDashboardResumenQueryHandler
             .CountAsync(habitacion => habitacion.Activo && habitacion.SedeId == sedeId
                 && (habitacion.Estado == "Ocupada"
                     || _context.ReservaHabitaciones.Any(detalle => detalle.HabitacionId == habitacion.Id
-                        && detalle.Reserva.Estado == "Confirmada"
+                        && detalle.Reserva.Estado == "Reservado"
                         && detalle.FechaCheckIn <= hoy && detalle.FechaCheckOut > hoy)), cancellationToken);
 
         var habitacionesDisponibles = await _context.Habitaciones
             .CountAsync(habitacion => habitacion.Activo && habitacion.SedeId == sedeId
                 && habitacion.Estado == "Disponible"
                 && !_context.ReservaHabitaciones.Any(detalle => detalle.HabitacionId == habitacion.Id
-                    && (detalle.Reserva.Estado == "Pendiente" || detalle.Reserva.Estado == "Confirmada"
+                    && (detalle.Reserva.Estado == "Pendiente" || detalle.Reserva.Estado == "Reservado"
                         || detalle.Reserva.Estado == "Bloqueada")
                     && detalle.FechaCheckIn <= hoy && detalle.FechaCheckOut > hoy), cancellationToken);
 

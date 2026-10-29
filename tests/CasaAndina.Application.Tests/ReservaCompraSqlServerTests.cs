@@ -90,7 +90,7 @@ public sealed class ReservaCompraSqlServerTests
                     .Include(item => item.Detalles)
                     .SingleAsync(item => item.Detalles.Any(detail => detail.ReservaId == result.ReservaId));
 
-                reservation.Estado.Should().Be("Confirmada");
+                reservation.Estado.Should().Be("Reservado");
                 reservation.PrecioTotal.Should().Be(200m);
                 reservation.Habitaciones.Should().ContainSingle();
                 reservation.Habitaciones.Single().CantidadPersonas.Should().Be(2);

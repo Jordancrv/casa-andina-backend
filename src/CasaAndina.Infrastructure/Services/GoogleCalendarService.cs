@@ -100,7 +100,7 @@ public sealed class GoogleCalendarService(ApplicationDbContext db, GoogleCalenda
             var reservations = await db.Reservas.AsNoTracking().Where(r => r.ClienteId == clienteId && r.Habitaciones.Any())
                 .Include(r => r.Sede).Include(r => r.Habitaciones).ToListAsync(ct);
             var events = await db.Set<EventoCalendario>().Where(x => x.ClienteId == clienteId).ToDictionaryAsync(x => x.ReservaId, ct);
-            var active = reservations.Where(r => r.Estado is "Confirmada" or "Completada").ToList();
+            var active = reservations.Where(r => r.Estado is "Reservado" or "Completada").ToList();
             var activeIds = active.Select(r => r.Id).ToHashSet();
             var removed = 0;
             foreach (var obsolete in events.Values.Where(e => !activeIds.Contains(e.ReservaId)))

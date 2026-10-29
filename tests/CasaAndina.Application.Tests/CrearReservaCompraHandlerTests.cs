@@ -28,7 +28,7 @@ public sealed class CrearReservaCompraHandlerTests
         guest.PersonaId.Should().Be(seed.PersonaId);
         (await context.PersonaContactos.CountAsync()).Should().Be(0, "the login email is not copied to notification contacts");
         (await context.AsignacionesHuespedes.SingleAsync()).HuespedId.Should().Be(guest.Id);
-        result.Estado.Should().Be("Confirmada");
+        result.Estado.Should().Be("Reservado");
     }
 
     [Fact]

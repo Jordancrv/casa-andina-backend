@@ -31,7 +31,7 @@ public class DeactivateHabitacionCommandHandler : IRequestHandler<DeactivateHabi
             detalle.HabitacionId == request.Id &&
             detalle.FechaCheckOut >= PeruBusinessTime.Today &&
             (detalle.Reserva.Estado == "Pendiente"
-                || detalle.Reserva.Estado == "Confirmada"
+                || detalle.Reserva.Estado == "Reservado"
                 || detalle.Reserva.Estado == "Bloqueada"),
             cancellationToken);
         if (tieneReservas)

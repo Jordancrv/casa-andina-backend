@@ -23,7 +23,7 @@ public sealed class ClientesCrmTests
         var c = Client(1, 1); db.Clientes.Add(c);
         for (var i = 0; i < cantidad; i++) AddReservation(db, c, 1, "Completada");
         AddReservation(db, c, 1, "Cancelada");
-        AddReservation(db, c, 1, "Confirmada");
+        AddReservation(db, c, 1, "Reservado");
         for (var i = 0; i < 6; i++) AddReservation(db, c, 2, "Completada");
         await db.SaveChangesAsync();
         var result = await Query(db).Handle(new GetClientesAdminQuery(Categoria: categoria), default);
@@ -43,8 +43,8 @@ public sealed class ClientesCrmTests
         var futuro = Client(3, 1); futuro.FechaRegistro = PeruBusinessTime.UtcStartOfDay(new DateTime(hoy.Year, hoy.Month, 1).AddMonths(1));
         var otraSede = Client(4, 2);
         db.Clientes.AddRange(nuevo, previo, futuro, otraSede);
-        AddReservation(db, nuevo, 1, "Confirmada"); AddReservation(db, nuevo, 1, "Pendiente");
-        var vencida = AddReservation(db, previo, 1, "Confirmada"); vencida.Habitaciones.Single().FechaCheckOut = hoy.AddDays(-1);
+        AddReservation(db, nuevo, 1, "Reservado"); AddReservation(db, nuevo, 1, "Pendiente");
+        var vencida = AddReservation(db, previo, 1, "Reservado"); vencida.Habitaciones.Single().FechaCheckOut = hoy.AddDays(-1);
         AddReservation(db, futuro, 1, "Cancelada");
         await db.SaveChangesAsync();
         var result = await Query(db).Handle(new(), default);
@@ -63,7 +63,7 @@ public sealed class ClientesCrmTests
     {
         await using var db = Context();
         var c = Client(1, 1); db.Clientes.Add(c);
-        var r = AddReservation(db, c, 1, "Confirmada");
+        var r = AddReservation(db, c, 1, "Reservado");
         r.Habitaciones.Single().FechaCheckOut = PeruBusinessTime.Today.AddDays(-1);
         r.Habitaciones.Single().FechaCheckInReal = DateTime.UtcNow.AddDays(-3);
         await db.SaveChangesAsync();

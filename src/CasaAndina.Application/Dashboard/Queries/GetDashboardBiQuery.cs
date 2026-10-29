@@ -58,21 +58,21 @@ public sealed class GetDashboardBiQueryHandler(
             .CountAsync(habitacion => habitacion.Activo && habitacion.SedeId == sedeId
                 && (habitacion.Estado == "Ocupada"
                     || context.ReservaHabitaciones.Any(detalle => detalle.HabitacionId == habitacion.Id
-                        && detalle.Reserva.SedeId == sedeId && detalle.Reserva.Estado == "Confirmada"
+                        && detalle.Reserva.SedeId == sedeId && detalle.Reserva.Estado == "Reservado"
                         && detalle.FechaCheckIn <= hoy && detalle.FechaCheckOut > hoy)), cancellationToken);
         var ocupacion = habitacionesActivas == 0 ? 0 : decimal.Round((decimal)habitacionesOcupadas * 100 / habitacionesActivas, 1);
         var habitacionesDisponibles = await context.Habitaciones
             .CountAsync(habitacion => habitacion.Activo && habitacion.SedeId == sedeId
                 && habitacion.Estado == "Disponible"
                 && !context.ReservaHabitaciones.Any(detalle => detalle.HabitacionId == habitacion.Id
-                    && (detalle.Reserva.Estado == "Pendiente" || detalle.Reserva.Estado == "Confirmada" || detalle.Reserva.Estado == "Bloqueada")
+                    && (detalle.Reserva.Estado == "Pendiente" || detalle.Reserva.Estado == "Reservado" || detalle.Reserva.Estado == "Bloqueada")
                     && detalle.FechaCheckIn <= hoy && detalle.FechaCheckOut > hoy), cancellationToken);
 
         var inicioSemanas = InicioSemana(hoy).AddDays(-35);
         var datosSemanalesUtc = await reservasSede
             .Where(reserva => reserva.FechaCreacion >= PeruBusinessTime.UtcStartOfDay(inicioSemanas)
                 && reserva.FechaCreacion < PeruBusinessTime.UtcStartOfDay(hoy.AddDays(1))
-                && (reserva.Estado == "Confirmada" || reserva.Estado == "Cancelada"))
+                && (reserva.Estado == "Reservado" || reserva.Estado == "Cancelada"))
             .Select(reserva => new { reserva.FechaCreacion, reserva.Estado })
             .ToListAsync(cancellationToken);
         var datosSemanales = datosSemanalesUtc.Select(reserva => new
@@ -84,7 +84,7 @@ public sealed class GetDashboardBiQueryHandler(
         {
             var inicio = inicioSemanas.AddDays(indice * 7);
             var fin = inicio.AddDays(7);
-            var confirmadas = datosSemanales.Count(reserva => reserva.Estado == "Confirmada" && reserva.FechaCreacion >= inicio && reserva.FechaCreacion < fin);
+            var confirmadas = datosSemanales.Count(reserva => reserva.Estado == "Reservado" && reserva.FechaCreacion >= inicio && reserva.FechaCreacion < fin);
             var canceladas = datosSemanales.Count(reserva => reserva.Estado == "Cancelada" && reserva.FechaCreacion >= inicio && reserva.FechaCreacion < fin);
             var etiqueta = indice == 5 ? "Actual" : $"S-{5 - indice}";
             return (etiqueta, confirmadas, canceladas);

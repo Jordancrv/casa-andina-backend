@@ -121,7 +121,7 @@ public sealed class ClientesAdminQuerySqlServerTests
         Cliente = cliente,
         Sede = sede,
         CodigoReserva = codigo,
-        Estado = "Confirmada",
+        Estado = "Reservado",
         Canal = "Directo",
         PrecioTotal = total
     };

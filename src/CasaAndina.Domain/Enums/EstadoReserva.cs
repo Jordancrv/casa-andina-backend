@@ -4,7 +4,7 @@ namespace CasaAndina.Domain.Entities;
 public enum EstadoReserva
 {
     Pendiente  = 1,
-    Confirmada = 2,
+    Reservado = 2,
     Bloqueada  = 3,
     Completada = 4,
     Cancelada  = 5

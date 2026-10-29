@@ -18,7 +18,7 @@ public class Reserva : BaseEntity
     public int? CreadoPorUsuarioId { get; set; }            // NULL si el cliente lo creó solo
     public Usuario? CreadoPorUsuario { get; set; }
 
-    public string Estado { get; set; } = "Pendiente";       // Pendiente/Confirmada/Bloqueada/Completada/Cancelada
+    public string Estado { get; set; } = "Pendiente";       // Pendiente/Reservado/Bloqueada/Completada/Cancelada
     public string Canal { get; set; } = "Directo";          // Directo / OTA
     public decimal PrecioTotal { get; set; }                // → columna PrecioTotal en BD
     public Comprobante? Comprobante { get; set; }

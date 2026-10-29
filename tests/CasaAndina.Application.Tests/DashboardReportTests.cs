@@ -104,7 +104,7 @@ public sealed class DashboardReportTests
     private static Reserva Reservation(int id, Sede site, Cliente client, DateTime date, decimal amount) => new()
     {
         Id = id, CodigoReserva = $"QA-{id}", Sede = site, SedeId = site.Id, Cliente = client, ClienteId = client.Id,
-        Estado = "Confirmada", Canal = "Directo", PrecioTotal = amount, FechaCreacion = PeruBusinessTime.UtcStartOfDay(date).AddHours(1)
+        Estado = "Reservado", Canal = "Directo", PrecioTotal = amount, FechaCreacion = PeruBusinessTime.UtcStartOfDay(date).AddHours(1)
     };
     private static ServiceProvider Provider(ApplicationDbContext db, User user, CapturePdf renderer)
     {

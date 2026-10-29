@@ -44,7 +44,7 @@ public sealed class ClientesCrmSqlServerTests
             db.Habitaciones.Add(habitacion);
             for (var i = 0; i < 3; i++) db.Reservas.Add(new Reserva
             {
-                ClienteId = id, SedeId = sede.Id, CodigoReserva = $"CA-CRM-{i}", Estado = i < 2 ? "Completada" : "Confirmada", PrecioTotal = 200,
+                ClienteId = id, SedeId = sede.Id, CodigoReserva = $"CA-CRM-{i}", Estado = i < 2 ? "Completada" : "Reservado", PrecioTotal = 200,
                 Habitaciones = { new ReservaHabitacion { Habitacion = habitacion, FechaCheckIn = PeruBusinessTime.Today.AddDays(i * 2),
                     FechaCheckOut = PeruBusinessTime.Today.AddDays(i * 2 + 1), CantidadPersonas = 1, PrecioAcordado = 200, Subtotal = 200 } }
             });

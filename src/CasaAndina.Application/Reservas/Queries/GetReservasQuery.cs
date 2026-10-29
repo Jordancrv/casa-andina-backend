@@ -58,7 +58,7 @@ public class GetReservasQueryHandler
                 r.Estado == "Cancelada" ? "Reserva cancelada" :
                 r.Estado == "Completada" || r.Habitaciones.All(x => x.FechaCheckOutReal != null) ? "Estadía finalizada" :
                 r.Habitaciones.Any(x => x.FechaCheckInReal != null && x.FechaCheckOutReal == null) ? "Estadía en curso" :
-                r.Estado == "Confirmada" ? "Reserva confirmada" : r.Estado,
+                r.Estado == "Reservado" ? "Reservado" : r.Estado,
                 r.Comprobante != null && r.Comprobante.MontoTotal > 0 && r.Comprobante.MontoTotal == r.PrecioTotal
                     && (r.Pagos.Where(p => p.Pago.EstadoPago.Codigo == "APROBADO" && p.Pago.Moneda == "PEN")
                         .Select(p => (decimal?)p.MontoAplicado).Sum() ?? 0) >= r.Comprobante.MontoTotal,

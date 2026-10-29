@@ -77,7 +77,7 @@ public sealed class GetCalendarioReservasQueryHandler(
                 context.ReservaHabitaciones
                     .Where(rh => rh.HabitacionId == h.Id &&
                         rh.FechaCheckIn < hasta && rh.FechaCheckOut > desde &&
-                        (rh.Reserva.Estado == "Pendiente" || rh.Reserva.Estado == "Confirmada"))
+                        (rh.Reserva.Estado == "Pendiente" || rh.Reserva.Estado == "Reservado"))
                     .OrderBy(rh => rh.FechaCheckIn)
                     .Select(rh => new ReservaCalendarioDto(
                         rh.FechaCheckIn,

@@ -66,8 +66,8 @@ public sealed class PlanificarViajeTests
         db.Habitaciones.AddRange(ocupada, cancelada, saleEseDia, entraDespues);
         AddReservation(db, ocupada, 1, "Pendiente", Consulta.FechaEntrada, Consulta.FechaSalida);
         AddReservation(db, cancelada, 2, "Cancelada", Consulta.FechaEntrada, Consulta.FechaSalida);
-        AddReservation(db, saleEseDia, 3, "Confirmada", Consulta.FechaEntrada.AddDays(-2), Consulta.FechaEntrada);
-        AddReservation(db, entraDespues, 4, "Confirmada", Consulta.FechaSalida, Consulta.FechaSalida.AddDays(2));
+        AddReservation(db, saleEseDia, 3, "Reservado", Consulta.FechaEntrada.AddDays(-2), Consulta.FechaEntrada);
+        AddReservation(db, entraDespues, 4, "Reservado", Consulta.FechaSalida, Consulta.FechaSalida.AddDays(2));
         await db.SaveChangesAsync();
         var result = await new GeminiRecommendationService(db, new AssistantStub(), new WeatherStub()).PlanificarAsync(Consulta, default);
         result.Recomendaciones.Select(r => r.SedeId).Should().Equal(2, 3, 4);
@@ -81,7 +81,7 @@ public sealed class PlanificarViajeTests
         first.FotoUrl = "https://example.test/ocupada.jpg";
         var second = Room(2, 1, 350); second.Sede = first.Sede; second.FotoUrl = "https://example.test/disponible.jpg";
         db.Habitaciones.AddRange(first, second, Room(3, 2, 200));
-        AddReservation(db, first, 1, "Confirmada", Consulta.FechaEntrada, Consulta.FechaSalida);
+        AddReservation(db, first, 1, "Reservado", Consulta.FechaEntrada, Consulta.FechaSalida);
         await db.SaveChangesAsync();
         var ai = new AssistantStub(new("Comparé las opciones.", [new(1, "Opción seleccionada"), new(2, "Alternativa")]));
         var weather = new WeatherStub();

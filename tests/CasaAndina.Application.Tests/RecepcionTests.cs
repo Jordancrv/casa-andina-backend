@@ -23,7 +23,7 @@ public sealed class RecepcionTests
     private static Reserva Seed(ApplicationDbContext context, int sede = 1)
     {
         var reservation = new Reserva { Id = 1, CodigoReserva = "CA-TEST00001", SedeId = sede, ClienteId = 10,
-            Estado = "Confirmada", Sede = new Sede { Id = sede, Nombre = "Prueba", Ciudad = "Cusco" } };
+            Estado = "Reservado", Sede = new Sede { Id = sede, Nombre = "Prueba", Ciudad = "Cusco" } };
         for (var id = 1; id <= 2; id++)
             reservation.Habitaciones.Add(new ReservaHabitacion { Id = id, Reserva = reservation, HabitacionId = id,
                 FechaCheckIn = PeruBusinessTime.Today, FechaCheckOut = PeruBusinessTime.Today.AddDays(2),
@@ -44,7 +44,7 @@ public sealed class RecepcionTests
         var client = new GetReservasQueryHandler(context, new User(RolUsuario.Cliente, null, 10, 10));
         (await client.Handle(new(), default)).Single().EstadoEstadia.Should().Be("Estadía en curso");
         await handler.Handle(new(1, true), default);
-        reservation.Estado.Should().Be("Confirmada");
+        reservation.Estado.Should().Be("Reservado");
         reservation.Habitaciones.First().Habitacion.Estado.Should().Be("Bloqueada");
         await handler.Handle(new(2, false), default);
         await handler.Handle(new(2, true), default);
@@ -106,10 +106,10 @@ public sealed class RecepcionTests
     [Theory]
     [InlineData("Cancelada", "Disponible", 0)]
     [InlineData("Completada", "Disponible", 0)]
-    [InlineData("Confirmada", "Mantenimiento", 0)]
-    [InlineData("Confirmada", "Bloqueada", 0)]
-    [InlineData("Confirmada", "Disponible", 2)]
-    [InlineData("Confirmada", "Disponible", -5)]
+    [InlineData("Reservado", "Mantenimiento", 0)]
+    [InlineData("Reservado", "Bloqueada", 0)]
+    [InlineData("Reservado", "Disponible", 2)]
+    [InlineData("Reservado", "Disponible", -5)]
     public void Se_rechaza_ingreso_si_no_corresponde_estado_o_fecha(string estado, string roomState, int offset)
     {
         var detail = new ReservaHabitacion { Reserva = new Reserva { Estado = estado },
@@ -119,16 +119,16 @@ public sealed class RecepcionTests
     }
 
     [Fact]
-    public async Task Historial_incluye_solo_habitaciones_finalizadas_y_filtra_numero_exacto()
+    public async Task Historial_incluye_habitaciones_finalizadas_y_en_proceso_y_filtra_numero_exacto()
     {
         await using var context = Context(); Seed(context);
         var movements = new RegistrarMovimientoCommandHandler(context, new User());
         await movements.Handle(new(1, false), default);
         await movements.Handle(new(1, true), default);
         var query = new GetRecepcionQueryHandler(context, new User());
-        (await query.Handle(new("historial"), default)).Should().ContainSingle().Which.Numero.Should().Be("1");
+        (await query.Handle(new("historial"), default)).Should().HaveCount(2);
         (await query.Handle(new("historial", Habitacion: " 1 "), default)).Should().ContainSingle();
-        (await query.Handle(new("historial", Habitacion: "2"), default)).Should().BeEmpty();
+        (await query.Handle(new("historial", Habitacion: "2"), default)).Should().ContainSingle();
         (await query.Handle(new("historial", Habitacion: "10"), default)).Should().BeEmpty();
         (await query.Handle(new(Habitacion: "2"), default)).Should().ContainSingle();
     }
@@ -136,6 +136,8 @@ public sealed class RecepcionTests
     [Theory]
     [InlineData("Cancelada")]
     [InlineData("Completada")]
+    [InlineData("Reservado")]
+    [InlineData("Pendiente")]
     public async Task Historial_respeta_fecha_codigo_y_sede(string estado)
     {
         await using var context = Context();
@@ -144,12 +146,25 @@ public sealed class RecepcionTests
         await context.SaveChangesAsync();
         var query = new GetRecepcionQueryHandler(context, new User());
         (await query.Handle(new("historial"), default)).Should().HaveCount(2);
-        (await query.Handle(new("historial", PeruBusinessTime.Today.AddDays(-1)), default)).Should().BeEmpty();
+        (await query.Handle(new("historial", PeruBusinessTime.Today.AddDays(-1)), default)).Should().HaveCount(2);
         (await query.Handle(new("historial", PeruBusinessTime.Today.AddDays(-1), "ca-test00001", "1"), default)).Should().ContainSingle();
         (await query.Handle(new("historial", Codigo: "CA-NOEXISTE"), default)).Should().BeEmpty();
-        (await query.Handle(new(), default)).Should().BeEmpty();
+        (await query.Handle(new(), default)).Should().HaveCount(estado == "Reservado" ? 2 : 0);
         var otherBranch = new GetRecepcionQueryHandler(context, new User(SedeId: 2));
         (await otherBranch.Handle(new("historial", Codigo: "CA-TEST00001", Habitacion: "1"), default)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Historial_pagina_sin_duplicar_y_conserva_filtros()
+    {
+        await using var context = Context(); Seed(context);
+        var query = new GetRecepcionQueryHandler(context, new User());
+        var first = await query.Handle(new("historial", Pagina: 1, TamanoPagina: 1), default);
+        var second = await query.Handle(new("historial", Pagina: 2, TamanoPagina: 1), default);
+        first.Should().HaveCount(2); // Registro adicional indica que existe otra página.
+        second.Should().ContainSingle().Which.Id.Should().Be(first[1].Id);
+        (await query.Handle(new("historial", Habitacion: "2", Pagina: 2, TamanoPagina: 1), default)).Should().BeEmpty();
+        await FluentActions.Awaiting(() => query.Handle(new("historial", Pagina: 0), default)).Should().ThrowAsync<ConflictException>();
     }
 
     [Fact]

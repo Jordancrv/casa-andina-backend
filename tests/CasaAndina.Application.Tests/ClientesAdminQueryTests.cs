@@ -36,14 +36,14 @@ public sealed class ClientesAdminQueryTests
         var reserva = new Reserva
         {
             Id = 30, CodigoReserva = "CA-TEST-30", ClienteId = cliente.Id, Cliente = cliente,
-            SedeId = hotel.Id, Sede = hotel, Estado = "Confirmada", PrecioTotal = 250,
+            SedeId = hotel.Id, Sede = hotel, Estado = "Reservado", PrecioTotal = 250,
             Habitaciones = { new ReservaHabitacion { FechaCheckIn = new DateTime(2026, 12, 1), FechaCheckOut = new DateTime(2026, 12, 3) } }
         };
         var otherHotel = new Sede { Id = 2, Nombre = "Otra sede", Codigo = "OTH", Region = "Costa", Ciudad = "Lima", Categoria = "Standard" };
         var foreignReservation = new Reserva
         {
             Id = 31, CodigoReserva = "CA-TEST-31", ClienteId = cliente.Id, Cliente = cliente,
-            SedeId = otherHotel.Id, Sede = otherHotel, Estado = "Confirmada", PrecioTotal = 500
+            SedeId = otherHotel.Id, Sede = otherHotel, Estado = "Reservado", PrecioTotal = 500
         };
         var approved = new EstadoPago { Id = 1, Codigo = "APROBADO", Nombre = "Aprobado", Activo = true };
         var rejected = new EstadoPago { Id = 2, Codigo = "RECHAZADO", Nombre = "Rechazado", Activo = true };

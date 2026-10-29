@@ -13,7 +13,7 @@ public sealed record RecepcionHuespedDto(string Nombre, bool EsTitular);
 public sealed record RecepcionHabitacionDto(int Id, string CodigoReserva, string Numero, string Tipo,
     DateTime EntradaPrevista, DateTime SalidaPrevista, DateTime? EntradaReal, DateTime? SalidaReal,
     string EstadoReserva, string EstadoHabitacion, IReadOnlyList<RecepcionHuespedDto> Huespedes);
-public sealed record GetRecepcionQuery(string Vista = "llegadas", DateTime? Fecha = null, string? Codigo = null, string? Habitacion = null)
+public sealed record GetRecepcionQuery(string Vista = "llegadas", DateTime? Fecha = null, string? Codigo = null, string? Habitacion = null, int Pagina = 1, int TamanoPagina = 20)
     : IRequest<IReadOnlyList<RecepcionHabitacionDto>>;
 public sealed record RegistrarMovimientoCommand(int Id, bool EsCheckOut) : IRequest;
 
@@ -29,8 +29,8 @@ public static class RecepcionRules
 
     public static void ValidarMovimiento(ReservaHabitacion detail, bool salida, DateTime hoy)
     {
-        if (detail.Reserva.Estado != "Confirmada")
-            throw new ConflictException("Solo se pueden operar reservas confirmadas.");
+        if (detail.Reserva.Estado != "Reservado")
+            throw new ConflictException("Solo se pueden operar reservas en estado Reservado.");
         if (salida)
         {
             if (detail.FechaCheckInReal is null) throw new ConflictException("Primero debe registrar el check-in.");
@@ -55,26 +55,31 @@ public sealed class GetRecepcionQueryHandler(IApplicationDbContext context, ICur
         var sede = RecepcionRules.Sede(user);
         if (request.Vista is not ("llegadas" or "estadia" or "salidas" or "historial"))
             throw new ConflictException("Seleccione una vista válida de recepción.");
+        if (request.Pagina < 1 || request.TamanoPagina is < 1 or > 100 || (long)(request.Pagina - 1) * request.TamanoPagina > int.MaxValue)
+            throw new ConflictException("Seleccione una página y tamaño válidos.");
         if (request.Codigo?.Length > 12) throw new ConflictException("El código de reserva admite hasta 12 caracteres.");
         var fecha = (request.Fecha ?? PeruBusinessTime.Today).Date;
         var query = context.ReservaHabitaciones.AsNoTracking()
             .Where(x => x.Reserva.SedeId == sede);
         if (request.Habitacion?.Length > 20) throw new ConflictException("El número de habitación admite hasta 20 caracteres.");
         if (!string.IsNullOrWhiteSpace(request.Habitacion)) query = query.Where(x => x.Habitacion.Numero == request.Habitacion.Trim());
-        query = request.Vista == "historial"
-            ? query.Where(x => x.FechaCheckOutReal != null || x.Reserva.Estado == "Completada" || x.Reserva.Estado == "Cancelada")
-            : query.Where(x => x.Reserva.Estado == "Confirmada");
+        if (request.Vista != "historial")
+            query = query.Where(x => x.Reserva.Estado == "Reservado");
         if (!string.IsNullOrWhiteSpace(request.Codigo))
             query = query.Where(x => x.Reserva.CodigoReserva == request.Codigo.Trim().ToUpper());
         else
             query = request.Vista switch
             {
-                "historial" => query.Where(x => x.FechaCheckIn <= fecha),
+                "historial" => query,
                 "estadia" => query.Where(x => x.FechaCheckInReal != null && x.FechaCheckOutReal == null),
                 "salidas" => query.Where(x => x.FechaCheckInReal != null && x.FechaCheckOutReal == null && x.FechaCheckOut <= fecha),
                 _ => query.Where(x => x.FechaCheckInReal == null && x.FechaCheckIn <= fecha && x.FechaCheckOut > fecha)
             };
-        return await query.OrderBy(x => x.FechaCheckIn).ThenBy(x => x.Id).Take(100)
+        var ordered = (request.Vista == "historial" ? query.OrderByDescending(x => x.FechaCheckIn) : query.OrderBy(x => x.FechaCheckIn)).ThenBy(x => x.Id);
+        var page = request.Vista == "historial"
+            ? ordered.Skip((request.Pagina - 1) * request.TamanoPagina).Take(request.TamanoPagina + 1)
+            : ordered.Take(100);
+        return await page
             .Select(x => new RecepcionHabitacionDto(x.Id, x.Reserva.CodigoReserva, x.Habitacion.Numero,
                 x.Habitacion.TipoHabitacion.Nombre, x.FechaCheckIn, x.FechaCheckOut, x.FechaCheckInReal, x.FechaCheckOutReal,
                 x.Reserva.Estado, x.Habitacion.Estado, x.Huespedes.OrderByDescending(g => g.EsTitular)
