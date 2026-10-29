@@ -26,9 +26,11 @@ public class GetServicioByIdQueryHandler : IRequestHandler<GetServicioByIdQuery,
             .Where(s => s.Id == request.Id && s.Activo)
             .Select(s => new ServicioDto(
                 s.Id, s.Nombre, s.Descripcion, s.Precio,
-                s.Sedes.Select(se => se.Id).ToList(),
-                s.Sedes.Select(se => se.Nombre).ToList(),
-                s.Activo))
+                s.Sedes.Where(se => !_currentUser.SedeId.HasValue || se.Id == _currentUser.SedeId.Value).Select(se => se.Id).ToList(),
+                s.Sedes.Where(se => !_currentUser.SedeId.HasValue || se.Id == _currentUser.SedeId.Value).Select(se => se.Nombre).ToList(),
+                s.Activo,
+                (_currentUser.Rol == RolUsuario.Superadministrador && !_currentUser.SedeId.HasValue)
+                    || (_currentUser.SedeId.HasValue && s.Sedes.Count == 1 && s.Sedes.Any(se => se.Id == _currentUser.SedeId.Value))))
             .SingleOrDefaultAsync(cancellationToken);
 
         if (servicio is null)

@@ -55,9 +55,11 @@ public class GetServiciosQueryHandler : IRequestHandler<GetServiciosQuery, Pagin
             .OrderBy(s => s.Nombre)
             .Select(s => new ServicioDto(
                 s.Id, s.Nombre, s.Descripcion, s.Precio,
-                s.Sedes.Select(se => se.Id).ToList(),
-                s.Sedes.Select(se => se.Nombre).ToList(),
-                s.Activo));
+                s.Sedes.Where(se => !_currentUser.SedeId.HasValue || se.Id == _currentUser.SedeId.Value).Select(se => se.Id).ToList(),
+                s.Sedes.Where(se => !_currentUser.SedeId.HasValue || se.Id == _currentUser.SedeId.Value).Select(se => se.Nombre).ToList(),
+                s.Activo,
+                (_currentUser.Rol == RolUsuario.Superadministrador && !_currentUser.SedeId.HasValue)
+                    || (_currentUser.SedeId.HasValue && s.Sedes.Count == 1 && s.Sedes.Any(se => se.Id == _currentUser.SedeId.Value))));
 
         return await PaginatedList<ServicioDto>.CreateAsync(
             query, request.PageNumber, request.PageSize, cancellationToken);

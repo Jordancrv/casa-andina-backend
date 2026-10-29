@@ -7,4 +7,5 @@ public record ServicioDto(
     decimal Precio,
     IReadOnlyList<int> SedesIds,
     IReadOnlyList<string> Sedes,
-    bool Activo);
+    bool Activo,
+    bool PuedeEditar = false);

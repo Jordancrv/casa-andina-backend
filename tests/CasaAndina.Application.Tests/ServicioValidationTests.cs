@@ -14,6 +14,31 @@ namespace CasaAndina.Application.Tests;
 public class ServicioValidationTests
 {
     [Fact]
+    public async Task Servicio_compartido_oculta_otras_sedes_y_no_se_puede_editar_localmente()
+    {
+        await using var context = CreateContext();
+        var servicio = new CasaAndina.Domain.Entities.Servicio { Id = 1, Nombre = "Desayuno", Precio = 20, Activo = true };
+        foreach (var id in new[] { 1, 2 }) servicio.Sedes.Add(new CasaAndina.Domain.Entities.Sede {
+            Id = id, Nombre = $"Sede {id}", Codigo = $"S{id}", Ciudad = "Lima", Region = "Costa", Categoria = "Select", Activo = true });
+        context.Servicios.Add(servicio);
+        await context.SaveChangesAsync();
+        var local = new CurrentUserStub(RolUsuario.Administrador, 1);
+        var detail = await new GetServicioByIdQueryHandler(context, local).Handle(new(1), default);
+        detail.SedesIds.Should().Equal(1);
+        detail.Sedes.Should().Equal("Sede 1");
+        detail.PuedeEditar.Should().BeFalse();
+        var list = await new GetServiciosQueryHandler(context, local).Handle(new(null, null), default);
+        list.Items.Single().SedesIds.Should().Equal(1);
+        list.Items.Single().PuedeEditar.Should().BeFalse();
+        var global = await new GetServicioByIdQueryHandler(context, new CurrentUserStub(RolUsuario.Superadministrador, null)).Handle(new(1), default);
+        global.SedesIds.Should().HaveCount(2);
+        global.PuedeEditar.Should().BeTrue();
+        var denied = () => new UpdateServicioCommandHandler(context, local).Handle(new() { Id = 1, Nombre = "Modificado", Precio = 1, SedesIds = [1] }, default);
+        await denied.Should().ThrowAsync<ForbiddenAccessException>();
+        servicio.Nombre.Should().Be("Desayuno");
+    }
+
+    [Fact]
     public async Task Crear_deberia_rechazar_precio_y_sedes_invalidas()
     {
         var command = new CreateServicioCommand("Traslado", null, 10.123m, []);
