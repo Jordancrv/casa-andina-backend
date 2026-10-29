@@ -15,6 +15,8 @@ public sealed class RolConfiguration : IEntityTypeConfiguration<Rol>
         builder.Property(r => r.Nombre).HasMaxLength(50).IsRequired();
         builder.Property(r => r.Descripcion).HasMaxLength(200);
         builder.HasIndex(r => r.Codigo).IsUnique();
-        builder.HasIndex(r => r.Nombre).IsUnique();
+        builder.HasIndex(r => new { r.SedeId, r.Nombre }).IsUnique();
+        builder.Property(r => r.Version).IsConcurrencyToken();
+        builder.HasOne<Sede>().WithMany().HasForeignKey(r => r.SedeId).OnDelete(DeleteBehavior.Restrict);
     }
 }

@@ -1,0 +1,11 @@
+namespace CasaAndina.Domain.Enums;
+public static class PermisosSistema {
+ public static readonly string[] Todos = ["dashboard.ver","calendario.ver","recepcion.ver","recepcion.ingreso","recepcion.salida","clientes.ver","clientes.crear","clientes.editar","usuarios.ver","usuarios.editar","usuarios.desactivar","usuarios.asignar","habitaciones.ver","habitaciones.crear","habitaciones.editar","habitaciones.desactivar","servicios.ver","servicios.crear","servicios.editar","servicios.desactivar","comodidades.ver","comodidades.crear","reportes.ver","reportes.analizar","reportes.exportar","roles.ver","roles.gestionar","sedes.ver"];
+ public static string[] Iniciales(RolUsuario? rol) => rol switch {
+RolUsuario.Administrador => ["dashboard.ver","calendario.ver","recepcion.ver","recepcion.ingreso","recepcion.salida","clientes.ver","clientes.crear","clientes.editar","usuarios.ver","usuarios.editar","usuarios.desactivar","usuarios.asignar","habitaciones.ver","habitaciones.crear","habitaciones.editar","habitaciones.desactivar","servicios.ver","servicios.crear","servicios.editar","servicios.desactivar","comodidades.ver","comodidades.crear","reportes.ver","reportes.analizar","reportes.exportar","roles.ver","roles.gestionar"],
+RolUsuario.Superadministrador => ["calendario.ver","habitaciones.ver","habitaciones.crear","habitaciones.editar","habitaciones.desactivar","servicios.ver","servicios.crear","servicios.editar","servicios.desactivar","comodidades.ver","comodidades.crear","roles.ver","roles.gestionar","sedes.ver"],
+RolUsuario.Recepcion => ["calendario.ver","habitaciones.ver","recepcion.ver","recepcion.ingreso","recepcion.salida"],
+RolUsuario.Operaciones => ["calendario.ver","habitaciones.ver","habitaciones.crear","habitaciones.editar","habitaciones.desactivar","servicios.ver","servicios.crear","servicios.editar","servicios.desactivar","comodidades.ver","comodidades.crear"],
+RolUsuario.Mantenimiento => ["calendario.ver","habitaciones.ver","habitaciones.crear","habitaciones.editar","habitaciones.desactivar"],
+ _ => [] };
+}

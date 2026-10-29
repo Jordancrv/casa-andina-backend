@@ -13,7 +13,7 @@ namespace CasaAndina.Api.Controllers;
 
 [ApiController]
 [Route("api/reportes")]
-[Authorize(Policy = "Administrador")]
+[Authorize]
 public sealed class ReportesController(ISender sender, ICurrentUserService user, IAnalisisReporteService analysis, IAnalisisReportePdfService pdf, IApplicationDbContext db) : ControllerBase
 {
     private static readonly SemaphoreSlim Gate = new(1, 1);
@@ -25,6 +25,7 @@ public sealed class ReportesController(ISender sender, ICurrentUserService user,
         return new { id = row.Id, data.Resumen, data.Hallazgos, data.Recomendaciones, data.Limitaciones, data.GeneradoUtc, data.Datos };
     }
     [HttpPost("analisis")]
+    [Authorize(Policy = "reportes.analizar")]
     public async Task<IActionResult> Analizar([FromQuery] string periodo = "30d", CancellationToken cancellationToken = default)
     {
         var sedeId = Sede();
@@ -47,6 +48,7 @@ public sealed class ReportesController(ISender sender, ICurrentUserService user,
         finally { Gate.Release(); }
     }
     [HttpGet("analisis")]
+    [Authorize(Policy = "reportes.ver")]
     public async Task<IActionResult> Historial([FromQuery] string periodo = "30d", [FromQuery] int pagina = 1, CancellationToken ct = default)
     {
         var sedeId = Sede();
@@ -58,6 +60,7 @@ public sealed class ReportesController(ISender sender, ICurrentUserService user,
         return Ok(new { items = rows.Take(20), haySiguiente = rows.Count > 20 });
     }
     [HttpGet("analisis/{id:long}")]
+    [Authorize(Policy = "reportes.ver")]
     public async Task<IActionResult> Detalle(long id, CancellationToken ct)
     {
         var sedeId = Sede();
@@ -66,6 +69,7 @@ public sealed class ReportesController(ISender sender, ICurrentUserService user,
         return row is null ? NotFound() : Ok(ResponseData(row));
     }
     [HttpGet("analisis/{id:long}/pdf")]
+    [Authorize(Policy = "reportes.exportar")]
     public async Task<IActionResult> Descargar(long id, CancellationToken ct)
     {
         var sedeId = Sede();

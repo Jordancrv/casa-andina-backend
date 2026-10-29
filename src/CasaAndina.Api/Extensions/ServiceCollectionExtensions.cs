@@ -68,7 +68,7 @@ public static class ServiceCollectionExtensions
 
                     var db = context.HttpContext.RequestServices.GetRequiredService<IApplicationDbContext>();
                     var account = await db.Usuarios.AsNoTracking()
-                        .Include(user => user.Roles).ThenInclude(userRole => userRole.Rol)
+                        .Include(user => user.Roles).ThenInclude(userRole => userRole.Rol).ThenInclude(role => role.Permisos)
                         .Include(user => user.Persona).ThenInclude(persona => persona.Cliente)
                         .SingleOrDefaultAsync(user => user.Id == userId, context.HttpContext.RequestAborted);
                     if (account is null || !account.Activo)
@@ -77,21 +77,20 @@ public static class ServiceCollectionExtensions
                         return;
                     }
 
-                    var currentRoles = account.Roles
-                        .Select(userRole => RolCodigo.Mapear(userRole.Rol.Codigo))
-                        .Where(role => role.HasValue)
-                        .Select(role => role!.Value.ToString())
-                        .Distinct(StringComparer.Ordinal)
-                        .OrderBy(role => role, StringComparer.Ordinal);
-                    var tokenRoles = principal.FindAll(ClaimTypes.Role)
-                        .Select(claim => claim.Value)
-                        .Distinct(StringComparer.Ordinal)
-                        .OrderBy(role => role, StringComparer.Ordinal);
-                    if (!currentRoles.SequenceEqual(tokenRoles, StringComparer.Ordinal))
-                    {
-                        context.Fail("Los roles de la cuenta cambiaron; inicia sesión nuevamente.");
-                        return;
-                    }
+                    // Rebuild authorization from current DB state on every request; never trust stale permissions.
+                    var validRoles = account.Roles.Where(x => x.Rol.Activo &&
+                        (x.Rol.SedeId == null || x.Rol.SedeId == account.SedeId)).ToArray();
+                    var currentRoles = validRoles.Select(x => RolCodigo.Mapear(x.Rol.Codigo)).Where(x => x.HasValue).Select(x=>x!.Value.ToString()).Distinct().OrderBy(x=>x, StringComparer.Ordinal);
+                    var tokenRoles = principal.FindAll(ClaimTypes.Role).Select(x=>x.Value).Distinct().OrderBy(x=>x, StringComparer.Ordinal);
+                    if (!currentRoles.SequenceEqual(tokenRoles)) { context.Fail("Los roles cambiaron; inicia sesión nuevamente."); return; }
+                    var identity = (ClaimsIdentity)principal.Identity!;
+                    foreach (var claim in identity.FindAll(ClaimTypes.Role).Concat(identity.FindAll("permiso")).ToArray())
+                        identity.RemoveClaim(claim);
+                    foreach (var role in validRoles.Select(x => RolCodigo.Mapear(x.Rol.Codigo)).Where(x => x.HasValue).Distinct().OrderBy(x => RolCodigo.Prioridad(x!.Value)))
+                        identity.AddClaim(new Claim(ClaimTypes.Role, role!.Value.ToString()));
+                    if (account.Persona.Cliente is null && (account.SedeId.HasValue || validRoles.Any(x=>x.Rol.Codigo == "SUPERADMINISTRADOR")))
+                        foreach (var permission in validRoles.SelectMany(x => x.Rol.Permisos).Select(x => x.PermisoCodigo).Distinct())
+                            identity.AddClaim(new Claim("permiso", permission));
 
                     var tokenSedeId = principal.FindFirstValue(AuthClaimTypes.SedeId);
                     var currentSedeId = account.SedeId?.ToString();
@@ -132,6 +131,10 @@ public static class ServiceCollectionExtensions
         // RBAC (RNF01): políticas por rol, usadas con [Authorize(Policy = "Administrador")]
         services.AddAuthorization(options =>
         {
+            foreach (var permission in PermisosSistema.Todos)
+                options.AddPolicy(permission, p => p.RequireAuthenticatedUser().RequireClaim("permiso", permission));
+            options.AddPolicy("habitaciones.consultar", p => p.RequireAuthenticatedUser().RequireAssertion(c => c.User.HasClaim("permiso", "habitaciones.ver") || c.User.HasClaim("permiso", "calendario.ver")));
+            options.AddPolicy("indicadores.consultar", p => p.RequireAuthenticatedUser().RequireAssertion(c => c.User.HasClaim("permiso", "dashboard.ver") || c.User.HasClaim("permiso", "reportes.ver")));
             options.AddPolicy(nameof(RolUsuario.Superadministrador), p => p.RequireRole(nameof(RolUsuario.Superadministrador)));
             options.AddPolicy(nameof(RolUsuario.Administrador), p => p.RequireRole(nameof(RolUsuario.Administrador)));
             options.AddPolicy(nameof(RolUsuario.Recepcion), p => p.RequireRole(nameof(RolUsuario.Recepcion)));

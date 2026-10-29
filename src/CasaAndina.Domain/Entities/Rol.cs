@@ -4,6 +4,11 @@ namespace CasaAndina.Domain.Entities;
 public sealed class Rol
 {
     public int Id { get; set; }
+    public int? SedeId { get; set; }
+    public bool Activo { get; set; } = true;
+    public bool Protegido { get; set; } = true;
+    public Guid Version { get; set; } = Guid.NewGuid();
+    public ICollection<RolPermiso> Permisos { get; set; } = new List<RolPermiso>();
     public string Codigo { get; set; } = default!;
     public string Nombre { get; set; } = default!;
     public string? Descripcion { get; set; }

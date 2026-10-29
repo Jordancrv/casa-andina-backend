@@ -8,5 +8,6 @@ public enum RolUsuario
     Recepcion = 3,
     Cliente = 4,
     Operaciones = 5,
-    Mantenimiento = 6
+    Mantenimiento = 6,
+    Personal = 7
 }

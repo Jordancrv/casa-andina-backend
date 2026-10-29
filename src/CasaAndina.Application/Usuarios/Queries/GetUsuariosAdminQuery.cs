@@ -52,13 +52,11 @@ public sealed class GetUsuariosAdminQueryHandler(IApplicationDbContext context, 
 
     private IQueryable<Usuario> BuildQuery(string? search)
     {
-        var users = context.Usuarios.AsNoTracking();
+        var users = context.Usuarios.AsNoTracking().Where(user => user.Persona.Cliente == null && !user.Roles.Any(r => r.Rol.Codigo == "CLIENTE"));
         if (currentUser.SedeId.HasValue)
         {
             var sedeId = currentUser.SedeId.Value;
-            users = users.Where(user => user.SedeId == sedeId ||
-                (!user.SedeId.HasValue && context.Clientes.Any(cliente => cliente.PersonaId == user.PersonaId &&
-                    cliente.Reservas.Any(reserva => reserva.SedeId == sedeId))));
+            users = users.Where(user => user.SedeId == sedeId);
         }
 
         var normalizedSearch = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
@@ -95,11 +93,13 @@ public sealed class GetUsuariosAdminQueryHandler(IApplicationDbContext context, 
             user.FechaCreacion,
             user.Roles.OrderBy(usuarioRol => usuarioRol.Rol.Nombre)
                 .Select(usuarioRol => usuarioRol.Rol.Nombre).ToArray(),
-            user.Activo));
+            user.Activo,
+            user.Roles.Where(x => x.Rol.Activo && (x.Rol.SedeId == null || x.Rol.SedeId == user.SedeId) && user.Persona.Cliente == null)
+                .SelectMany(x => x.Rol.Permisos).Select(p => p.PermisoCodigo).Distinct().ToArray()));
 
     private void EnsureAdministrator()
     {
-        if (currentUser.Rol is not (RolUsuario.Administrador or RolUsuario.Superadministrador))
+        if (!currentUser.TienePermiso("usuarios.ver"))
             throw new ForbiddenAccessException("No tiene permisos para consultar usuarios.");
     }
 

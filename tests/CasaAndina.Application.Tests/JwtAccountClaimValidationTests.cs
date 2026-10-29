@@ -55,7 +55,13 @@ public sealed class JwtAccountClaimValidationTests
         accepted.Should().BeFalse();
     }
 
-    private static async Task<bool> ValidateTokenAsync(string roleClaim, int sedeId, string email)
+    [Fact]
+    public async Task Revocar_permiso_aplica_en_siguiente_solicitud_sin_cambiar_token()
+    {
+        (await ValidateTokenAsync("Administrador", 4, "admin@example.test", true)).Should().BeTrue();
+    }
+
+    private static async Task<bool> ValidateTokenAsync(string roleClaim, int sedeId, string email, bool checkRevocation = false)
     {
         var dbOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -82,6 +88,9 @@ public sealed class JwtAccountClaimValidationTests
             ]
         };
         account.Roles.Single().Usuario = account;
+        if (checkRevocation) {
+            role.Permisos.Add(new RolPermiso { PermisoCodigo = "reportes.ver", Permiso = new Permiso { Codigo = "reportes.ver", Seccion = "reportes", Delegable = true } });
+        }
         await db.Usuarios.AddAsync(account);
         await db.SaveChangesAsync();
 
@@ -120,6 +129,14 @@ public sealed class JwtAccountClaimValidationTests
         };
         await options.Events.OnTokenValidated(validationContext);
 
+        if (checkRevocation) {
+            principal.HasClaim("permiso", "reportes.ver").Should().BeTrue();
+            principal.HasClaim("permiso", "usuarios.editar").Should().BeFalse();
+            db.RolPermisos.RemoveRange(db.RolPermisos);
+            await db.SaveChangesAsync();
+            await options.Events.OnTokenValidated(validationContext);
+            principal.HasClaim("permiso", "reportes.ver").Should().BeFalse();
+        }
         return validationContext.Result is null;
     }
 }

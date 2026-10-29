@@ -21,7 +21,7 @@ public static class RecepcionRules
 {
     public static int Sede(ICurrentUserService user)
     {
-        if (user.Rol is not (RolUsuario.Administrador or RolUsuario.Recepcion)
+        if (!user.TienePermiso("recepcion.ver")
             || user.SedeId is not int sede || user.UsuarioId is null)
             throw new ForbiddenAccessException("Recepción requiere un administrador o recepcionista con sede asignada.");
         return sede;

@@ -23,7 +23,7 @@ public sealed class DesactivarUsuarioCommandHandler(
 {
     public async Task Handle(DesactivarUsuarioCommand request, CancellationToken cancellationToken)
     {
-        if (currentUser.Rol is not (RolUsuario.Administrador or RolUsuario.Superadministrador))
+        if (!currentUser.TienePermiso("usuarios.desactivar"))
             throw new ForbiddenAccessException("No tiene permisos para desactivar usuarios.");
         if (currentUser.UsuarioId == request.Id)
             throw new CasaAndina.Application.Common.Exceptions.ValidationException(
@@ -35,18 +35,13 @@ public sealed class DesactivarUsuarioCommandHandler(
             item => item.Id == request.Id, cancellationToken)
             ?? throw new NotFoundException("Usuario", request.Id);
 
-        if (currentUser.SedeId is int sedeId && usuario.SedeId != sedeId)
-        {
-            if (usuario.SedeId.HasValue)
-                throw new NotFoundException("Usuario", request.Id);
+        if ((currentUser.SedeId is int sedeId && usuario.SedeId != sedeId) ||
+            await context.Clientes.AnyAsync(cliente => cliente.PersonaId == usuario.PersonaId, cancellationToken) ||
+            await context.UsuarioRoles.AnyAsync(r => r.UsuarioId == usuario.Id && r.Rol.Codigo == "CLIENTE", cancellationToken))
+            throw new NotFoundException("Usuario", usuario.Id);
 
-            var clienteTieneReservaEnSede = await context.Clientes.AnyAsync(cliente =>
-                cliente.PersonaId == usuario.PersonaId &&
-                cliente.Reservas.Any(reserva => reserva.SedeId == sedeId), cancellationToken);
-            if (!clienteTieneReservaEnSede)
-                throw new NotFoundException("Usuario", request.Id);
-        }
-
+        if (await context.UsuarioRoles.AnyAsync(x => x.UsuarioId == usuario.Id && (x.Rol.Codigo == "ADMINISTRADOR" || x.Rol.Codigo == "SUPERADMINISTRADOR"), cancellationToken))
+            throw new ForbiddenAccessException("No se puede desactivar una cuenta administrativa protegida.");
         if (!usuario.Activo)
             return;
 

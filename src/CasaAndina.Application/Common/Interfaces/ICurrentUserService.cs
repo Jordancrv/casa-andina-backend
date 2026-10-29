@@ -9,4 +9,5 @@ public interface ICurrentUserService
     int? ClienteId { get; }
     int? SedeId { get; }
     RolUsuario? Rol { get; }
+    bool TienePermiso(string permiso) => PermisosSistema.Iniciales(Rol).Contains(permiso);
 }

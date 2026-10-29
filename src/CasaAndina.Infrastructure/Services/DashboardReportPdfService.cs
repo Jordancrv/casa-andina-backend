@@ -111,7 +111,7 @@ public sealed class DashboardReportPdfService : IDashboardReportPdfService
                     {
                         notes.Spacing(10);
                         Note(notes.Item(), "Cómo leer los datos", "Fuente: reservas de la sede asignada, por fecha de creación y estado al consultar. Reservas incluye todos los estados; clientes cuenta personas distintas con reservas no canceladas. Ocupación: habitaciones activas ocupadas o con reserva vigente hoy, sin incluir el día de check-out.");
-                        Note(notes.Item(), "Disponibilidad de datos", "Cero indica ausencia de actividad registrada. Proyección de demanda aún no disponible. Sin métricas de uso del asistente IA registradas.");
+                        Note(notes.Item(), "Disponibilidad de datos", "Cero indica ausencia de actividad registrada. La proyección de ocupación se consulta en el dashboard y no está incluida en este PDF. Sin métricas de uso del asistente IA registradas.");
                     });
                 });
             });

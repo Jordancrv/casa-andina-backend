@@ -43,6 +43,8 @@ public class CurrentUserService : ICurrentUserService
         }
     }
 
+    public bool TienePermiso(string permiso) => _httpContextAccessor.HttpContext?.User.HasClaim("permiso", permiso) == true;
+
     private int? GetIdentityId()
     {
         var value = _httpContextAccessor.HttpContext?.User

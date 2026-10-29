@@ -60,6 +60,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
         if (_passwordHasher.Verify(request.Password, usuario.PasswordHash))
         {
             var roles = usuario.Roles
+                .Where(x => x.Rol.Activo && (x.Rol.SedeId == null || x.Rol.SedeId == usuario.SedeId))
                 .Select(x => RolCodigo.Mapear(x.Rol.Codigo))
                 .Where(x => x.HasValue)
                 .Select(x => x!.Value)

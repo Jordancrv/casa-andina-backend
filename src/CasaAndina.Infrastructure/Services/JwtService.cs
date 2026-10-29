@@ -28,7 +28,8 @@ public class JwtService : IJwtService
                 .Where(x => !string.IsNullOrWhiteSpace(x)))
             : persona.Juridica?.RazonSocial ?? "Usuario";
         var roles = usuario.Roles
-            .Select(x => RolCodigo.Mapear(x.Rol.Codigo))
+            .Where(x => x.Rol.Activo && (x.Rol.SedeId == null || x.Rol.SedeId == usuario.SedeId))
+                .Select(x => RolCodigo.Mapear(x.Rol.Codigo))
             .Where(x => x.HasValue)
             .Select(x => x!.Value)
             .OrderBy(RolCodigo.Prioridad)

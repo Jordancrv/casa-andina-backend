@@ -83,6 +83,43 @@ public sealed class ActualizarCuentaUsuarioTests
     }
 
     [Fact]
+    public async Task Cuenta_con_rol_cliente_sin_perfil_cliente_tampoco_es_personal()
+    {
+        await using var context = CreateContext();
+        var persona = new Persona { Id = 10, TipoPersona = "N", Natural = new PersonaNatural { PersonaId = 10, Nombres = "Cliente" } };
+        var rol = new Rol { Id = 10, Codigo = "CLIENTE", Nombre = "Cliente" };
+        context.Usuarios.Add(new Usuario { Id = 10, PersonaId = 10, Persona = persona, Correo = "cliente@example.test", SedeId = 5, PasswordHash = "hash", Roles = [new UsuarioRol { Rol = rol }] });
+        await context.SaveChangesAsync();
+        var user = new CurrentUserStub();
+        var query = new GetUsuariosAdminQueryHandler(context, user);
+        (await query.Handle(new GetUsuariosAdminQuery(), default)).Items.Should().NotContain(u => u.UsuarioId == 10);
+        var edit = () => new ActualizarCuentaUsuarioCommandHandler(context, user).Handle(new(10, "cambio@example.test", null), default);
+        await edit.Should().ThrowAsync<CasaAndina.Application.Common.Exceptions.NotFoundException>();
+        var deactivate = () => new DesactivarUsuarioCommandHandler(context, user).Handle(new(10), default);
+        await deactivate.Should().ThrowAsync<CasaAndina.Application.Common.Exceptions.NotFoundException>();
+    }
+
+    [Fact]
+    public async Task Cliente_con_reserva_local_no_aparece_ni_se_puede_gestionar_como_personal()
+    {
+        await using var context = CreateContext();
+        await SeedCrossSiteCustomer(context);
+        var cliente = await context.Usuarios.SingleAsync(u => u.Id == 2);
+        cliente.SedeId = null;
+        await context.SaveChangesAsync();
+        var user = new CurrentUserStub();
+        var query = new GetUsuariosAdminQueryHandler(context, user);
+        (await query.Handle(new GetUsuariosAdminQuery(), default)).Items.Should().NotContain(u => u.UsuarioId == 2);
+        var detail = () => query.Handle(new GetUsuarioAdminByIdQuery(2), default);
+        await detail.Should().ThrowAsync<CasaAndina.Application.Common.Exceptions.NotFoundException>();
+        var edit = () => new ActualizarCuentaUsuarioCommandHandler(context, user).Handle(new(2, "cambio@example.test", null), default);
+        await edit.Should().ThrowAsync<CasaAndina.Application.Common.Exceptions.NotFoundException>();
+        var deactivate = () => new DesactivarUsuarioCommandHandler(context, user).Handle(new(2), default);
+        await deactivate.Should().ThrowAsync<CasaAndina.Application.Common.Exceptions.NotFoundException>();
+        cliente.Activo.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Lista_usuarios_no_expone_cuentas_asignadas_a_otra_sede()
     {
         await using var context = CreateContext();

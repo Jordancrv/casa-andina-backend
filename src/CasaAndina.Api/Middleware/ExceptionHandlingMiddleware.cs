@@ -47,6 +47,10 @@ public class ExceptionHandlingMiddleware
                 HttpStatusCode.NotFound,
                 new { title = exception.Message }),
 
+            Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException => (
+                HttpStatusCode.Conflict,
+                (object)new { title = "Otro administrador modificó este registro. Actualiza e inténtalo nuevamente." }),
+
             ConflictException => (
                 HttpStatusCode.Conflict,
                 new { title = exception.Message }),

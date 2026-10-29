@@ -9,7 +9,7 @@ namespace CasaAndina.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "PersonalInterno")]
+[Authorize]
 public class HabitacionesController : ControllerBase
 {
     private readonly ISender _mediator;
@@ -17,14 +17,17 @@ public class HabitacionesController : ControllerBase
     public HabitacionesController(ISender mediator) => _mediator = mediator;
 
     [HttpGet]
+    [Authorize(Policy = "habitaciones.consultar")]
     public async Task<IActionResult> Get([FromQuery] GetHabitacionesQuery query)
         => Ok(await _mediator.Send(query));
 
     [HttpGet("{id:int}")]
+    [Authorize(Policy = "habitaciones.consultar")]
     public async Task<IActionResult> GetById(int id)
         => Ok(await _mediator.Send(new GetHabitacionByIdQuery(id)));
 
     [HttpGet("calendario-reservas")]
+    [Authorize(Policy = "calendario.ver")]
     public async Task<IActionResult> GetCalendarioReservas(
         [FromQuery] int sedeId,
         [FromQuery] DateTime fechaDesde,
@@ -34,7 +37,7 @@ public class HabitacionesController : ControllerBase
             new GetCalendarioReservasQuery(sedeId, fechaDesde, fechaHasta), cancellationToken));
 
     [HttpPost]
-    [Authorize(Policy = "GestionHabitaciones")]
+    [Authorize(Policy = "habitaciones.crear")]
     public async Task<IActionResult> Create(CreateHabitacionCommand command)
     {
         var id = await _mediator.Send(command);
@@ -42,7 +45,7 @@ public class HabitacionesController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    [Authorize(Policy = "GestionHabitaciones")]
+    [Authorize(Policy = "habitaciones.editar")]
     public async Task<IActionResult> Update(int id, UpdateHabitacionCommand command)
     {
         await _mediator.Send(command with { Id = id });
@@ -50,7 +53,7 @@ public class HabitacionesController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
-    [Authorize(Policy = "GestionHabitaciones")]
+    [Authorize(Policy = "habitaciones.desactivar")]
     public async Task<IActionResult> Deactivate(int id)
     {
         await _mediator.Send(new DeactivateHabitacionCommand(id));

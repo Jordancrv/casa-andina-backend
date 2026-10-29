@@ -10,7 +10,7 @@ public static class RolCodigo
         "CLIENTE" => RolUsuario.Cliente,
         "OPERACIONES" => RolUsuario.Operaciones,
         "MANTENIMIENTO" => RolUsuario.Mantenimiento,
-        _ => null
+        _ => RolUsuario.Personal
     };
 
     public static int Prioridad(RolUsuario rol) => rol switch

@@ -14,6 +14,37 @@ public sealed class AuthorizationPolicyTests
 {
     private const string TestJwtKey = "test-secret-key-with-at-least-32-characters";
 
+    [Fact]
+    public async Task Permisos_por_accion_no_permiten_escritura_a_un_lector_aunque_su_rol_se_llame_administrador()
+    {
+        using var provider = CreateAuthorizationProvider();
+        var auth = provider.GetRequiredService<IAuthorizationService>();
+        var reader = new ClaimsPrincipal(new ClaimsIdentity([
+            new Claim(ClaimTypes.Role, "Administrador"), new Claim("permiso", "reportes.ver"),
+            new Claim("permiso", "recepcion.ver")], "test"));
+        (await auth.AuthorizeAsync(reader, null, "reportes.ver")).Succeeded.Should().BeTrue();
+        (await auth.AuthorizeAsync(reader, null, "recepcion.ver")).Succeeded.Should().BeTrue();
+        foreach (var denied in new[] { "reportes.analizar", "reportes.exportar", "recepcion.ingreso", "roles.gestionar", "usuarios.asignar" })
+            (await auth.AuthorizeAsync(reader, null, denied)).Succeeded.Should().BeFalse();
+        var anonymous = new ClaimsPrincipal(new ClaimsIdentity([new Claim("permiso", "reportes.ver")]));
+        (await auth.AuthorizeAsync(anonymous, null, "reportes.ver")).Succeeded.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(typeof(ReportesController), "Analizar", "reportes.analizar")]
+    [InlineData(typeof(ReportesController), "Descargar", "reportes.exportar")]
+    [InlineData(typeof(RecepcionController), "CheckIn", "recepcion.ingreso")]
+    [InlineData(typeof(RecepcionController), "CheckOut", "recepcion.salida")]
+    [InlineData(typeof(HabitacionesController), "Update", "habitaciones.editar")]
+    [InlineData(typeof(ServiciosController), "Create", "servicios.crear")]
+    [InlineData(typeof(UsuariosController), "Deactivate", "usuarios.desactivar")]
+    [InlineData(typeof(AccesosController), "Asignar", "usuarios.asignar")]
+    public void Endpoint_requiere_permiso_especifico(Type controller, string method, string permission)
+    {
+        controller.GetMethod(method)!.GetCustomAttributes(typeof(AuthorizeAttribute), true)
+            .Cast<AuthorizeAttribute>().Should().Contain(a => a.Policy == permission);
+    }
+
     [Theory]
     [InlineData(nameof(RolUsuario.Cliente), "Cliente", true)]
     [InlineData(nameof(RolUsuario.Cliente), "PersonalInterno", false)]

@@ -9,7 +9,7 @@ public static class ClientesScope
 {
     public static int? Sede(ICurrentUserService user, int? solicitada = null)
     {
-        if (user.Rol is not (RolUsuario.Administrador or RolUsuario.Superadministrador))
+        if (!user.TienePermiso("clientes.ver") && user.Rol != RolUsuario.Superadministrador)
             throw new ForbiddenAccessException("No tiene permisos para gestionar clientes.");
         if (user.Rol != RolUsuario.Superadministrador && !user.SedeId.HasValue)
             throw new ForbiddenAccessException("La cuenta administrativa no tiene una sede asignada.");

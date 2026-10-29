@@ -39,6 +39,8 @@ public sealed class ActualizarCuentaUsuarioCommandHandler(
             ?? throw new NotFoundException("Usuario", request.UsuarioId);
         await EnsureSameScope(usuario, cancellationToken);
 
+        if (usuario.Id != currentUser.UsuarioId && await context.UsuarioRoles.AnyAsync(x => x.UsuarioId == usuario.Id && (x.Rol.Codigo == "ADMINISTRADOR" || x.Rol.Codigo == "SUPERADMINISTRADOR"), cancellationToken))
+            throw new ForbiddenAccessException("Las cuentas administrativas protegidas no se modifican desde la gestión de personal.");
         var correo = request.Correo.Trim().ToLowerInvariant();
         var correoEnUso = await context.Usuarios.AnyAsync(otro =>
             otro.Id != usuario.Id && otro.Correo == correo, cancellationToken);
@@ -86,21 +88,15 @@ public sealed class ActualizarCuentaUsuarioCommandHandler(
 
     private async Task EnsureSameScope(Usuario usuario, CancellationToken cancellationToken)
     {
-        if (currentUser.SedeId is not int sedeId || usuario.SedeId == sedeId)
-            return;
-        if (usuario.SedeId.HasValue)
-            throw new NotFoundException("Usuario", usuario.Id);
-
-        var clienteTieneReservaEnSede = await context.Clientes.AnyAsync(cliente =>
-            cliente.PersonaId == usuario.PersonaId &&
-            cliente.Reservas.Any(reserva => reserva.SedeId == sedeId), cancellationToken);
-        if (!clienteTieneReservaEnSede)
+        if ((currentUser.SedeId is int sedeId && usuario.SedeId != sedeId) ||
+            await context.Clientes.AnyAsync(cliente => cliente.PersonaId == usuario.PersonaId, cancellationToken) ||
+            await context.UsuarioRoles.AnyAsync(r => r.UsuarioId == usuario.Id && r.Rol.Codigo == "CLIENTE", cancellationToken))
             throw new NotFoundException("Usuario", usuario.Id);
     }
 
     private void EnsureAdministrator()
     {
-        if (currentUser.Rol is not (RolUsuario.Administrador or RolUsuario.Superadministrador))
+        if (!currentUser.TienePermiso("usuarios.editar"))
             throw new ForbiddenAccessException("No tiene permisos para editar usuarios.");
     }
 }

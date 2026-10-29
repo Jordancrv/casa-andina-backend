@@ -9,10 +9,11 @@ namespace CasaAndina.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = "Administrador")]
+[Authorize]
 public sealed class UsuariosController(ISender sender) : ControllerBase
 {
     [HttpGet]
+    [Authorize(Policy = "usuarios.ver")]
     public async Task<IActionResult> Get(
         [FromQuery] string? buscar,
         [FromQuery] int pageNumber = 1,
@@ -21,10 +22,12 @@ public sealed class UsuariosController(ISender sender) : ControllerBase
         => Ok(await sender.Send(new GetUsuariosAdminQuery(buscar, pageNumber, pageSize), cancellationToken));
 
     [HttpGet("{id:int}")]
+    [Authorize(Policy = "usuarios.ver")]
     public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
         => Ok(await sender.Send(new GetUsuarioAdminByIdQuery(id), cancellationToken));
 
     [HttpPut("{id:int}/cuenta")]
+    [Authorize(Policy = "usuarios.editar")]
     public async Task<IActionResult> UpdateAccount(
         int id,
         [FromBody] ActualizarCuentaUsuarioCommand command,
@@ -35,6 +38,7 @@ public sealed class UsuariosController(ISender sender) : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Policy = "usuarios.desactivar")]
     public async Task<IActionResult> Deactivate(int id, CancellationToken cancellationToken)
     {
         await sender.Send(new DesactivarUsuarioCommand(id), cancellationToken);

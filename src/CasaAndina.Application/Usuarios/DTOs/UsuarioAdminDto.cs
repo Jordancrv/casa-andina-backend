@@ -10,7 +10,8 @@ public sealed record UsuarioAdminDto(
     string? SedeNombre,
     DateTime FechaRegistro,
     IReadOnlyList<string> Roles,
-    bool Activo);
+    bool Activo,
+    IReadOnlyList<string>? Permisos = null);
 
 public sealed record ActualizarCuentaUsuarioCommand(int UsuarioId, string Correo, string? Telefono)
     : MediatR.IRequest;
