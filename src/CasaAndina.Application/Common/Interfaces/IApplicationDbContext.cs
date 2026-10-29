@@ -27,6 +27,7 @@ public interface IApplicationDbContext
     DbSet<PersonaDocumento> PersonaDocumentos { get; }
     DbSet<PersonaContacto> PersonaContactos { get; }
     DbSet<Reserva> Reservas { get; }
+    DbSet<ReporteAnalisis> ReportesAnalisis { get; }
     DbSet<ReservaHabitacion> ReservaHabitaciones { get; }
     DbSet<ReservaServicio> ReservaServicios { get; }
     DbSet<Comprobante> Comprobantes { get; }

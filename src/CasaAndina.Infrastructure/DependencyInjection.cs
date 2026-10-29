@@ -30,6 +30,9 @@ public static class DependencyInjection
         services.AddSingleton<IDashboardReportPdfService, DashboardReportPdfService>();
         services.AddScoped<IRecommendationService, GeminiRecommendationService>();
         services.AddMemoryCache();
+          services.AddHttpClient("GeminiReporte", client => client.Timeout = TimeSpan.FromSeconds(30));
+          services.AddSingleton<CasaAndina.Application.Reportes.IAnalisisReporteService, GeminiReporteService>();
+          services.AddSingleton<CasaAndina.Application.Reportes.IAnalisisReportePdfService, AnalisisReportePdfService>();
         services.Configure<GoogleCalendarOptions>(configuration.GetSection("GoogleCalendar"));
         var protection = services.AddDataProtection().SetApplicationName("CasaAndina");
         var keyPath = configuration["GoogleCalendar:DataProtectionKeysPath"];

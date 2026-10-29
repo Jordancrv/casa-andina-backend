@@ -26,6 +26,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<PersonaDocumento> PersonaDocumentos => Set<PersonaDocumento>();
     public DbSet<PersonaContacto> PersonaContactos => Set<PersonaContacto>();
     public DbSet<Reserva> Reservas => Set<Reserva>();
+    public DbSet<ReporteAnalisis> ReportesAnalisis => Set<ReporteAnalisis>();
     public DbSet<ReservaHabitacion> ReservaHabitaciones => Set<ReservaHabitacion>();
     public DbSet<ReservaServicio> ReservaServicios => Set<ReservaServicio>();
     public DbSet<Comprobante> Comprobantes => Set<Comprobante>();
