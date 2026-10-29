@@ -33,6 +33,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<ReservaServicio> ReservaServicios => Set<ReservaServicio>();
     public DbSet<Comprobante> Comprobantes => Set<Comprobante>();
     public DbSet<Huesped> Huespedes => Set<Huesped>();
+    public DbSet<ClienteHuesped> ClientesHuespedes => Set<ClienteHuesped>();
     public DbSet<AsignacionHuesped> AsignacionesHuespedes => Set<AsignacionHuesped>();
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();
     public DbSet<EstadoPago> EstadosPago => Set<EstadoPago>();

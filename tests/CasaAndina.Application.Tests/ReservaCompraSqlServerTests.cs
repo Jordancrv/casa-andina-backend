@@ -66,8 +66,8 @@ public sealed class ReservaCompraSqlServerTests
                     PeruBusinessTime.Today.AddDays(2),
                     PeruBusinessTime.Today.AddDays(4),
                     [new HabitacionCompraDto(1, [
-                        new HuespedCompraDto("Cliente", "Integración", "cliente@example.test", null, true),
-                        new HuespedCompraDto("Huésped", "Prueba", "guest@example.test", null, false)
+                        new HuespedCompraDto("Cliente", "Integración", "cliente@example.test", null, true, "12345678", new DateTime(1990, 1, 1), "F"),
+                        new HuespedCompraDto("Huésped", "Prueba", "guest@example.test", null, false, "87654321", new DateTime(1990, 1, 1), "F")
                     ])],
                     [],
                     "Boleta",

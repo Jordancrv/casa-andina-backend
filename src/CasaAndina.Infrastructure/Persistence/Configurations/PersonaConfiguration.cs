@@ -100,6 +100,7 @@ public sealed class AsignacionHuespedConfiguration : IEntityTypeConfiguration<As
         builder.ToTable("AsignacionHuesped");
         builder.HasKey(x => new { x.ReservaHabitacionId, x.HuespedId });
         builder.Property(x => x.Observacion).HasMaxLength(250);
+        builder.Property(x => x.DatosHuespedJson).HasColumnType("nvarchar(max)");
         builder.HasOne(x => x.ReservaHabitacion).WithMany(x => x.Huespedes)
             .HasForeignKey(x => x.ReservaHabitacionId).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne(x => x.Huesped).WithMany(x => x.Asignaciones)

@@ -2,6 +2,7 @@ using CasaAndina.Application.Common.Interfaces;
 using CasaAndina.Application.Common;
 using CasaAndina.Application.Reservas.Commands;
 using CasaAndina.Application.Reservas.DTOs;
+using CasaAndina.Application.Reservas.Queries;
 using CasaAndina.Domain.Entities;
 using CasaAndina.Domain.Enums;
 using CasaAndina.Infrastructure.Persistence;
@@ -14,6 +15,33 @@ namespace CasaAndina.Application.Tests;
 
 public sealed class CrearReservaCompraHandlerTests
 {
+    [Fact]
+    public async Task Detalle_solo_propietario_muestra_datos_guardados_y_servicios()
+    {
+        await using var context = CreateContext();
+        var seed = await SeedAsync(context);
+        var sede = await context.Sedes.SingleAsync();
+        var service = new Servicio { Id = 10, Nombre = "Desayuno", Precio = 25, Activo = true, Sedes = [sede] };
+        context.Servicios.Add(service); await context.SaveChangesAsync();
+        var actor = new CurrentUserStub(seed.ClienteId, seed.UsuarioId);
+        var command = Command("titular@example.test", true) with { Servicios = [new ServicioCompraDto(10, 2)] };
+        var booking = await new CrearReservaCompraCommandHandler(context, actor).Handle(command, default);
+        var guardado = await context.ClientesHuespedes.SingleAsync(); guardado.Dni = "99999999";
+        await context.SaveChangesAsync();
+        var detail = await new GetReservaDetalleQueryHandler(context, actor).Handle(new(booking.ReservaId), default);
+        detail.Habitaciones.Should().ContainSingle().Which.Huespedes.Should().ContainSingle().Which.Datos.Dni.Should().Be("12345678");
+        detail.Servicios.Should().ContainSingle().Which.Subtotal.Should().Be(50);
+        var assignment = await context.AsignacionesHuespedes.SingleAsync();
+        assignment.DatosHuespedJson = null;
+        await context.SaveChangesAsync();
+        var historic = await new GetReservaDetalleQueryHandler(context, actor).Handle(new(booking.ReservaId), default);
+        var historicGuest = historic.Habitaciones.Single().Huespedes.Single();
+        historicGuest.DatosHistoricosCompletos.Should().BeFalse();
+        historicGuest.Datos.Dni.Should().BeNull();
+        var foreign = () => new GetReservaDetalleQueryHandler(context, new CurrentUserStub(seed.ClienteId + 1, seed.UsuarioId)).Handle(new(booking.ReservaId), default);
+        await foreign.Should().ThrowAsync<CasaAndina.Application.Common.Exceptions.NotFoundException>();
+    }
+
     [Fact]
     public async Task Titular_que_usa_su_correo_de_acceso_se_reutiliza_como_huesped_sin_duplicar_persona()
     {
@@ -40,7 +68,7 @@ public sealed class CrearReservaCompraHandlerTests
         var command = Command("titular@example.test", true) with
         {
             Habitaciones = [new HabitacionCompraDto(1, [
-                new HuespedCompraDto("Otra Persona", "Visitante", "titular@example.test", null, true)
+                new HuespedCompraDto("Otra Persona", "Visitante", "titular@example.test", null, true, "12345678", new DateTime(1990, 1, 1), "F")
             ])]
         };
 
@@ -69,8 +97,8 @@ public sealed class CrearReservaCompraHandlerTests
         var command = Command("titular@example.test", true) with
         {
             Habitaciones = [new HabitacionCompraDto(1, [
-                new HuespedCompraDto("Otro Nombre", "Otra Persona", "visita@example.test", null, false),
-                new HuespedCompraDto("Titular", "Prueba", "titular@example.test", null, true)
+                new HuespedCompraDto("Otro Nombre", "Otra Persona", "visita@example.test", null, false, "87654321", new DateTime(1990, 1, 1), "F"),
+                new HuespedCompraDto("Titular", "Prueba", "titular@example.test", null, true, "12345678", new DateTime(1990, 1, 1), "F")
             ])]
         };
 
@@ -98,15 +126,20 @@ public sealed class CrearReservaCompraHandlerTests
         (await context.PersonaContactos.SingleAsync()).Valor.Should().Be("visita@example.test");
         (await context.AsignacionesHuespedes.CountAsync()).Should().Be(2);
         (await context.AsignacionesHuespedes.SingleAsync(item => item.HuespedId == guest.Id)).Should().NotBeNull();
+        var guardado = await context.ClientesHuespedes.SingleAsync(item => item.HuespedId == guest.Id);
+        guardado.ClienteId.Should().Be(seed.ClienteId);
+        guardado.Dni.Should().Be("87654321");
+        guardado.FechaNacimiento.Should().Be(new DateTime(1990, 1, 1));
+        guardado.Sexo.Should().Be("F");
     }
 
     private static CrearReservaCompraCommand Command(string email, bool titular)
     {
         var guests = titular
-            ? new[] { new HuespedCompraDto("Titular", "Prueba", email, null, true) }
+            ? new[] { new HuespedCompraDto("Titular", "Prueba", email, null, true, "12345678", new DateTime(1990, 1, 1), "F") }
             : [
-                new HuespedCompraDto("Titular", "Prueba", "titular@example.test", null, true),
-                new HuespedCompraDto("María José", "O’Neil", email, null, false)
+                new HuespedCompraDto("Titular", "Prueba", "titular@example.test", null, true, "12345678", new DateTime(1990, 1, 1), "F"),
+                new HuespedCompraDto("María José", "O’Neil", email, null, false, "87654321", new DateTime(1990, 1, 1), "F")
             ];
         return new CrearReservaCompraCommand(
             1,

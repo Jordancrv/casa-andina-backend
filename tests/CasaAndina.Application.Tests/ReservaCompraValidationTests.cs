@@ -237,10 +237,22 @@ public sealed class ReservaCompraValidationTests
         importe.Should().Throw<ValidationException>();
     }
 
+    [Fact]
+    public async Task Huesped_requiere_dni_fecha_de_nacimiento_y_sexo_validos()
+    {
+        var invalid = Guest(true) with { Dni = "123", FechaNacimiento = PeruBusinessTime.Today.AddDays(1), Sexo = "X" };
+        var command = ValidCommand() with { Habitaciones = [new HabitacionCompraDto(1, [invalid])] };
+        var result = await new CrearReservaCompraCommandValidator().ValidateAsync(command);
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName.EndsWith("Dni"));
+        result.Errors.Should().Contain(e => e.PropertyName.EndsWith("FechaNacimiento"));
+        result.Errors.Should().Contain(e => e.PropertyName.EndsWith("Sexo"));
+    }
+
     private static CrearReservaCompraCommand ValidCommand() => new(
         1, PeruBusinessTime.Today.AddDays(1), PeruBusinessTime.Today.AddDays(2),
         [new HabitacionCompraDto(1, [Guest(true)])], [], "Boleta", null, null, "YAPE");
 
     private static HuespedCompraDto Guest(bool titular) =>
-        new("Jordan", "Prueba", "jordan@example.test", null, titular);
+        new("Jordan", "Prueba", "jordan@example.test", null, titular, "12345678", new DateTime(1990, 1, 1), "M");
 }

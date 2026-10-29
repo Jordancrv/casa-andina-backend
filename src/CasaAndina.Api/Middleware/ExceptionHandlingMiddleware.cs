@@ -51,6 +51,10 @@ public class ExceptionHandlingMiddleware
                 HttpStatusCode.Conflict,
                 (object)new { title = "Otro administrador modificó este registro. Actualiza e inténtalo nuevamente." }),
 
+            Microsoft.EntityFrameworkCore.DbUpdateException { InnerException: Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 } } => (
+                HttpStatusCode.Conflict,
+                (object)new { title = "El dato ya está registrado o hubo un cambio simultáneo. Actualiza e inténtalo nuevamente." }),
+
             ConflictException => (
                 HttpStatusCode.Conflict,
                 new { title = exception.Message }),

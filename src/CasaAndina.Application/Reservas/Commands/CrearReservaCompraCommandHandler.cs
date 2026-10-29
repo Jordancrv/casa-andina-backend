@@ -52,6 +52,9 @@ public sealed class CrearReservaCompraCommandValidator : AbstractValidator<Crear
                     .Must(name => NombrePersona.IsMatch(name.Trim()))
                     .WithMessage("El apellido solo puede incluir letras, espacios, apóstrofes y guiones.");
                 guest.RuleFor(x => x.Correo).NotEmpty().EmailAddress().MaximumLength(150);
+                guest.RuleFor(x => x.Dni).NotEmpty().Matches(@"^[0-9]{8}$").WithMessage("El DNI debe tener 8 dígitos.");
+                guest.RuleFor(x => x.FechaNacimiento).NotNull().Must(d => d.HasValue && d.Value.TimeOfDay == TimeSpan.Zero && d.Value.Date <= PeruBusinessTime.Today && d.Value.Year >= 1900).WithMessage("Ingresa una fecha de nacimiento válida.");
+                guest.RuleFor(x => x.Sexo).Must(s => s is "M" or "F").WithMessage("Selecciona el sexo del huésped.");
                 guest.RuleFor(x => x.Telefono).MaximumLength(16)
                     .Matches(@"^\+?[1-9]\d{7,14}$")
                     .When(x => !string.IsNullOrWhiteSpace(x.Telefono))
@@ -120,6 +123,7 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
         if (alreadyReserved) throw new ConflictException("La disponibilidad cambió. Vuelve a buscar habitaciones antes de confirmar.");
 
         var guestEmailSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var guestDniSet = new HashSet<string>(StringComparer.Ordinal);
         foreach (var allocation in request.Habitaciones)
         {
             var room = rooms.Single(x => x.Id == allocation.HabitacionId);
@@ -132,6 +136,8 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
             {
                 if (!guestEmailSet.Add(guest.Correo.Trim().ToLowerInvariant()))
                     throw Invalid("Cada huésped debe tener un correo único dentro de la reserva.");
+                if (string.IsNullOrWhiteSpace(guest.Dni) || !guestDniSet.Add(guest.Dni))
+                    throw Invalid("Cada huésped debe tener un DNI válido y único dentro de la reserva.");
             }
         }
 
@@ -190,10 +196,20 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
             foreach (var guest in allocation.Huespedes)
             {
                 var guestId = await FindOrCreateGuest(guest, cancellationToken);
+                var matches = await _context.ClientesHuespedes.Where(x => x.ClienteId == clienteId && (x.HuespedId == guestId || x.Dni == guest.Dni)).ToListAsync(cancellationToken);
+                if (matches.Count > 1 || matches.Any(x => x.HuespedId != guestId || x.Dni != guest.Dni))
+                    throw new ConflictException("El DNI o correo ya pertenece a otro huésped guardado. Verifica los datos.");
+                var saved = matches.SingleOrDefault();
+                if (saved is null) { saved = new ClienteHuesped { ClienteId = clienteId, HuespedId = guestId }; _context.ClientesHuespedes.Add(saved); }
+                saved.Nombres = guest.Nombres.Trim(); saved.Apellidos = guest.Apellidos.Trim(); saved.Dni = guest.Dni!;
+                saved.FechaNacimiento = guest.FechaNacimiento!.Value.Date; saved.Sexo = guest.Sexo!; saved.Correo = guest.Correo.Trim().ToLowerInvariant(); saved.Telefono = guest.Telefono?.Trim();
                 detail.Huespedes.Add(new AsignacionHuesped
                 {
                     HuespedId = guestId,
-                    EsTitular = guest.EsTitular
+                    EsTitular = guest.EsTitular,
+                    DatosHuespedJson = System.Text.Json.JsonSerializer.Serialize(new DetalleHuespedDatos(
+                        guest.Nombres.Trim(), guest.Apellidos.Trim(), guest.Dni, guest.FechaNacimiento?.Date,
+                        guest.Sexo, guest.Correo.Trim().ToLowerInvariant(), guest.Telefono?.Trim()))
                 });
             }
             reservation.Habitaciones.Add(detail);

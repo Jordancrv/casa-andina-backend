@@ -30,7 +30,7 @@ public sealed class ComprobantePdfTests
         r.Cliente.Persona.Natural!.Nombres = "Ana"; r.Cliente.Persona.Natural.Apellidos = "Torres";
         db.Usuarios.Add(usuario); await db.SaveChangesAsync();
         var compra = new CrearReservaCompraCommand(1, PeruBusinessTime.Today.AddDays(10), PeruBusinessTime.Today.AddDays(12),
-            [new(1, [new("Ana", "Torres", "ana@example.test", null, true)])], [], "Boleta", null, null, "YAPE");
+            [new(1, [new("Ana", "Torres", "ana@example.test", null, true, "12345678", new DateTime(1990, 1, 1), "F")])], [], "Boleta", null, null, "YAPE");
         var response = await new CrearReservaCompraCommandHandler(db, new User(10, 1)).Handle(compra, default);
         response.ComprobanteDisponible.Should().BeTrue(); response.NumeroComprobante.Should().StartWith("B");
         var nueva = await db.Reservas.Include(x => x.Comprobante).SingleAsync(x => x.Id == response.ReservaId);

@@ -87,4 +87,5 @@ public class AsignacionHuesped
     public Huesped Huesped { get; set; } = default!;
     public bool EsTitular { get; set; }
     public string? Observacion { get; set; }
+    public string? DatosHuespedJson { get; set; }
 }

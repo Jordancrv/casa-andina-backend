@@ -34,6 +34,7 @@ public interface IApplicationDbContext
     DbSet<ReservaServicio> ReservaServicios { get; }
     DbSet<Comprobante> Comprobantes { get; }
     DbSet<Huesped> Huespedes { get; }
+    DbSet<ClienteHuesped> ClientesHuespedes { get; }
     DbSet<AsignacionHuesped> AsignacionesHuespedes { get; }
     DbSet<Auditoria> Auditoria { get; }
     DbSet<EstadoPago> EstadosPago { get; }

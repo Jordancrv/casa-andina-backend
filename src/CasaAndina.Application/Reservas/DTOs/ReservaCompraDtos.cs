@@ -35,13 +35,19 @@ public sealed record HuespedCompraDto(
     string Apellidos,
     string Correo,
     string? Telefono,
-    bool EsTitular);
+    bool EsTitular,
+    string? Dni = null,
+    DateTime? FechaNacimiento = null,
+    string? Sexo = null);
 
 public sealed record HabitacionCompraDto(
     int HabitacionId,
     IReadOnlyList<HuespedCompraDto> Huespedes);
 
 public sealed record ServicioCompraDto(int ServicioId, int Cantidad);
+
+public sealed record DetalleHuespedDatos(string Nombres, string? Apellidos, string? Dni,
+    DateTime? FechaNacimiento, string? Sexo, string? Correo, string? Telefono);
 
 public sealed record CrearReservaCompraCommand(
     int SedeId,
