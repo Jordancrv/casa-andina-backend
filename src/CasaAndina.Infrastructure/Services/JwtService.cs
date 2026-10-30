@@ -36,6 +36,7 @@ public class JwtService : IJwtService
             .ToArray();
         if (roles.Length == 0)
             throw new InvalidOperationException("El usuario no tiene roles asignados.");
+        var esPersonal = roles.Any(rol => rol != RolUsuario.Cliente);
 
         var jwtSettings = _configuration.GetSection("Jwt");
         var expirationHours = JwtTokenSettings.ValidateAndGetExpirationHours(_configuration);
@@ -48,13 +49,13 @@ public class JwtService : IJwtService
             new Claim(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, email),
             new Claim(ClaimTypes.Name, nombre),
-            new Claim(AuthClaimTypes.TipoUsuario, persona.Cliente is null ? AuthClaimTypes.Personal : AuthClaimTypes.Cliente)
+            new Claim(AuthClaimTypes.TipoUsuario, esPersonal ? AuthClaimTypes.Personal : AuthClaimTypes.Cliente)
         };
 
         foreach (var rol in roles)
             claims.Add(new Claim(ClaimTypes.Role, rol.ToString()));
 
-        if (persona.Cliente is not null)
+        if (!esPersonal && persona.Cliente is not null)
             claims.Add(new Claim(AuthClaimTypes.ClienteId, persona.Cliente.Id.ToString()));
         if (usuario.SedeId.HasValue)
             claims.Add(new Claim(AuthClaimTypes.SedeId, usuario.SedeId.Value.ToString()));

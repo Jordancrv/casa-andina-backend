@@ -88,7 +88,8 @@ public static class ServiceCollectionExtensions
                         identity.RemoveClaim(claim);
                     foreach (var role in validRoles.Select(x => RolCodigo.Mapear(x.Rol.Codigo)).Where(x => x.HasValue).Distinct().OrderBy(x => RolCodigo.Prioridad(x!.Value)))
                         identity.AddClaim(new Claim(ClaimTypes.Role, role!.Value.ToString()));
-                    if (account.Persona.Cliente is null && (account.SedeId.HasValue || validRoles.Any(x=>x.Rol.Codigo == "SUPERADMINISTRADOR")))
+                    var esPersonal = validRoles.Any(x => RolCodigo.Mapear(x.Rol.Codigo) != RolUsuario.Cliente);
+                    if (esPersonal && (account.SedeId.HasValue || validRoles.Any(x=>x.Rol.Codigo == "SUPERADMINISTRADOR")))
                         foreach (var permission in validRoles.SelectMany(x => x.Rol.Permisos).Select(x => x.PermisoCodigo).Distinct())
                             identity.AddClaim(new Claim("permiso", permission));
 
@@ -101,14 +102,14 @@ public static class ServiceCollectionExtensions
                     }
 
                     var tokenClienteId = principal.FindFirstValue(AuthClaimTypes.ClienteId);
-                    var currentClienteId = account.Persona.Cliente?.Id.ToString();
+                    var currentClienteId = esPersonal ? null : account.Persona.Cliente?.Id.ToString();
                     if (!string.Equals(tokenClienteId, currentClienteId, StringComparison.Ordinal))
                     {
                         context.Fail("El perfil de cliente cambió; inicia sesión nuevamente.");
                         return;
                     }
 
-                    var currentTipoUsuario = account.Persona.Cliente is null
+                    var currentTipoUsuario = esPersonal
                         ? AuthClaimTypes.Personal
                         : AuthClaimTypes.Cliente;
                     if (!string.Equals(

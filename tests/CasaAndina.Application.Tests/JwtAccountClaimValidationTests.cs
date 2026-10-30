@@ -5,6 +5,8 @@ using CasaAndina.Domain.Entities;
 using CasaAndina.Domain.Enums;
 using CasaAndina.Infrastructure.Identity;
 using CasaAndina.Infrastructure.Persistence;
+using CasaAndina.Infrastructure.Services;
+using System.IdentityModel.Tokens.Jwt;
 using FluentAssertions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -61,7 +63,28 @@ public sealed class JwtAccountClaimValidationTests
         (await ValidateTokenAsync("Administrador", 4, "admin@example.test", true)).Should().BeTrue();
     }
 
-    private static async Task<bool> ValidateTokenAsync(string roleClaim, int sedeId, string email, bool checkRevocation = false)
+    [Fact]
+    public async Task Personal_con_perfil_de_cliente_conserva_los_permisos_del_rol()
+    {
+        (await ValidateTokenAsync("Administrador", 4, "admin@example.test", checkRevocation: true, perfilCliente: true)).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Token_de_personal_con_perfil_de_cliente_no_se_identifica_como_cliente()
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> {
+            ["Jwt:Key"] = "test-secret-key-with-at-least-32-characters", ["Jwt:Issuer"] = "CasaAndina.Api",
+            ["Jwt:Audience"] = "CasaAndina.Clients", ["Jwt:ExpirationHours"] = "4"
+        }).Build();
+        var usuario = new Usuario { Id = 11, Correo = "admin@example.test", SedeId = 4,
+            Persona = new Persona { Cliente = new Cliente { Id = 6 } },
+            Roles = [new UsuarioRol { Rol = new Rol { Codigo = "ADMINISTRADOR", Activo = true } }] };
+        var token = new JwtSecurityTokenHandler().ReadJwtToken(new JwtService(config).GenerarToken(usuario));
+        token.Claims.Should().Contain(c => c.Type == AuthClaimTypes.TipoUsuario && c.Value == AuthClaimTypes.Personal);
+        token.Claims.Should().NotContain(c => c.Type == AuthClaimTypes.ClienteId);
+    }
+
+    private static async Task<bool> ValidateTokenAsync(string roleClaim, int sedeId, string email, bool checkRevocation = false, bool perfilCliente = false)
     {
         var dbOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -88,6 +111,7 @@ public sealed class JwtAccountClaimValidationTests
             ]
         };
         account.Roles.Single().Usuario = account;
+        if (perfilCliente) account.Persona.Cliente = new Cliente { Id = 6, PersonaId = account.PersonaId };
         if (checkRevocation) {
             role.Permisos.Add(new RolPermiso { PermisoCodigo = "reportes.ver", Permiso = new Permiso { Codigo = "reportes.ver", Seccion = "reportes", Delegable = true } });
         }
