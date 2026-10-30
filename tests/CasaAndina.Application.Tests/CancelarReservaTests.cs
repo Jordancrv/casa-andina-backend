@@ -52,6 +52,22 @@ public sealed class CancelarReservaTests
     }
 
     [Fact]
+    public async Task Disponibilidad_devuelve_las_imagenes_en_el_orden_del_album()
+    {
+        await using var db = await Seed();
+        var room = await db.Habitaciones.SingleAsync();
+        room.FotoUrl = "https://example.test/principal.jpg";
+        room.Imagenes.Add(new HabitacionImagen { Orden = 2, Url = "https://example.test/segunda.jpg" });
+        room.Imagenes.Add(new HabitacionImagen { Orden = 1, Url = room.FotoUrl });
+        await db.SaveChangesAsync();
+        var entrada = PeruBusinessTime.Today.AddDays(10);
+        var disponible = (await new GetDisponibilidadQueryHandler(db).Handle(new(1, entrada, entrada.AddDays(2)), default)).Should().ContainSingle().Subject;
+        disponible.FotoUrl.Should().Be("https://example.test/principal.jpg");
+        var imagenes = await new GetHabitacionImagenesQueryHandler(db).Handle(new(room.Id), default);
+        imagenes.Should().Equal("https://example.test/principal.jpg", "https://example.test/segunda.jpg");
+    }
+
+    [Fact]
     public async Task No_cancela_reserva_de_otro_cliente_ni_sin_identidad()
     {
         await using var db = await Seed();

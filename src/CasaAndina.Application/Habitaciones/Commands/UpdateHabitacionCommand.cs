@@ -1,5 +1,6 @@
 using CasaAndina.Application.Common.Exceptions;
 using CasaAndina.Application.Common.Interfaces;
+using CasaAndina.Domain.Entities;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -49,7 +50,7 @@ public class UpdateHabitacionCommandHandler : IRequestHandler<UpdateHabitacionCo
 
     public async Task Handle(UpdateHabitacionCommand request, CancellationToken cancellationToken)
     {
-        var habitacion = await _context.Habitaciones.Include(h => h.Comodidades)
+        var habitacion = await _context.Habitaciones.Include(h => h.Comodidades).Include(h => h.Imagenes)
             .SingleOrDefaultAsync(h => h.Id == request.Id && h.Activo, cancellationToken);
         if (habitacion is null)
             throw new NotFoundException("Habitacion", request.Id);
@@ -78,7 +79,12 @@ public class UpdateHabitacionCommandHandler : IRequestHandler<UpdateHabitacionCo
         habitacion.Piso = request.Piso;
         habitacion.PrecioNoche = request.PrecioBase;
         habitacion.Estado = request.Estado;
-        habitacion.FotoUrl = string.IsNullOrWhiteSpace(request.FotoUrl) ? null : request.FotoUrl.Trim();
+        var foto = string.IsNullOrWhiteSpace(request.FotoUrl) ? null : request.FotoUrl.Trim();
+        var principal = habitacion.Imagenes.FirstOrDefault(i => i.Orden == 1);
+        if (foto is null && principal is not null) habitacion.Imagenes.Remove(principal);
+        else if (foto is not null && principal is null) habitacion.Imagenes.Add(new HabitacionImagen { Url = foto, Orden = 1 });
+        else if (principal is not null) principal.Url = foto!;
+        habitacion.FotoUrl = foto;
         habitacion.FechaActualizacion = DateTime.UtcNow;
         habitacion.Comodidades.Clear();
         foreach (var comodidad in comodidades) habitacion.Comodidades.Add(comodidad);

@@ -68,6 +68,11 @@ public class ReservasController : ControllerBase
     public async Task<IActionResult> GetServicios([FromQuery] int sedeId, CancellationToken cancellationToken)
         => Ok(await _mediator.Send(new GetServiciosReservaQuery(sedeId), cancellationToken));
 
+    [AllowAnonymous]
+    [HttpGet("habitaciones/{id:int}/imagenes")]
+    public async Task<ActionResult<IReadOnlyList<string>>> GetImagenesHabitacion(int id, CancellationToken cancellationToken)
+        => Ok(await _mediator.Send(new GetHabitacionImagenesQuery(id), cancellationToken));
+
     /// <summary>POST /api/reservas — crea la compra autenticada y simula el pago sin cobrar.</summary>
     [HttpPost]
     public async Task<ActionResult<ReservaCompraResponseDto>> Comprar(

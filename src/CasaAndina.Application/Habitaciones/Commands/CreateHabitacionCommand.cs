@@ -90,6 +90,9 @@ public class CreateHabitacionCommandHandler : IRequestHandler<CreateHabitacionCo
             habitacion.Comodidades.Add(comodidad);
         }
 
+        if (!string.IsNullOrWhiteSpace(request.FotoUrl))
+            habitacion.Imagenes.Add(new HabitacionImagen { Url = request.FotoUrl.Trim(), Orden = 1 });
+
         _context.Habitaciones.Add(habitacion);
         await _context.SaveChangesAsync(cancellationToken);
 

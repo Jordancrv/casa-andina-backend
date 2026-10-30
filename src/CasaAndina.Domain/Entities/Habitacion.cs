@@ -21,5 +21,6 @@ public class Habitacion : BaseEntity
     public string Estado { get; set; } = "Disponible";   // Disponible / Ocupada / Mantenimiento / Bloqueada
     public string? FotoUrl { get; set; }
 
+    public ICollection<HabitacionImagen> Imagenes { get; set; } = new List<HabitacionImagen>();
     public ICollection<Comodidad> Comodidades { get; set; } = new List<Comodidad>();
 }
