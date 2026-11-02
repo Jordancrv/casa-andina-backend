@@ -50,7 +50,9 @@ public sealed class RolesPermisosTests
         created.SedeId.Should().Be(1); created.Correo.Should().Be("ana@test.example");
         created.PasswordHash.Should().Be("hashed:ClaveSegura1!"); created.Roles.Should().ContainSingle(r => r.RolId == 2);
         created.Persona.Cliente.Should().BeNull(); created.Persona.Documentos.Single().Numero.Should().Be("12345678");
-        (await db.Auditoria.SingleAsync(x => x.Entidad == "Usuario" && x.EntidadId == id.ToString())).Despues.Should().NotContain("ClaveSegura1!");
+        var auditoria = await db.Auditoria.SingleAsync(x => x.Entidad == "Usuario" && x.EntidadId == id.ToString());
+        auditoria.Accion.Should().Be("INSERT");
+        auditoria.Despues.Should().NotContain("ClaveSegura1!");
     }
 
     [Fact]

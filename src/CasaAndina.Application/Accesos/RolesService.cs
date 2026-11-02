@@ -169,7 +169,7 @@ public sealed class RolesService(IApplicationDbContext db, ICurrentUserService a
         db.Usuarios.Add(user);
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException) { throw new ConflictException("No se pudo crear la cuenta. Verifica si el correo o documento ya están registrados."); }
-        db.Auditoria.Add(new Auditoria { UsuarioId = actor.UsuarioId, SedeId = sede, FechaUtc = DateTime.UtcNow, Accion = "CREATE", Entidad = "Usuario", EntidadId = user.Id.ToString(), Despues = JsonSerializer.Serialize(new { user.Correo, user.SedeId, Roles = ids }) });
+        db.Auditoria.Add(new Auditoria { UsuarioId = actor.UsuarioId, SedeId = sede, FechaUtc = DateTime.UtcNow, Accion = "INSERT", Entidad = "Usuario", EntidadId = user.Id.ToString(), Despues = JsonSerializer.Serialize(new { user.Correo, user.SedeId, Roles = ids }) });
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         return user.Id;
     }
