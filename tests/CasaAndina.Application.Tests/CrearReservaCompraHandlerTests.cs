@@ -60,7 +60,7 @@ public sealed class CrearReservaCompraHandlerTests
     }
 
     [Fact]
-    public async Task Correo_de_acceso_con_nombres_distintos_se_rechaza_sin_crear_reserva()
+    public async Task Correo_de_acceso_con_nombres_distintos_permite_reserva()
     {
         await using var context = CreateContext();
         var seed = await SeedAsync(context);
@@ -74,14 +74,14 @@ public sealed class CrearReservaCompraHandlerTests
 
         var action = () => handler.Handle(command, CancellationToken.None);
 
-        await action.Should().ThrowAsync<CasaAndina.Application.Common.Exceptions.ConflictException>();
-        (await context.Reservas.CountAsync()).Should().Be(0);
-        (await context.Huespedes.CountAsync()).Should().Be(0);
+        await action();
+        (await context.Reservas.CountAsync()).Should().Be(1);
+        (await context.Huespedes.CountAsync()).Should().Be(1);
         (await context.Personas.CountAsync()).Should().Be(1);
     }
 
     [Fact]
-    public async Task Correo_de_contacto_con_nombres_distintos_se_rechaza()
+    public async Task Correo_de_contacto_con_nombres_distintos_permite_reserva()
     {
         await using var context = CreateContext();
         var seed = await SeedAsync(context);
@@ -104,8 +104,8 @@ public sealed class CrearReservaCompraHandlerTests
 
         var action = () => handler.Handle(command, CancellationToken.None);
 
-        await action.Should().ThrowAsync<CasaAndina.Application.Common.Exceptions.ConflictException>();
-        (await context.Reservas.CountAsync()).Should().Be(0);
+        await action();
+        (await context.Reservas.CountAsync()).Should().Be(1);
         (await context.Personas.CountAsync()).Should().Be(2);
     }
 
