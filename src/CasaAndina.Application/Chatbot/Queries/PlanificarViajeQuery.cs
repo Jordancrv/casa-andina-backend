@@ -9,7 +9,7 @@ namespace CasaAndina.Application.Chatbot.Queries;
 public sealed record PlanificarViajeQuery(
     string Mensaje, DateTime FechaEntrada, DateTime FechaSalida,
     decimal PresupuestoPorNoche, int Adultos = 2, string? Ciudad = null,
-    IReadOnlyList<MensajeViajeDto>? Historial = null)
+    IReadOnlyList<MensajeViajeDto>? Historial = null, bool EvitarLluvia = false)
     : IRequest<PlanViajeDto>;
 
 public sealed class PlanificarViajeQueryValidator : AbstractValidator<PlanificarViajeQuery>

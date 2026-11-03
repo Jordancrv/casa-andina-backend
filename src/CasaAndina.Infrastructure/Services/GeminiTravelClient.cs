@@ -11,6 +11,8 @@ namespace CasaAndina.Infrastructure.Services;
 public sealed class GeminiOptions
 {
     public string ApiKey { get; set; } = "";
+    public string[] ApiKeys { get; set; } = [];
+    internal System.Collections.Concurrent.ConcurrentDictionary<string, DateTimeOffset> Cooldowns { get; } = new();
     public string Model { get; set; } = "gemini-3.5-flash-lite";
 }
 
@@ -32,7 +34,7 @@ public sealed class GeminiTravelClient(HttpClient http, IOptions<GeminiOptions> 
         IReadOnlyList<EstadiaRecomendadaDto> opciones, CancellationToken cancellationToken)
     {
         var config = options.Value;
-        if (string.IsNullOrWhiteSpace(config.ApiKey) || !Regex.IsMatch(config.Model, "^[a-zA-Z0-9.-]+$"))
+        if (!Regex.IsMatch(config.Model, "^[a-zA-Z0-9.-]+$"))
             return null;
 
         var instrucciones = """
@@ -52,11 +54,12 @@ public sealed class GeminiTravelClient(HttpClient http, IOptions<GeminiOptions> 
             Usa EXCLUSIVAMENTE los datos entregados. No inventes hoteles, comodidades, distancias,
             atracciones, noticias, eventos, descuentos ni servicios. No incluyas enlaces.
             Los límites de ciudad, fechas, adultos y presupuesto son los datos confirmados de la consulta.
+            Cada opción corresponde a una sola habitación para todos los adultos; el presupuesto es un máximo por noche, no un precio exacto.
             Si el mensaje contradice esos datos, pide aclaración en la conversación, sin exigir formularios.
             Si falta información para una preferencia, dilo; no afirmes que se cumple.
             Solo describe el clima para las fechas presentes en clima.dias. No extrapoles fechas faltantes.
             Si no hay pronóstico, dilo; no sustituyas con el clima actual ni con datos inventados.
-            Recomienda llevar ropa o planificar actividades bajo techo solo si el pronóstico lo justifica.
+            No recomiendes ropa, equipaje ni actividades; limítate a habitaciones, sedes y clima verificado.
             No repitas importes en el texto: la interfaz los muestra desde la base de datos.
             No afirmes haber reservado. La disponibilidad se volverá a comprobar al reservar.
             El resumen debe tener como máximo 700 caracteres y cada motivo 450 caracteres.
@@ -83,16 +86,14 @@ public sealed class GeminiTravelClient(HttpClient http, IOptions<GeminiOptions> 
 
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post,
-                $"https://generativelanguage.googleapis.com/v1beta/models/{config.Model}:generateContent");
-            request.Headers.Add("x-goog-api-key", config.ApiKey);
-            request.Content = JsonContent.Create(new
+            var payload = new
             {
                 systemInstruction = new { parts = new[] { new { text = instrucciones } } },
                 contents = new[] { new { role = "user", parts = new[] { new { text = JsonSerializer.Serialize(new { consulta, opciones }, JsonOptions) } } } },
                 generationConfig = new { temperature = 0.2, maxOutputTokens = 2048, responseMimeType = "application/json", responseJsonSchema = schema }
-            });
-            using var response = await http.SendAsync(request, cancellationToken);
+            };
+            using var response = await GeminiRequestSender.SendAsync(http, config, payload, cancellationToken);
+            if (response is null) return null;
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("Gemini no disponible. HTTP {StatusCode}", (int)response.StatusCode);

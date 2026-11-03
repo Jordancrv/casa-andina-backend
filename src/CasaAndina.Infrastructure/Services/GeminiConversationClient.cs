@@ -17,12 +17,14 @@ public sealed class GeminiConversationClient(HttpClient http, IOptions<GeminiOpt
         IReadOnlyList<string> ciudades, DateTime hoy, CancellationToken cancellationToken)
     {
         var config = options.Value;
-        if (string.IsNullOrWhiteSpace(config.ApiKey) || !Regex.IsMatch(config.Model, "^[a-zA-Z0-9.-]+$")) return null;
+        if (!Regex.IsMatch(config.Model, "^[a-zA-Z0-9.-]+$")) return null;
         var instructions = """
             Eres el compañero de viajes de Casa Andina. Conversa en español con naturalidad y calidez.
             La persona puede escribir libremente: nunca le pidas completar un formulario, seleccionar
             botones o seguir pasos obligatorios. Responde al mensaje y pregunta solo por lo que falte.
             Interpreta datos explícitos del mensaje y conserva las preferencias conocidas si no cambiaron.
+            Si cambia la ciudad, conserva fechas, número de adultos y presupuesto previamente confirmados, salvo que el usuario los cambie.
+            No pidas de nuevo datos que ya constan en preferencias. Si pide opciones con datos completos, buscarOpciones debe ser true.
             Si pide cambiar las fechas o el presupuesto sin indicar nuevos valores, deja esos campos
             en null y pregunta por el cambio; no reutilices los valores que acaba de rechazar.
             No supongas presupuesto, adultos, fechas o destino. Si son ambiguos, pide aclaración.
@@ -31,7 +33,12 @@ public sealed class GeminiConversationClient(HttpClient http, IOptions<GeminiOpt
             Las ciudades deben ser exactamente uno de los nombres de ciudadesDisponibles, o null.
             Si desea que elijas el destino, usa ciudad=null y destinoFlexible=true.
             Un saludo o una pregunta general se puede responder sin buscar habitaciones.
+            Limítate a ayudar a elegir sedes y habitaciones y comparar el clima. No recomiendes ropa,
+            equipaje ni consejos generales; redirige amablemente al alcance del asistente.
             buscarOpciones=true si pide recomendaciones, comparar o continuar la búsqueda y hay datos suficientes.
+            Si aclara el presupuesto o modifica un dato de una búsqueda completa, vuelve a buscar con las preferencias actualizadas.
+            El presupuesto es un máximo por noche de una sola habitación, no una cantidad exacta ni por persona.
+            El número de adultos corresponde a la capacidad necesaria de esa habitación; no supongas que admite más personas.
             mensaje: máximo 700 caracteres, sin afirmar disponibilidad, precios, clima ni haber reservado.
             Si faltan datos, pide una aclaración concreta y amable: destino (o flexible), entrada y salida,
             presupuesto máximo por noche en soles y número de adultos. No inventes datos para saltar esa pregunta.
@@ -63,17 +70,14 @@ public sealed class GeminiConversationClient(HttpClient http, IOptions<GeminiOpt
         };
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post,
-                $"https://generativelanguage.googleapis.com/v1beta/models/{config.Model}:generateContent");
-            request.Headers.Add("x-goog-api-key", config.ApiKey);
-            request.Content = JsonContent.Create(new
+            var payload = new
             {
                 systemInstruction = new { parts = new[] { new { text = instructions } } },
                 contents = new[] { new { role = "user", parts = new[] { new { text = JsonSerializer.Serialize(new { hoy = hoy.ToString("yyyy-MM-dd"), ciudadesDisponibles = ciudades, consulta }, Json) } } } },
                 generationConfig = new { temperature = 0.2, maxOutputTokens = 1536, responseMimeType = "application/json", responseJsonSchema = schema }
-            });
-            using var response = await http.SendAsync(request, cancellationToken);
-            if (!response.IsSuccessStatusCode) return null;
+            };
+            using var response = await GeminiRequestSender.SendAsync(http, config, payload, cancellationToken);
+            if (response is null || !response.IsSuccessStatusCode) return null;
             using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
             if (!document.RootElement.TryGetProperty("candidates", out var candidates) || candidates.GetArrayLength() == 0) return null;
             var candidate = candidates[0];

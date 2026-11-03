@@ -23,14 +23,12 @@ public sealed class GeminiReporteService(IHttpClientFactory factory, IOptions<Ge
         {
             if (cache.TryGetValue(key, out existing)) return existing;
             var config = options.Value;
-            if (string.IsNullOrWhiteSpace(config.ApiKey) || !Regex.IsMatch(config.Model, "^[a-zA-Z0-9.-]+$")) return null;
+            if (!Regex.IsMatch(config.Model, "^[a-zA-Z0-9.-]+$")) return null;
             var aggregates = new { datos.Kpis, datos.ReservasSemana, datos.CanceladasPeriodo, datos.Canales, datos.Periodo };
             const string instructions = "Analiza en español los indicadores agregados de un hotel para un administrador. Devuelve JSON con resumen, hallazgos, recomendaciones y limitaciones, cada campo texto breve. Compara con el periodo anterior cuando exista base; si es cero no inventes porcentajes. Ocupación es actual; serie semanal cubre seis semanas. Importe reservado no equivale a cobros. No inventes causas, predicciones, datos, objetivos ni hechos externos. Distingue observaciones de sugerencias y explica límites. Usa solo los datos proporcionados.";
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"https://generativelanguage.googleapis.com/v1beta/models/{config.Model}:generateContent");
-            request.Headers.Add("x-goog-api-key", config.ApiKey);
-            request.Content = JsonContent.Create(new { systemInstruction = new { parts = new[] { new { text = instructions } } }, contents = new[] { new { role = "user", parts = new[] { new { text = JsonSerializer.Serialize(aggregates, Json) } } } }, generationConfig = new { temperature = 0.2, maxOutputTokens = 1600, responseMimeType = "application/json" } });
-            using var response = await factory.CreateClient("GeminiReporte").SendAsync(request, cancellationToken);
-            if (!response.IsSuccessStatusCode) return null;
+            var payload = new { systemInstruction = new { parts = new[] { new { text = instructions } } }, contents = new[] { new { role = "user", parts = new[] { new { text = JsonSerializer.Serialize(aggregates, Json) } } } }, generationConfig = new { temperature = 0.2, maxOutputTokens = 1600, responseMimeType = "application/json" } };
+            using var response = await GeminiRequestSender.SendAsync(factory.CreateClient("GeminiReporte"), config, payload, cancellationToken);
+            if (response is null || !response.IsSuccessStatusCode) return null;
             using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
             var candidate = document.RootElement.GetProperty("candidates")[0];
             if (candidate.GetProperty("finishReason").GetString() != "STOP") return null;

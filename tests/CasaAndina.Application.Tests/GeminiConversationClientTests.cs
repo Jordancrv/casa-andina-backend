@@ -40,6 +40,34 @@ public sealed class GeminiConversationClientTests
         (await Client(handler, "").InterpretarAsync(new("Hola"), ["Cusco"], new(2026,10,27), default)).Should().BeNull();
         handler.Calls.Should().Be(0);
     }
+    [Fact]
+    public async Task Cuota_agotada_cambia_de_clave_y_no_repite_la_agotada_inmediatamente()
+    {
+        var handler = new RotatingHandler(HttpStatusCode.TooManyRequests, Envelope("""{"mensaje":"Hola","preferencias":{"fechaEntrada":null,"fechaSalida":null,"presupuestoPorNoche":null,"adultos":null,"ciudad":null,"destinoFlexible":false},"buscarOpciones":false}"""));
+        var client = new GeminiConversationClient(new HttpClient(handler), Options.Create(new GeminiOptions { ApiKey = "clave-primera", ApiKeys = ["clave-segunda"] }), NullLogger<GeminiConversationClient>.Instance);
+        (await client.InterpretarAsync(new("Hola"), ["Cusco"], new(2026, 10, 27), default)).Should().NotBeNull();
+        (await client.InterpretarAsync(new("Hola"), ["Cusco"], new(2026, 10, 27), default)).Should().NotBeNull();
+        handler.Keys.Should().Equal("clave-primera", "clave-segunda", "clave-segunda");
+    }
+    [Fact]
+    public async Task Error_que_no_es_de_cuota_no_prueba_otras_claves()
+    {
+        var handler = new RotatingHandler(HttpStatusCode.Forbidden, "{}");
+        var client = new GeminiConversationClient(new HttpClient(handler), Options.Create(new GeminiOptions { ApiKey = "primera", ApiKeys = ["segunda"] }), NullLogger<GeminiConversationClient>.Instance);
+        (await client.InterpretarAsync(new("Hola"), ["Cusco"], new(2026, 10, 27), default)).Should().BeNull();
+        handler.Keys.Should().Equal("primera");
+    }
+    private sealed class RotatingHandler(HttpStatusCode firstStatus, string successBody) : HttpMessageHandler
+    {
+        public List<string> Keys { get; } = [];
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            var key = request.Headers.GetValues("x-goog-api-key").Single();
+            Keys.Add(key);
+            return Task.FromResult(new HttpResponseMessage(Keys.Count == 1 ? firstStatus : HttpStatusCode.OK)
+                { Content = new StringContent(successBody, System.Text.Encoding.UTF8, "application/json") });
+        }
+    }
     private static string Envelope(string text) => JsonSerializer.Serialize(new { candidates = new[] { new { finishReason="STOP", content=new {parts=new[] {new {text}}} } } });
     private static GeminiConversationClient Client(Handler handler,string key="test-only") => new(new HttpClient(handler), Options.Create(new GeminiOptions {ApiKey=key}), NullLogger<GeminiConversationClient>.Instance);
     private sealed class Handler(string response,HttpStatusCode status=HttpStatusCode.OK) : HttpMessageHandler

@@ -5,13 +5,15 @@ public sealed record PlanViajeDto(
     bool UsaIa,
     DateTimeOffset GeneradoEn,
     IReadOnlyList<EstadiaRecomendadaDto> Recomendaciones,
-    IReadOnlyList<string> Avisos);
+    IReadOnlyList<string> Avisos,
+    bool FiltroLluvia = false);
 
 public sealed record EstadiaRecomendadaDto(
     int SedeId, string SedeNombre, string Ciudad, string Categoria,
     decimal PrecioPorNoche, decimal TotalEstadia, int Noches,
     string TipoHabitacion, string Motivo, ClimaViajeDto Clima,
-    int? HabitacionId = null, string? FotoUrl = null, int ReservasRecientes = 0);
+    int? HabitacionId = null, string? FotoUrl = null, int ReservasRecientes = 0,
+    bool ClimaFavorable = false, string? MotivoFiltroClima = null);
 
 public sealed record MensajeViajeDto(string Rol, string Texto);
 

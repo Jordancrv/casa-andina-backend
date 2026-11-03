@@ -14,7 +14,7 @@ public static class ConversacionViaje
         var salida = entrada.HasValue && p.FechaSalida is { } s && s.TimeOfDay == TimeSpan.Zero && s > entrada && s <= entrada.Value.AddDays(30) ? p.FechaSalida : null;
         var ciudad = ciudades.FirstOrDefault(c => Normal(c) == Normal(p.Ciudad ?? ""));
         return new(entrada, salida, p.PresupuestoPorNoche is >= 1 and <= 10000 ? p.PresupuestoPorNoche : null,
-            p.Adultos is >= 1 and <= 8 ? p.Adultos : null, ciudad, ciudad is null && p.DestinoFlexible);
+            p.Adultos is >= 1 and <= 8 ? p.Adultos : null, ciudad, ciudad is null && p.DestinoFlexible, p.EvitarLluvia);
     }
     public static string? Faltante(PreferenciasConversacionDto p) => p.Ciudad is null && !p.DestinoFlexible ? "ciudad"
         : p.FechaEntrada is null || p.FechaSalida is null ? "fechas" : p.PresupuestoPorNoche is null ? "presupuesto"
@@ -36,6 +36,7 @@ public static class ConversacionViaje
     public static PreferenciasConversacionDto LeerMensaje(string message, PreferenciasConversacionDto p, IReadOnlyList<string> ciudades, DateTime hoy)
     {
         var text = Normal(message);
+        if (Regex.IsMatch(text, @"\b(evitar|menos|sin|no quiero)\b.{0,35}\b(lluvia|llover|llueva)\b|\b(menos|poca) lluvia\b")) p = p with { EvitarLluvia = true };
         if (Regex.IsMatch(text, @"\b(cambiar|cambiemos|otras)\b.*\bfechas\b")) p = p with { FechaEntrada = null, FechaSalida = null };
         if (Regex.IsMatch(text, @"\b(cambiar|cambiemos|otro)\b.*\bpresupuesto\b")) p = p with { PresupuestoPorNoche = null };
         if (p.Ciudad is { } previousCity && Regex.IsMatch(text, $@"\b(no quiero|evitar|menos|excepto)\b.{{0,20}}\b{Regex.Escape(Normal(previousCity.Split('(')[0].Trim()))}\b"))
@@ -50,6 +51,9 @@ public static class ConversacionViaje
             DateTime.TryParseExact(m.Value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date) ? (DateTime?)date : null).ToArray();
         if (dates.Length > 0) p = p with { FechaEntrada = dates[0], FechaSalida = dates.Length > 1 ? dates[1] : null };
         if (Regex.IsMatch(text, @"\b(desde |a partir de )?manana\b")) p = p with { FechaEntrada = hoy.AddDays(1), FechaSalida = null };
+        var relative = Regex.Match(text, @"\b(?:dentro de|en)\s+(\d{1,3})\s+dias?\b");
+        if (relative.Success && int.TryParse(relative.Groups[1].Value, out var offset) && offset <= 365)
+            p = p with { FechaEntrada = hoy.AddDays(offset), FechaSalida = null };
         var nights = Regex.Match(text, @"\b(\d{1,2}|una?|dos|tres|cuatro|cinco) noches?\b");
         if (nights.Success && p.FechaEntrada is { } start)
         {
@@ -71,6 +75,12 @@ public static class ConversacionViaje
             else if (Faltante(p) == "adultos" && int.TryParse(text, out var count)) p = p with { Adultos = count };
         }
         return p;
+    }
+    public static IReadOnlyList<string> CiudadesEnMensaje(string message, IReadOnlyList<string> ciudades)
+    {
+        var text = Normal(message);
+        return ciudades.Where(c => Regex.IsMatch(text, $@"\b{Regex.Escape(Normal(c.Split('(')[0].Trim()))}\b")
+            && !Regex.IsMatch(text, $@"\b(no quiero|evitar|menos|excepto)\b.{{0,20}}\b{Regex.Escape(Normal(c.Split('(')[0].Trim()))}\b")).ToArray();
     }
     private static string Normal(string text) => string.Concat(text.Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD)
         .Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark));

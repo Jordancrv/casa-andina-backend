@@ -16,6 +16,29 @@ public sealed class PlanificarViajeTests
     private static PlanificarViajeQuery Consulta => new("Prefiero evitar la lluvia", PeruBusinessTime.Today.AddDays(1), PeruBusinessTime.Today.AddDays(4), 500m, 2);
 
     [Fact]
+    public async Task Explica_capacidad_cuando_hay_habitaciones_dentro_del_presupuesto()
+    {
+        await using var db = Context();
+        db.Habitaciones.AddRange(Room(1, 1, 320, capacidad: 2), Room(2, 2, 420, capacidad: 2));
+        await db.SaveChangesAsync();
+        var ai = new AssistantStub(); var weather = new WeatherStub();
+        var result = await new GeminiRecommendationService(db, ai, weather).PlanificarAsync(Consulta with { Adultos = 3, PresupuestoPorNoche = 450 }, default);
+        result.Recomendaciones.Should().BeEmpty();
+        result.Resumen.Should().Contain("hasta 2 adultos").And.Contain("una sola habitación");
+        ai.Calls.Should().Be(0); weather.Calls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Explica_el_precio_minimo_si_existe_capacidad_fuera_del_presupuesto()
+    {
+        await using var db = Context();
+        db.Habitaciones.AddRange(Room(1, 1, 320, capacidad: 2), Room(2, 2, 550, capacidad: 3));
+        await db.SaveChangesAsync();
+        var result = await new GeminiRecommendationService(db, new AssistantStub(), new WeatherStub()).PlanificarAsync(Consulta with { Adultos = 3, PresupuestoPorNoche = 450 }, default);
+        result.Resumen.Should().Contain("hasta 2 adultos").And.Contain("550");
+    }
+
+    [Fact]
     public void Valida_limites_y_fechas_civiles()
     {
         var validator = new PlanificarViajeQueryValidator();
@@ -55,6 +78,57 @@ public sealed class PlanificarViajeTests
         ai.Calls.Should().Be(1);
     }
 
+    [Fact]
+    public async Task Muestra_todas_las_habitaciones_disponibles_de_una_misma_sede()
+    {
+        await using var db = Context();
+        var primera = Room(1, 1, 200);
+        var segunda = Room(2, 1, 350); segunda.Sede = primera.Sede;
+        db.Habitaciones.AddRange(primera, segunda);
+        await db.SaveChangesAsync();
+        var result = await new GeminiRecommendationService(db, new AssistantStub(), new WeatherStub()).PlanificarAsync(Consulta, default);
+        result.Recomendaciones.Select(r => r.HabitacionId).Should().Equal(1, 2);
+    }
+    [Fact]
+    public async Task Ordena_por_lluvia_con_cobertura_completa_y_deja_el_clima_desconocido_al_final()
+    {
+        await using var db = Context();
+        var lluviosa = Room(1, 1, 100); lluviosa.Sede.Ciudad = "Cusco";
+        var seca = Room(2, 2, 200); seca.Sede.Ciudad = "Lima";
+        var desconocida = Room(3, 3, 50); desconocida.Sede.Ciudad = "Piura";
+        db.Habitaciones.AddRange(lluviosa, seca, desconocida);
+        await db.SaveChangesAsync();
+        var result = await new GeminiRecommendationService(db, new AssistantStub(), new WeatherByCity()).PlanificarAsync(Consulta with { EvitarLluvia = true }, default);
+        result.Recomendaciones.Select(r => r.Ciudad).Should().Equal("Lima", "Cusco", "Piura");
+        result.FiltroLluvia.Should().BeTrue();
+        result.Recomendaciones.Select(r => r.ClimaFavorable).Should().Equal(true, false, false);
+        result.Avisos.Should().Contain(a => a.Contains("no garantiza"));
+    }
+    [Fact]
+    public async Task Si_hay_llovizna_no_destaca_la_habitacion_aunque_la_probabilidad_sea_baja()
+    {
+        await using var db = Context();
+        db.Habitaciones.Add(Room(1, 1, 200));
+        await db.SaveChangesAsync();
+        var ai = new AssistantStub();
+        var result = await new GeminiRecommendationService(db, ai, new WeatherWithDrizzle()).PlanificarAsync(Consulta with { EvitarLluvia = true }, default);
+        result.FiltroLluvia.Should().BeTrue();
+        result.Recomendaciones.Should().ContainSingle().Which.ClimaFavorable.Should().BeFalse();
+        result.Recomendaciones[0].MotivoFiltroClima.Should().Contain(Consulta.FechaEntrada.ToString("yyyy-MM-dd"));
+        result.Resumen.Should().Contain("No encontré");
+        ai.Calls.Should().Be(0);
+    }
+    [Fact]
+    public async Task Sin_pronostico_completo_informa_falta_de_datos_y_no_recomienda_como_seco()
+    {
+        await using var db = Context();
+        db.Habitaciones.Add(Room(1, 1, 200));
+        await db.SaveChangesAsync();
+        var result = await new GeminiRecommendationService(db, new AssistantStub(), new WeatherStub()).PlanificarAsync(Consulta with { EvitarLluvia = true }, default);
+        result.Resumen.Should().Contain("No tengo un pronóstico completo");
+        result.Recomendaciones.Should().ContainSingle().Which.ClimaFavorable.Should().BeFalse();
+        result.Recomendaciones[0].MotivoFiltroClima.Should().Contain("Faltan datos");
+    }
     [Fact]
     public async Task Respeta_solapamientos_cancelaciones_y_limites_de_entrada_salida()
     {
@@ -166,5 +240,23 @@ public sealed class PlanificarViajeTests
         public int Calls { get; private set; }
         public Task<ClimaViajeDto> ConsultarAsync(string ciudad, DateTime entrada, DateTime salida, CancellationToken ct)
         { Calls++; return Task.FromResult(new ClimaViajeDto("no_disponible", "Sin datos", null, null, [])); }
+    }
+    private sealed class WeatherByCity : ITravelWeatherService
+    {
+        public Task<ClimaViajeDto> ConsultarAsync(string ciudad, DateTime entrada, DateTime salida, CancellationToken ct)
+        {
+            var dias = ciudad == "Piura" ? [] : Enumerable.Range(0, (salida - entrada).Days)
+                .Select(i => new DiaClimaDto(entrada.AddDays(i).ToString("yyyy-MM-dd"), 10, 20, ciudad == "Cusco" ? 80 : 20, 0)).ToArray();
+            return Task.FromResult(new ClimaViajeDto("disponible", "", null, null, dias));
+        }
+    }
+    private sealed class WeatherWithDrizzle : ITravelWeatherService
+    {
+        public Task<ClimaViajeDto> ConsultarAsync(string ciudad, DateTime entrada, DateTime salida, CancellationToken ct)
+        {
+            var dias = Enumerable.Range(0, (salida - entrada).Days).Select(i =>
+                new DiaClimaDto(entrada.AddDays(i).ToString("yyyy-MM-dd"), 10, 20, 10, 51)).ToArray();
+            return Task.FromResult(new ClimaViajeDto("disponible", "", null, null, dias));
+        }
     }
 }
