@@ -1,5 +1,6 @@
 using CasaAndina.Application.Common.Exceptions;
 using CasaAndina.Application.Common.Interfaces;
+using CasaAndina.Application.Common;
 using CasaAndina.Domain.Entities;
 using FluentValidation;
 using MediatR;
@@ -10,7 +11,8 @@ namespace CasaAndina.Application.Clientes.Commands;
 
 public sealed record ClienteCrmDatos(string TipoPersona, string Nombre, string? Apellidos,
     string? NombreComercial, int TipoDocumentoId, string NumeroDocumento,
-    string? CorreoNotificacion, string? Telefono, string Estado = "Activo", int? SedeRegistroId = null);
+    string? CorreoNotificacion, string? Telefono, string Estado = "Activo", int? SedeRegistroId = null,
+    DateTime? FechaNacimiento = null, string? Genero = null, string? Nacionalidad = null);
 public sealed record CrearClienteCommand(ClienteCrmDatos Datos) : IRequest<int>;
 public sealed record ActualizarClienteCommand(int ClienteId, ClienteCrmDatos Datos) : IRequest;
 
@@ -25,6 +27,9 @@ public sealed class ClienteCrmDatosValidator : AbstractValidator<ClienteCrmDatos
             .When(d => d.TipoPersona == "N").WithMessage("El nombre solo admite letras y separadores habituales.");
         RuleFor(d => d.Apellidos).MaximumLength(100)
             .Matches(@"^[\p{L}\p{M}][\p{L}\p{M}\s.'’\-]*$").When(d => !string.IsNullOrWhiteSpace(d.Apellidos));
+        RuleFor(d => d.FechaNacimiento).Must(d => !d.HasValue || (d.Value.Year >= 1900 && d.Value.TimeOfDay == TimeSpan.Zero && d.Value.Date <= PeruBusinessTime.Today)).WithMessage("Ingresa una fecha de nacimiento válida.");
+        RuleFor(d => d.Genero).Must(v => v is null or "M" or "F");
+        RuleFor(d => d.Nacionalidad).MaximumLength(60).Matches(@"^[\p{L}\p{M}][\p{L}\p{M}\s.'’,()\-]*$").When(d => !string.IsNullOrWhiteSpace(d.Nacionalidad));
         RuleFor(d => d.NombreComercial).MaximumLength(150);
         RuleFor(d => d.TipoDocumentoId).GreaterThan(0);
         RuleFor(d => d.NumeroDocumento).NotEmpty().MaximumLength(20).Matches("^[A-Za-z0-9]+$");
@@ -37,7 +42,17 @@ public sealed class ClienteCrmDatosValidator : AbstractValidator<ClienteCrmDatos
 
 public sealed class CrearClienteCommandValidator : AbstractValidator<CrearClienteCommand>
 {
-    public CrearClienteCommandValidator() => RuleFor(x => x.Datos).NotNull().SetValidator(new ClienteCrmDatosValidator());
+    public CrearClienteCommandValidator()
+    {
+        RuleFor(x => x.Datos).NotNull().SetValidator(new ClienteCrmDatosValidator());
+        When(x => x.Datos is not null && x.Datos.TipoPersona == "N", () =>
+        {
+            RuleFor(x => x.Datos.Apellidos).NotEmpty();
+            RuleFor(x => x.Datos.FechaNacimiento).NotNull();
+            RuleFor(x => x.Datos.Genero).NotEmpty();
+            RuleFor(x => x.Datos.Nacionalidad).NotEmpty();
+        });
+    }
 }
 public sealed class ActualizarClienteCommandValidator : AbstractValidator<ActualizarClienteCommand>
 {
@@ -136,6 +151,9 @@ public sealed class GuardarClienteCommandHandler(IApplicationDbContext context, 
             persona.Natural ??= new PersonaNatural();
             persona.Natural.Nombres = nombre;
             persona.Natural.Apellidos = Limpiar(datos.Apellidos);
+            persona.Natural.FechaNacimiento = datos.FechaNacimiento?.Date;
+            persona.Natural.Genero = datos.Genero;
+            persona.Natural.Nacionalidad = Limpiar(datos.Nacionalidad);
         }
         else
         {

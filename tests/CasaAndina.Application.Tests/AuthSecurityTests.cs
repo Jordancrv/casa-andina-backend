@@ -261,6 +261,17 @@ public sealed class AuthSecurityTests
     }
 
     [Fact]
+    public void Registro_natural_valida_datos_personales_y_juridica_no_los_exige()
+    {
+        var validator = new RegisterClientCommandValidator();
+        var natural = new RegisterClientCommand("N", "DNI", "12345678", "Ana", null, "ana@example.test", null, "ClaveSegura1!", "Torres", new DateTime(1990, 1, 1), "F", "Peruana");
+        validator.Validate(natural).IsValid.Should().BeTrue();
+        validator.Validate(natural with { Nacionalidad = "Congo (República Democrática del)" }).IsValid.Should().BeTrue();
+        validator.Validate(natural with { Apellidos = null, FechaNacimiento = DateTime.Today.AddDays(1), Genero = "X", Nacionalidad = "123" }).IsValid.Should().BeFalse();
+        validator.Validate(new RegisterClientCommand("J", "RUC", "20123456789", "Empresa SAC", null, "empresa@example.test", null, "ClaveSegura1!")).IsValid.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Registro_DeberiaCrearClienteConHashYRolCliente()
     {
         await using var context = CreateContext();
@@ -272,16 +283,20 @@ public sealed class AuthSecurityTests
                 "N",
                 "DNI",
                 "87654321",
-                "  María   López ",
+                "  María ",
                 null,
                 "MARIA@CORREO.COM ",
                 "+51987654321",
-                password),
+                password, "López", new DateTime(1990, 4, 1), "F", "Peruana"),
             CancellationToken.None);
 
         var cliente = await context.Clientes.SingleAsync();
         var usuario = await context.Usuarios.Include(x => x.Roles).ThenInclude(x => x.Rol).SingleAsync();
         response.Rol.Should().Be("Cliente");
+        response.NombreCompleto.Should().Be("María López");
+        var natural = await context.PersonasNaturales.SingleAsync();
+        natural.Nombres.Should().Be("María"); natural.Apellidos.Should().Be("López");
+        natural.FechaNacimiento.Should().Be(new DateTime(1990, 4, 1)); natural.Genero.Should().Be("F"); natural.Nacionalidad.Should().Be("Peruana");
         cliente.Estado.Should().Be("Activo");
         usuario.PasswordHash.Should().NotBe(password);
         usuario.Correo.Should().Be("maria@correo.com");

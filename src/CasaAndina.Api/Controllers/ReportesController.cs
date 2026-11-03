@@ -35,8 +35,12 @@ public sealed class ReportesController(ISender sender, ICurrentUserService user,
         try
         {
             var latest = await db.ReportesAnalisis.AsNoTracking().Where(x => x.SedeId == sedeId && x.Periodo == periodo && x.GeneradoUtc >= DateTime.UtcNow.AddHours(-6)).OrderByDescending(x => x.GeneradoUtc).ThenByDescending(x => x.Id).FirstOrDefaultAsync(cancellationToken);
-            if (latest is not null) return Ok(ResponseData(latest));
+            // Los informes anteriores siguen disponibles en el historial, pero no contienen
+            // el corte de proyección requerido por la versión ampliada del análisis.
+            if (latest is not null && JsonSerializer.Deserialize<AnalisisReporte>(latest.ContenidoJson, Json)?.Datos.Proyeccion is not null)
+                return Ok(ResponseData(latest));
             var dashboard = await sender.Send(new GetDashboardBiQuery(periodo), cancellationToken);
+            dashboard = dashboard with { Proyeccion = await sender.Send(new GetProyeccionOcupacionQuery(), cancellationToken) };
             var result = await analysis.ObtenerAsync(sedeId, periodo, dashboard, cancellationToken);
             if (result is null) return StatusCode(503, new { detail = "El análisis no está disponible. Inténtalo más tarde." });
             var row = new ReporteAnalisis { SedeId = sedeId, UsuarioId = usuarioId, Periodo = periodo, GeneradoUtc = result.GeneradoUtc, ContenidoJson = JsonSerializer.Serialize(result, Json) };

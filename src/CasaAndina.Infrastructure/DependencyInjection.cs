@@ -41,6 +41,8 @@ public static class DependencyInjection
         services.AddScoped<ICalendarioService, GoogleCalendarService>();
         services.AddHttpClient<GoogleCalendarClient>(client => client.Timeout = TimeSpan.FromSeconds(20));
         services.AddHostedService<CalendarSyncWorker>();
+        services.AddScoped<CasaAndina.Application.Recepcion.AutomatizarEstadiasService>();
+        services.AddHostedService<EstadiasWorker>();
         services.Configure<GeminiOptions>(configuration.GetSection("Gemini"));
         services.AddHttpClient<ITravelExplanationClient, GeminiTravelClient>(client =>
             client.Timeout = TimeSpan.FromSeconds(20));

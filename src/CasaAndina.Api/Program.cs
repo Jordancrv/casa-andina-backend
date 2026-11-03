@@ -119,6 +119,7 @@ app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<AuditoriaPersonalMiddleware>();
 
 app.MapControllers();
 

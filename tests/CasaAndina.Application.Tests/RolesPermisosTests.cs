@@ -45,9 +45,12 @@ public sealed class RolesPermisosTests
         db.TiposDocumento.Add(new TipoDocumento { Id = 1, Codigo = "DNI", Nombre = "DNI", TipoPersonaPermitida = "N", LongitudMinima = 8, LongitudMaxima = 8 });
         await db.SaveChangesAsync();
         var service = new RolesService(db, new Actor());
-        var id = await service.CrearPersonalAsync(new("Ana Torres", "DNI", "12345678", "ANA@test.example", null, "ClaveSegura1!", [2]), new Hasher(), default);
+        var id = await service.CrearPersonalAsync(new("Ana", "DNI", "12345678", "ANA@test.example", null, "ClaveSegura1!", [2], "Torres", new DateTime(1990, 5, 4), "F", "Peruana"), new Hasher(), default);
         var created = await db.Usuarios.Include(u => u.Roles).Include(u => u.Persona).ThenInclude(p => p.Documentos).SingleAsync(u => u.Id == id);
         created.SedeId.Should().Be(1); created.Correo.Should().Be("ana@test.example");
+        var personal = await db.PersonasNaturales.SingleAsync(p => p.PersonaId == created.PersonaId);
+        personal.Nombres.Should().Be("Ana"); personal.Apellidos.Should().Be("Torres");
+        personal.FechaNacimiento.Should().Be(new DateTime(1990, 5, 4)); personal.Genero.Should().Be("F"); personal.Nacionalidad.Should().Be("Peruana");
         created.PasswordHash.Should().Be("hashed:ClaveSegura1!"); created.Roles.Should().ContainSingle(r => r.RolId == 2);
         created.Persona.Cliente.Should().BeNull(); created.Persona.Documentos.Single().Numero.Should().Be("12345678");
         var auditoria = await db.Auditoria.SingleAsync(x => x.Entidad == "Usuario" && x.EntidadId == id.ToString());
@@ -59,9 +62,9 @@ public sealed class RolesPermisosTests
     public async Task Crear_personal_rechaza_rol_de_otra_sede_y_contrasena_invalida()
     {
         await using var db = await Seed(); var service = new RolesService(db, new Actor());
-        var invalid = () => service.CrearPersonalAsync(new("Ana Torres", "DNI", "12345678", "ana@test.example", null, "clave", [2]), new Hasher(), default);
+        var invalid = () => service.CrearPersonalAsync(new("Ana", "DNI", "12345678", "ana@test.example", null, "clave", [2], "Torres", new DateTime(1990, 5, 4), "F", "Peruana"), new Hasher(), default);
         await invalid.Should().ThrowAsync<CasaAndina.Application.Common.Exceptions.ValidationException>();
-        var foreign = () => service.CrearPersonalAsync(new("Ana Torres", "DNI", "12345678", "ana@test.example", null, "ClaveSegura1!", [3]), new Hasher(), default);
+        var foreign = () => service.CrearPersonalAsync(new("Ana", "DNI", "12345678", "ana@test.example", null, "ClaveSegura1!", [3], "Torres", new DateTime(1990, 5, 4), "F", "Peruana"), new Hasher(), default);
         await foreign.Should().ThrowAsync<ForbiddenAccessException>();
         (await db.Usuarios.CountAsync()).Should().Be(3);
     }

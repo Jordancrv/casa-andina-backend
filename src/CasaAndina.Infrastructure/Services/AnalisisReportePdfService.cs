@@ -46,6 +46,32 @@ public sealed class AnalisisReportePdfService : IAnalisisReportePdfService
                     });
                 body.Item().Text("Verde: reservadas · Dorado: canceladas · por fecha de creación y estado actual").FontSize(8).FontColor(Muted);
                 body.Item().Background(Soft).Padding(10).Text($"Canales del periodo: {d.Canales.ReservasDirectas} directas, {d.Canales.ReservasOTA} OTA y {Math.Max(0, d.Canales.TotalReservas-d.Canales.ReservasDirectas-d.Canales.ReservasOTA)} otros. Ocupación actual: {d.Kpis.OcupacionActualPct:N1}%.").FontSize(10);
+                body.Item().Text("Habitaciones y servicios del periodo").FontSize(12).SemiBold();
+                if (d.OcupacionHabitaciones is null)
+                    body.Item().Text("Este informe anterior no incluye ocupación por habitación.").FontSize(9).FontColor(Muted);
+                else if (d.OcupacionHabitaciones.Count == 0)
+                    body.Item().Text("Sin habitaciones activas en el corte.").FontSize(9).FontColor(Muted);
+                else
+                {
+                    body.Item().Text("Noches reservadas durante el periodo; inventario activo actual, no check-ins realizados.").FontSize(8).FontColor(Muted);
+                    foreach (var room in d.OcupacionHabitaciones)
+                        body.Item().Text($"Habitación {room.Numero} · {room.Tipo}: {room.NochesReservadas}/{room.NochesPeriodo} noches · {room.OcupacionPct:N1}%").FontSize(9);
+                }
+                if (d.ServiciosPopulares is null)
+                    body.Item().Text("Este informe anterior no incluye servicios.").FontSize(9).FontColor(Muted);
+                else if (d.ServiciosPopulares.Count == 0)
+                    body.Item().Text("Sin servicios agregados en el periodo.").FontSize(9).FontColor(Muted);
+                else foreach (var service in d.ServiciosPopulares)
+                    body.Item().Text($"{service.Nombre}: {service.Cantidad} unidades · {service.Reservas} reservas").FontSize(9);
+                body.Item().Text("Proyección de ocupación").FontSize(12).SemiBold();
+                if (d.Proyeccion is null)
+                    body.Item().Text("Este informe anterior no incluye una proyección guardada.").FontSize(9).FontColor(Muted);
+                else
+                {
+                    body.Item().Text(d.Proyeccion.Disponible ? "Estimación orientativa para las próximas cuatro semanas." : $"Estimación no disponible: {d.Proyeccion.Motivo}").FontSize(9).FontColor(Muted);
+                    foreach (var week in d.Proyeccion.Semanas)
+                        body.Item().Text($"{week.Inicio:dd/MM} – {week.Fin:dd/MM}: {week.ReservadasNoches} noches reservadas" + (week.EstimadasNoches.HasValue ? $" · {week.EstimadasNoches} estimadas" : "")).FontSize(9);
+                }
                 Section(body, "Resumen ejecutivo", analysis.Resumen);
                 Section(body, "Hallazgos", analysis.Hallazgos);
                 Section(body, "Acciones sugeridas", analysis.Recomendaciones);

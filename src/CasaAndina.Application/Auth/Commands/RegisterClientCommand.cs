@@ -1,4 +1,5 @@
 using CasaAndina.Application.Auth.DTOs;
+using CasaAndina.Application.Common;
 using CasaAndina.Application.Common.Exceptions;
 using CasaAndina.Application.Common.Interfaces;
 using CasaAndina.Domain.Entities;
@@ -17,7 +18,11 @@ public record RegisterClientCommand(
     string? NombreComercial,
     string Email,
     string? Telefono,
-    string Password) : IRequest<LoginResponse>;
+    string Password,
+    string? Apellidos = null,
+    DateTime? FechaNacimiento = null,
+    string? Genero = null,
+    string? Nacionalidad = null) : IRequest<LoginResponse>;
 
 public sealed class RegisterClientCommandValidator : AbstractValidator<RegisterClientCommand>
 {
@@ -49,6 +54,18 @@ public sealed class RegisterClientCommandValidator : AbstractValidator<RegisterC
             .WithMessage("El nombre solo puede contener letras y separadores habituales.");
 
         RuleFor(x => x.NombreComercial).MaximumLength(150);
+
+        When(x => x.TipoPersona == "N", () =>
+        {
+            RuleFor(x => x.Apellidos).NotEmpty().MaximumLength(100)
+                .Matches(@"^[\p{L}\p{M}][\p{L}\p{M}\s.'’\-]*$").WithMessage("Ingresa apellidos válidos.");
+            RuleFor(x => x.FechaNacimiento).NotNull()
+                .Must(d => d.HasValue && d.Value.TimeOfDay == TimeSpan.Zero && d.Value.Year >= 1900 && d.Value.Date <= PeruBusinessTime.Today)
+                .WithMessage("Ingresa una fecha de nacimiento válida.");
+            RuleFor(x => x.Genero).Must(v => v is "M" or "F").WithMessage("Selecciona el sexo.");
+            RuleFor(x => x.Nacionalidad).NotEmpty().MaximumLength(60)
+                .Matches(@"^[\p{L}\p{M}][\p{L}\p{M}\s.'’,()\-]*$").WithMessage("Ingresa una nacionalidad válida.");
+        });
 
         RuleFor(x => x.NumeroDocumento).NotEmpty().MaximumLength(20);
         RuleFor(x => x.NumeroDocumento).Matches(@"^\d{8}$").When(x => x.TipoDocumento == "DNI")
@@ -134,7 +151,8 @@ public sealed class RegisterClientCommandHandler : IRequestHandler<RegisterClien
             FechaRegistro = DateTime.UtcNow
         };
         if (personType == "N")
-            persona.Natural = new PersonaNatural { Nombres = nombreCompleto };
+            persona.Natural = new PersonaNatural { Nombres = nombreCompleto, Apellidos = request.Apellidos?.Trim(),
+                FechaNacimiento = request.FechaNacimiento?.Date, Genero = request.Genero, Nacionalidad = request.Nacionalidad?.Trim() };
         else
             persona.Juridica = new PersonaJuridica
             {
@@ -202,6 +220,6 @@ public sealed class RegisterClientCommandHandler : IRequestHandler<RegisterClien
         }
 
         var token = _jwtService.GenerarToken(usuario);
-        return new LoginResponse(token, nombreCompleto, "Cliente");
+        return new LoginResponse(token, personType == "N" ? $"{nombreCompleto} {request.Apellidos?.Trim()}".Trim() : nombreCompleto, "Cliente");
     }
 }

@@ -24,7 +24,8 @@ public sealed record ClienteAdminDto(
     string? Apellidos,
     string? RazonSocial,
     string? NombreComercial,
-    int? TipoDocumentoId);
+    int? TipoDocumentoId,
+    DateTime? FechaNacimiento, string? Genero, string? Nacionalidad);
 
 public sealed record ClientesKpisDto(int TotalClientes, int ConReservasActivas, int NuevosEsteMes);
 

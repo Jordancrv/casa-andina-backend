@@ -12,7 +12,8 @@ namespace CasaAndina.Application.Recepcion;
 public sealed record RecepcionHuespedDto(string Nombre, bool EsTitular);
 public sealed record RecepcionHabitacionDto(int Id, string CodigoReserva, string Numero, string Tipo,
     DateTime EntradaPrevista, DateTime SalidaPrevista, DateTime? EntradaReal, DateTime? SalidaReal,
-    string EstadoReserva, string EstadoHabitacion, IReadOnlyList<RecepcionHuespedDto> Huespedes);
+    string EstadoReserva, string EstadoHabitacion, IReadOnlyList<RecepcionHuespedDto> Huespedes,
+    bool EntradaAutomatica = false, bool SalidaAutomatica = false);
 public sealed record GetRecepcionQuery(string Vista = "llegadas", DateTime? Fecha = null, string? Codigo = null, string? Habitacion = null, int Pagina = 1, int TamanoPagina = 20)
     : IRequest<IReadOnlyList<RecepcionHabitacionDto>>;
 public sealed record RegistrarMovimientoCommand(int Id, bool EsCheckOut) : IRequest;
@@ -83,7 +84,8 @@ public sealed class GetRecepcionQueryHandler(IApplicationDbContext context, ICur
             .Select(x => new RecepcionHabitacionDto(x.Id, x.Reserva.CodigoReserva, x.Habitacion.Numero,
                 x.Habitacion.TipoHabitacion.Nombre, x.FechaCheckIn, x.FechaCheckOut, x.FechaCheckInReal, x.FechaCheckOutReal,
                 x.Reserva.Estado, x.Habitacion.Estado, x.Huespedes.OrderByDescending(g => g.EsTitular)
-                    .Select(g => new RecepcionHuespedDto(g.Huesped.PersonaNatural.Nombres + " " + g.Huesped.PersonaNatural.Apellidos, g.EsTitular)).ToArray()))
+                    .Select(g => new RecepcionHuespedDto(g.Huesped.PersonaNatural.Nombres + " " + g.Huesped.PersonaNatural.Apellidos, g.EsTitular)).ToArray(),
+                x.FechaCheckInReal != null && x.CheckInPorUsuarioId == null, x.FechaCheckOutReal != null && x.CheckOutPorUsuarioId == null))
             .ToListAsync(ct);
     }
 }

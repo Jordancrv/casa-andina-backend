@@ -63,6 +63,10 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
                 throw new UnauthorizedAccessException("Credenciales inválidas.");
             var token = _jwtService.GenerarToken(usuario);
             usuario.UltimoAcceso = DateTime.UtcNow;
+            if (usuario.SedeId.HasValue && roles.Any(role => role != RolUsuario.Cliente))
+                _context.Auditoria.Add(new CasaAndina.Domain.Entities.Auditoria { FechaUtc = DateTime.UtcNow,
+                    UsuarioId = usuario.Id, SedeId = usuario.SedeId, Accion = "LOGIN", Entidad = "Sesion",
+                    EntidadId = usuario.Id.ToString(System.Globalization.CultureInfo.InvariantCulture) });
             await _context.SaveChangesAsync(cancellationToken);
 
             var nombre = NombrePersona(usuario.Persona);

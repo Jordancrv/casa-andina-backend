@@ -1,3 +1,5 @@
+using CasaAndina.Application.Dashboard.Queries;
+
 namespace CasaAndina.Application.Dashboard.DTOs;
 
 public sealed record DashboardBiDto(
@@ -7,7 +9,15 @@ public sealed record DashboardBiDto(
     IReadOnlyList<OcupacionSedeBiDto> OcupacionSedes,
     int CanceladasPeriodo,
     CanalReservasBiDto Canales,
-    DashboardPeriodoDto? Periodo = null);
+    DashboardPeriodoDto? Periodo = null,
+    IReadOnlyList<OcupacionHabitacionBiDto>? OcupacionHabitaciones = null,
+    IReadOnlyList<ServicioPopularBiDto>? ServiciosPopulares = null,
+    ProyeccionOcupacionDto? Proyeccion = null);
+
+public sealed record ServicioPopularBiDto(int ServicioId, string Nombre, int Cantidad, int Reservas);
+
+public sealed record OcupacionHabitacionBiDto(int HabitacionId, string Numero, string Tipo,
+    int NochesReservadas, int NochesPeriodo, decimal OcupacionPct);
 
 public sealed record DashboardPeriodoDto(
     string Codigo, DateTime Inicio, DateTime Fin, DateTime InicioAnterior,

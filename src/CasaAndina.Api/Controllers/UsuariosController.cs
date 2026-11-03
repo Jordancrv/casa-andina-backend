@@ -44,4 +44,12 @@ public sealed class UsuariosController(ISender sender) : ControllerBase
         await sender.Send(new DesactivarUsuarioCommand(id), cancellationToken);
         return NoContent();
     }
+
+    [HttpPut("{id:int}/activar")]
+    [Authorize(Policy = "usuarios.desactivar")]
+    public async Task<IActionResult> Activate(int id, CancellationToken cancellationToken)
+    {
+        await sender.Send(new ActivarUsuarioCommand(id), cancellationToken);
+        return NoContent();
+    }
 }

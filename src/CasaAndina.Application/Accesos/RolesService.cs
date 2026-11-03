@@ -9,7 +9,8 @@ namespace CasaAndina.Application.Accesos;
 
 public sealed record GuardarRol(string Nombre, string? Descripcion, string[] Permisos, Guid? Version);
 public sealed record AsignarRoles(int[] Roles, int[] RolesAnteriores);
-public sealed record CrearPersonal(string NombreCompleto, string TipoDocumento, string NumeroDocumento, string Email, string? Telefono, string Password, int[] Roles);
+public sealed record CrearPersonal(string NombreCompleto, string TipoDocumento, string NumeroDocumento, string Email, string? Telefono, string Password, int[] Roles,
+    string? Apellidos = null, DateTime? FechaNacimiento = null, string? Genero = null, string? Nacionalidad = null);
 
 /// <summary>Writes are serialized with assignment changes to prevent self-elevation and stale updates.</summary>
 public sealed class RolesService(IApplicationDbContext db, ICurrentUserService actor)
@@ -143,7 +144,8 @@ public sealed class RolesService(IApplicationDbContext db, ICurrentUserService a
         if (!actor.TienePermiso("usuarios.editar")) throw new ForbiddenAccessException("No tiene permiso para crear personal.");
         var sede = Sede();
         var validation = new CasaAndina.Application.Auth.Commands.RegisterClientCommandValidator().Validate(
-            new CasaAndina.Application.Auth.Commands.RegisterClientCommand("N", input.TipoDocumento, input.NumeroDocumento, input.NombreCompleto, null, input.Email, input.Telefono, input.Password));
+            new CasaAndina.Application.Auth.Commands.RegisterClientCommand("N", input.TipoDocumento, input.NumeroDocumento, input.NombreCompleto, null, input.Email, input.Telefono, input.Password,
+                input.Apellidos, input.FechaNacimiento, input.Genero, input.Nacionalidad));
         if (!validation.IsValid) throw new CasaAndina.Application.Common.Exceptions.ValidationException(validation.Errors);
         if (input.Roles is null || input.Roles.Length is < 1 or > 20) throw new ConflictException("Selecciona entre uno y veinte roles.");
         var ids = input.Roles.Distinct().ToArray();
@@ -161,7 +163,8 @@ public sealed class RolesService(IApplicationDbContext db, ICurrentUserService a
         if (await db.Usuarios.AnyAsync(u => u.Correo == email, ct) || await db.PersonaDocumentos.AnyAsync(d => d.TipoDocumentoId == documento.Id && d.Numero == numero, ct))
             throw new ConflictException("Ya existe una cuenta o persona registrada con ese correo o documento.");
         var persona = new Persona { TipoPersona = "N", Estado = "Activo", FechaRegistro = DateTime.UtcNow,
-            Natural = new PersonaNatural { Nombres = string.Join(' ', input.NombreCompleto.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries)) } };
+            Natural = new PersonaNatural { Nombres = string.Join(' ', input.NombreCompleto.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries)),
+                Apellidos = input.Apellidos!.Trim(), FechaNacimiento = input.FechaNacimiento!.Value.Date, Genero = input.Genero, Nacionalidad = input.Nacionalidad!.Trim() } };
         persona.Documentos.Add(new PersonaDocumento { TipoDocumentoId = documento.Id, Numero = numero, PaisEmision = "Perú", EsPrincipal = true });
         if (!string.IsNullOrWhiteSpace(input.Telefono)) persona.Contactos.Add(new PersonaContacto { TipoContacto = "Telefono", Valor = input.Telefono.Trim(), EsPrincipal = true });
         var user = new Usuario { Correo = email, PasswordHash = hasher.Hash(input.Password), Persona = persona, SedeId = sede, Activo = true, FechaCreacion = DateTime.UtcNow,

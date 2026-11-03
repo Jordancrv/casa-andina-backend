@@ -17,14 +17,6 @@ public sealed class RecepcionController(ISender sender) : ControllerBase
         [FromQuery] int pagina = 1, [FromQuery] int tamanoPagina = 20, CancellationToken cancellationToken = default)
         => Ok(await sender.Send(new GetRecepcionQuery(vista, fecha, codigo, habitacion, pagina, tamanoPagina), cancellationToken));
 
-    [HttpPost("{id:int}/check-in")]
-    [Authorize(Policy = "recepcion.ingreso")]
-    public async Task<IActionResult> CheckIn(int id, CancellationToken cancellationToken)
-    {
-        await sender.Send(new RegistrarMovimientoCommand(id, false), cancellationToken);
-        return NoContent();
-    }
-
     [HttpPost("{id:int}/check-out")]
     [Authorize(Policy = "recepcion.salida")]
     public async Task<IActionResult> CheckOut(int id, CancellationToken cancellationToken)

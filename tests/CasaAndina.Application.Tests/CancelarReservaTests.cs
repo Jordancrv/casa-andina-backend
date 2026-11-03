@@ -15,6 +15,58 @@ namespace CasaAndina.Application.Tests;
 
 public sealed class CancelarReservaTests
 {
+    private sealed class FixedClock(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    [Theory]
+    [InlineData(-1, true)]
+    [InlineData(0, true)]
+    [InlineData(1, false)]
+    [InlineData(86400, false)]
+    public async Task Respeta_limite_exactamente_a_las_diez_de_Peru_dos_dias_antes(int segundos, bool permitido)
+    {
+        await using var db = await Seed(fecha: new DateTime(2026, 11, 7));
+        var now = new DateTimeOffset(2026, 11, 5, 15, 0, 0, TimeSpan.Zero).AddSeconds(segundos);
+        var handler = new CancelarReservaCommandHandler(db, new Actor(1), new FixedClock(now));
+        if (permitido) await handler.Handle(new(1), default);
+        else await ((Func<Task>)(() => handler.Handle(new(1), default))).Should().ThrowAsync<ConflictException>();
+        (await db.Reservas.SingleAsync()).Estado.Should().Be(permitido ? "Cancelada" : "Reservado");
+        (await db.Auditoria.CountAsync()).Should().Be(permitido ? 1 : 0);
+    }
+
+    [Fact]
+    public async Task Usa_la_primera_entrada_de_todas_las_habitaciones()
+    {
+        await using var db = await Seed(fecha: new DateTime(2026, 11, 9));
+        var reserva = await db.Reservas.SingleAsync();
+        reserva.Habitaciones.Add(new ReservaHabitacion { HabitacionId = 1, FechaCheckIn = new(2026, 11, 7), FechaCheckOut = new(2026, 11, 8) });
+        await db.SaveChangesAsync();
+        var handler = new CancelarReservaCommandHandler(db, new Actor(1), new FixedClock(new(2026, 11, 5, 15, 0, 1, TimeSpan.Zero)));
+        await ((Func<Task>)(() => handler.Handle(new(1), default))).Should().ThrowAsync<ConflictException>();
+        reserva.Estado.Should().Be("Reservado");
+    }
+
+    [Fact]
+    public async Task Cancelar_reserva_pagada_conserva_pago_y_no_inventa_reembolso()
+    {
+        await using var db = await Seed();
+        var reserva = await db.Reservas.SingleAsync();
+        reserva.PrecioTotal = 200;
+        reserva.Pagos.Add(new DetallePago { MontoAplicado = 200, Pago = new Pago { Importe = 200,
+            EstadoPago = new EstadoPago { Codigo = "APROBADO", Nombre = "Aprobado" },
+            MetodoPago = new MetodoPago { Codigo = "TARJETA", Nombre = "Tarjeta", Categoria = "Tarjeta" } } });
+        await db.SaveChangesAsync();
+        var handler = new CancelarReservaCommandHandler(db, new Actor(1));
+        await handler.Handle(new(1), default);
+        await handler.Handle(new(1), default);
+        reserva.Estado.Should().Be("Cancelada");
+        reserva.Pagos.Single().MontoAplicado.Should().Be(200);
+        reserva.Pagos.Single().Pago.EstadoPago.Codigo.Should().Be("APROBADO");
+        (await db.Auditoria.SingleAsync()).Despues.Should().Contain("No procesada");
+    }
+
     private sealed record Actor(int? ClienteId, int? UsuarioId = 1) : ICurrentUserService { public int? SedeId => null; public RolUsuario? Rol => RolUsuario.Cliente; }
     private static async Task<ApplicationDbContext> Seed(string estado = "Reservado", DateTime? fecha = null, DateTime? checkInReal = null)
     {

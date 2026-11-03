@@ -13,6 +13,67 @@ namespace CasaAndina.Application.Tests;
 public sealed class DashboardResumenQueryTests
 {
     [Fact]
+    public async Task Dashboard_ordena_habitaciones_numericamente_y_servicios_por_unidades_del_periodo_y_sede()
+    {
+        await using var context = CreateContext();
+        var site = NewSite(1); var other = NewSite(2); var type = new TipoHabitacion { Id = 1, Nombre = "Doble" };
+        var first = NewRoom(1, site, type, "Disponible"); first.Numero = "2";
+        var second = NewRoom(2, site, type, "Disponible"); second.Numero = "10";
+        var third = NewRoom(3, site, type, "Disponible"); third.Numero = "101";
+        var foreign = NewRoom(4, other, type, "Disponible");
+        context.Habitaciones.AddRange(first, second, third, foreign);
+        var client = new Cliente { Id = 1, Persona = new Persona { Id = 1, Natural = new PersonaNatural { Nombres = "Cliente" } } };
+        context.Clientes.Add(client);
+        var desayuno = new Servicio { Id = 1, Nombre = "Desayuno" }; var traslado = new Servicio { Id = 2, Nombre = "Traslado" };
+        var today = PeruBusinessTime.Today;
+        var one = NewReservation(10, client, site, first, "Reservado", today, 100);
+        var two = NewReservation(11, client, site, second, "Completada", today, 100);
+        var cancelled = NewReservation(12, client, site, third, "Cancelada", today, 100);
+        var otherSite = NewReservation(13, client, other, foreign, "Reservado", today, 100);
+        var old = NewReservation(14, client, site, third, "Reservado", today, 100); old.FechaCreacion = DateTime.UtcNow.AddDays(-40);
+        one.Servicios.Add(new ReservaServicio { Servicio = desayuno, Cantidad = 2 });
+        one.Servicios.Add(new ReservaServicio { Servicio = traslado, Cantidad = 1 });
+        two.Servicios.Add(new ReservaServicio { Servicio = desayuno, Cantidad = 1 });
+        cancelled.Servicios.Add(new ReservaServicio { Servicio = traslado, Cantidad = 100 });
+        otherSite.Servicios.Add(new ReservaServicio { Servicio = traslado, Cantidad = 100 });
+        old.Servicios.Add(new ReservaServicio { Servicio = traslado, Cantidad = 100 });
+        context.Reservas.AddRange(one, two, cancelled, otherSite, old); await context.SaveChangesAsync();
+        var result = await new GetDashboardBiQueryHandler(context, new CurrentUserStub(1)).Handle(new GetDashboardBiQuery("7d"), default);
+        result.OcupacionHabitaciones!.Select(h => h.Numero).Should().Equal("2", "10", "101");
+        result.ServiciosPopulares!.Select(s => s.Nombre).Should().Equal("Desayuno", "Traslado");
+        result.ServiciosPopulares![0].Cantidad.Should().Be(3); result.ServiciosPopulares[0].Reservas.Should().Be(2);
+        result.ServiciosPopulares[1].Cantidad.Should().Be(1);
+    }
+    [Fact]
+    public async Task Ocupacion_por_habitacion_usa_noches_del_periodo_y_no_duplica_solapamientos()
+    {
+        await using var context = CreateContext();
+        var site = NewSite(1); var other = NewSite(2); var type = new TipoHabitacion { Id = 1, Nombre = "Doble" };
+        var room = NewRoom(1, site, type, "Disponible"); var empty = NewRoom(2, site, type, "Disponible");
+        var foreign = NewRoom(3, other, type, "Disponible");
+        context.Habitaciones.AddRange(room, empty, foreign);
+        var client = new Cliente { Id = 1, Persona = new Persona { Id = 1, Natural = new PersonaNatural { Nombres = "Cliente" } } };
+        context.Clientes.Add(client);
+        var today = PeruBusinessTime.Today;
+        var first = NewReservation(10, client, site, room, "Completada", today.AddDays(-10), 100);
+        first.Habitaciones.Single().FechaCheckOut = today.AddDays(-3);
+        var overlap = NewReservation(11, client, site, room, "Reservado", today.AddDays(-5), 100);
+        overlap.Habitaciones.Single().FechaCheckOut = today.AddDays(-2);
+        var cancelled = NewReservation(12, client, site, empty, "Cancelada", today.AddDays(-2), 100);
+        var outside = NewReservation(13, client, site, empty, "Reservado", today.AddDays(1), 100);
+        var otherSite = NewReservation(14, client, other, foreign, "Reservado", today.AddDays(-2), 100);
+        context.Reservas.AddRange(first, overlap, cancelled, outside, otherSite); await context.SaveChangesAsync();
+        var handler = new GetDashboardBiQueryHandler(context, new CurrentUserStub(1));
+        var week = await handler.Handle(new GetDashboardBiQuery("7d"), default);
+        week.OcupacionHabitaciones.Should().HaveCount(2);
+        week.OcupacionHabitaciones!.Select(h => h.HabitacionId).Should().Equal(room.Id, empty.Id);
+        var booked = week.OcupacionHabitaciones!.Single(h => h.HabitacionId == room.Id);
+        booked.NochesReservadas.Should().Be(4); booked.NochesPeriodo.Should().Be(7); booked.OcupacionPct.Should().Be(57.1m);
+        week.OcupacionHabitaciones!.Single(h => h.HabitacionId == empty.Id).NochesReservadas.Should().Be(0);
+        var month = await handler.Handle(new GetDashboardBiQuery("30d"), default);
+        month.OcupacionHabitaciones!.Single(h => h.HabitacionId == room.Id).NochesReservadas.Should().Be(8);
+    }
+    [Fact]
     public async Task Dashboard_usa_solo_la_sede_asignada_y_no_cuenta_mantenimiento_como_disponible()
     {
         await using var context = CreateContext();

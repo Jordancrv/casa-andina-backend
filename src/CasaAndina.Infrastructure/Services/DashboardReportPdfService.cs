@@ -77,15 +77,21 @@ public sealed class DashboardReportPdfService : IDashboardReportPdfService
                 page.Content().PaddingVertical(16).Column(body =>
                 {
                     body.Spacing(12);
-                    body.Item().Text("Ocupación de la sede").FontSize(17).SemiBold();
-                    foreach (var site in d.OcupacionSedes)
+                    body.Item().Text("Ocupación por habitación").FontSize(17).SemiBold();
+                    body.Item().Text("Noches reservadas en el periodo sobre el total de noches del periodo; incluye reservas y estadías completadas, excluye canceladas.").FontSize(9).FontColor(Muted);
+                    foreach (var room in d.OcupacionHabitaciones ?? [])
                         body.Item().Background(Soft).Padding(15).Column(col =>
                         {
                             col.Spacing(6);
-                            col.Item().Text($"{site.SedeNombre} · {site.Ciudad}").SemiBold();
-                            col.Item().Text($"{site.OcupacionPct:N1}% · {Number(site.Cantidad)} habitaciones ocupadas").FontSize(15);
-                            col.Item().Text($"Corte al {Date(p.Fin)}; sobre habitaciones activas de la sede asignada.").FontSize(9).FontColor(Muted);
+                            col.Item().Text($"Habitación {room.Numero} · {room.Tipo}").SemiBold();
+                            col.Item().Text($"{room.OcupacionPct:N1}% · {Number(room.NochesReservadas)} de {Number(room.NochesPeriodo)} noches").FontSize(12);
                         });
+                    body.Item().Text("Servicios más agregados").FontSize(17).SemiBold();
+                    body.Item().Text("Unidades de reservas no canceladas creadas en el periodo seleccionado.").FontSize(9).FontColor(Muted);
+                    if (d.ServiciosPopulares is null || d.ServiciosPopulares.Count == 0)
+                        body.Item().Text("Sin servicios en el periodo.").FontSize(10);
+                    else foreach (var servicio in d.ServiciosPopulares)
+                        body.Item().Text($"{servicio.Nombre}: {Number(servicio.Cantidad)} unidades · {Number(servicio.Reservas)} reservas").FontSize(10);
                     body.Item().Text("Canales de reserva").FontSize(17).SemiBold();
                     body.Item().Text("Reservas no canceladas creadas en el periodo seleccionado.").FontSize(9).FontColor(Muted);
                     body.Item().Table(table =>

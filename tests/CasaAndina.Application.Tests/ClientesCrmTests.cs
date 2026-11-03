@@ -118,13 +118,14 @@ public sealed class ClientesCrmTests
     {
         await using var db = Context(); await SeedCatalog(db);
         var handler = new GuardarClienteCommandHandler(db, new User());
-        var id = await handler.Handle(new CrearClienteCommand(Datos with { Nombre = "  Ana   María ", CorreoNotificacion = " ANA@EXAMPLE.TEST " }), default);
+        var id = await handler.Handle(new CrearClienteCommand(Datos with { Nombre = "  Ana   María ", CorreoNotificacion = " ANA@EXAMPLE.TEST ", FechaNacimiento = new DateTime(1992, 3, 5), Genero = "F", Nacionalidad = "Peruana" }), default);
         var result = await Query(db).Handle(new(), default);
         var item = result.Items.Should().ContainSingle().Subject;
         item.ClienteId.Should().Be(id); item.Nombre.Should().Be("Ana María Torres");
         item.Categoria.Should().Be("Ocasional"); item.TotalReservas.Should().Be(0);
         item.SedeRegistroId.Should().Be(1); item.SedeReferencia.Should().Be("Sede 1");
         item.CorreoNotificacion.Should().Be("ana@example.test");
+        item.FechaNacimiento.Should().Be(new DateTime(1992, 3, 5)); item.Genero.Should().Be("F"); item.Nacionalidad.Should().Be("Peruana");
         db.Usuarios.Should().BeEmpty();
     }
 

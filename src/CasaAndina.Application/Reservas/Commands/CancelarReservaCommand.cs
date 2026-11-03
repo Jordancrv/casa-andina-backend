@@ -16,7 +16,7 @@ public sealed class CancelarReservaCommandValidator : AbstractValidator<Cancelar
     public CancelarReservaCommandValidator() => RuleFor(x => x.Id).GreaterThan(0);
 }
 
-public sealed class CancelarReservaCommandHandler(IApplicationDbContext db, ICurrentUserService user) : IRequestHandler<CancelarReservaCommand>
+public sealed class CancelarReservaCommandHandler(IApplicationDbContext db, ICurrentUserService user, TimeProvider? clock = null) : IRequestHandler<CancelarReservaCommand>
 {
     public async Task Handle(CancelarReservaCommand request, CancellationToken ct)
     {
@@ -28,10 +28,15 @@ public sealed class CancelarReservaCommandHandler(IApplicationDbContext db, ICur
             ?? throw new NotFoundException("Reserva", request.Id);
         if (reserva.Estado == "Cancelada") return;
         if (reserva.Estado != "Reservado" || reserva.Habitaciones.Count == 0 ||
-            reserva.Habitaciones.Any(h => h.FechaCheckInReal != null || h.FechaCheckOutReal != null || h.FechaCheckIn.Date < PeruBusinessTime.Today))
-            throw new ConflictException("Solo puedes cancelar reservas vigentes antes del check-in y hasta la fecha de entrada.");
+            reserva.Habitaciones.Any(h => h.FechaCheckInReal != null || h.FechaCheckOutReal != null))
+            throw new ConflictException("Solo puedes cancelar reservas vigentes cuya estadía no haya comenzado.");
+        // La primera entrada determina el plazo de toda la compra, incluso con varias habitaciones.
+        var limiteUtc = PeruBusinessTime.UtcStartOfDay(reserva.Habitaciones.Min(h => h.FechaCheckIn).Date.AddDays(-2)).AddHours(10);
+        var ahoraUtc = (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
+        if (ahoraUtc > limiteUtc)
+            throw new ConflictException("El plazo de cancelación venció. Solo puedes cancelar hasta las 10:00 a. m. (hora de Perú), dos días antes de la fecha de entrada.");
         reserva.Estado = "Cancelada";
-        db.Auditoria.Add(new Auditoria { FechaUtc = DateTime.UtcNow, UsuarioId = usuarioId, SedeId = reserva.SedeId,
+        db.Auditoria.Add(new Auditoria { FechaUtc = ahoraUtc, UsuarioId = usuarioId, SedeId = reserva.SedeId,
             Accion = "UPDATE", Entidad = "Reserva", EntidadId = reserva.Id.ToString(),
             Antes = JsonSerializer.Serialize(new { Estado = "Reservado" }),
             Despues = JsonSerializer.Serialize(new { Estado = "Cancelada", Devolucion = "No procesada: pago simulado" }) });

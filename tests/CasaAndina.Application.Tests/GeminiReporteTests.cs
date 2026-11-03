@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using CasaAndina.Application.Dashboard.DTOs;
+using CasaAndina.Application.Dashboard.Queries;
 using CasaAndina.Application.Reportes;
 using CasaAndina.Infrastructure.Services;
 using FluentAssertions;
@@ -37,6 +38,24 @@ public sealed class GeminiReporteTests
     private sealed class Factory(Handler handler) : IHttpClientFactory
     {
         public HttpClient CreateClient(string name) => new(handler, false);
+    }
+    [Fact]
+    public async Task Analisis_incluye_ocupacion_servicios_y_proyeccion_sin_identificar_habitaciones()
+    {
+        var handler = new Handler();
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var service = new GeminiReporteService(new Factory(handler), Options.Create(new GeminiOptions { ApiKey = "test", Model = "test-model" }), cache);
+        var date = new DateTime(2026, 1, 1);
+        var dto = new DashboardBiDto("Nombre privado", new(2, 1, 100, 80, 50, 2, 1), [], [], 0, new(2, 0, 2, 50, 1),
+            OcupacionHabitaciones: [new(1, "HAB-PRIVADA", "Doble", 4, 7, 57.1m)],
+            ServiciosPopulares: [new(1, "Desayuno", 3, 2)],
+            Proyeccion: new ProyeccionOcupacionDto(true, null, 8, 1, [new(date, date.AddDays(6), 7, 1, 4, 14.3m, 57.1m)]));
+        var result = await service.ObtenerAsync(1, "7d", dto, default);
+        result.Should().NotBeNull();
+        handler.Body.Should().Contain("ocupacionHabitaciones").And.Contain("nochesReservadas").And.Contain("Desayuno").And.Contain("proyeccion").And.Contain("estimadasNoches");
+        handler.Body.Should().NotContain("HAB-PRIVADA").And.NotContain("Nombre privado");
+        (await service.ObtenerAsync(1, "7d", dto, default)).Should().NotBeNull();
+        handler.Calls.Should().Be(1);
     }
     [Fact]
     public async Task Cache_separa_sede_y_periodo_y_no_envia_nombre_de_sede()

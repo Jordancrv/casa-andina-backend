@@ -115,6 +115,35 @@ public sealed class GetDashboardBiQueryHandler(
             .Select(item => new { item.Nombre, item.Ciudad }).SingleAsync(cancellationToken);
         var ocupacionSede = new OcupacionSedeBiDto(sede.Nombre, sede.Ciudad, ocupacion, habitacionesOcupadas);
         var canceladasPeriodo = await reservasPeriodo.CountAsync(reserva => reserva.Estado == "Cancelada", cancellationToken);
+        // Las noches corresponden a la estadía, no a la fecha de creación de la reserva.
+        var inventario = await context.Habitaciones.AsNoTracking().Where(h => h.SedeId == sedeId && h.Activo)
+            .OrderBy(h => h.Numero).ThenBy(h => h.Id)
+            .Select(h => new { h.Id, h.Numero, Tipo = h.TipoHabitacion.Nombre }).ToListAsync(cancellationToken);
+        var intervalos = await context.ReservaHabitaciones.AsNoTracking()
+            .Where(d => d.Habitacion.SedeId == sedeId && d.Habitacion.Activo && d.Reserva.SedeId == sedeId
+                && (d.Reserva.Estado == "Reservado" || d.Reserva.Estado == "Completada")
+                && d.FechaCheckIn < finPeriodoLocal && d.FechaCheckOut > inicioPeriodoLocal)
+            .Select(d => new { d.HabitacionId, d.FechaCheckIn, d.FechaCheckOut }).ToListAsync(cancellationToken);
+        var dias = (finPeriodoLocal - inicioPeriodoLocal).Days;
+        var intervalosPorHabitacion = intervalos.ToLookup(i => i.HabitacionId);
+        var ocupacionHabitaciones = inventario.Select(h =>
+        {
+            var rangos = intervalosPorHabitacion[h.Id].ToArray();
+            var noches = Enumerable.Range(0, dias).Count(dia => rangos.Any(i => i.FechaCheckIn.Date <= inicioPeriodoLocal.AddDays(dia)
+                && i.FechaCheckOut.Date > inicioPeriodoLocal.AddDays(dia)));
+            return new OcupacionHabitacionBiDto(h.Id, h.Numero, h.Tipo, noches, dias, dias == 0 ? 0 : decimal.Round(noches * 100m / dias, 1));
+        }).OrderByDescending(h => h.OcupacionPct)
+            .ThenBy(h => long.TryParse(h.Numero, out _) ? 0 : 1)
+            .ThenBy(h => long.TryParse(h.Numero, out var numero) ? numero : long.MaxValue)
+            .ThenBy(h => h.Numero, StringComparer.OrdinalIgnoreCase).ThenBy(h => h.HabitacionId).ToArray();
+        var serviciosAgrupados = await context.ReservaServicios.AsNoTracking()
+            .Where(s => s.Reserva.SedeId == sedeId && s.Reserva.Estado != "Cancelada"
+                && s.Reserva.FechaCreacion >= inicioPeriodo && s.Reserva.FechaCreacion < finPeriodo)
+            .GroupBy(s => new { s.ServicioId, s.Servicio.Nombre })
+            .Select(g => new { g.Key.ServicioId, g.Key.Nombre, Cantidad = g.Sum(s => s.Cantidad), Reservas = g.Count() })
+            .OrderByDescending(s => s.Cantidad).ThenBy(s => s.Nombre).ThenBy(s => s.ServicioId).Take(5)
+            .ToListAsync(cancellationToken);
+        var serviciosPopulares = serviciosAgrupados.Select(s => new ServicioPopularBiDto(s.ServicioId, s.Nombre, s.Cantidad, s.Reservas)).ToArray();
 
         return new DashboardBiDto(sede.Nombre,
             new DashboardBiKpisDto(totalReservas, totalReservasAnterior, importeReservado,
@@ -122,7 +151,7 @@ public sealed class GetDashboardBiQueryHandler(
             reservasSemana, [ocupacionSede], canceladasPeriodo,
             new CanalReservasBiDto(directas, ota, totalCanales, ticketPromedio, estadiaPromedio),
             new DashboardPeriodoDto(request.Periodo, inicioPeriodoLocal, finPeriodoLocal.AddDays(-1),
-                inicioAnteriorLocal, finAnteriorLocal.AddDays(-1), inicioSemanas, generadoUtc));
+                inicioAnteriorLocal, finAnteriorLocal.AddDays(-1), inicioSemanas, generadoUtc), ocupacionHabitaciones, serviciosPopulares);
     }
 
     private static (DateTime Inicio, DateTime Fin, DateTime InicioAnterior, DateTime FinAnterior) ObtenerRangos(string periodo, DateTime hoy)

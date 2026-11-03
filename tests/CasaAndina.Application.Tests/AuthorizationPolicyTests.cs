@@ -33,17 +33,21 @@ public sealed class AuthorizationPolicyTests
     [Theory]
     [InlineData(typeof(ReportesController), "Analizar", "reportes.analizar")]
     [InlineData(typeof(ReportesController), "Descargar", "reportes.exportar")]
-    [InlineData(typeof(RecepcionController), "CheckIn", "recepcion.ingreso")]
     [InlineData(typeof(RecepcionController), "CheckOut", "recepcion.salida")]
     [InlineData(typeof(HabitacionesController), "Update", "habitaciones.editar")]
     [InlineData(typeof(ServiciosController), "Create", "servicios.crear")]
     [InlineData(typeof(UsuariosController), "Deactivate", "usuarios.desactivar")]
+    [InlineData(typeof(UsuariosController), "Activate", "usuarios.desactivar")]
     [InlineData(typeof(AccesosController), "Asignar", "usuarios.asignar")]
     public void Endpoint_requiere_permiso_especifico(Type controller, string method, string permission)
     {
         controller.GetMethod(method)!.GetCustomAttributes(typeof(AuthorizeAttribute), true)
             .Cast<AuthorizeAttribute>().Should().Contain(a => a.Policy == permission);
     }
+
+    [Fact]
+    public void Checkin_automatico_no_expone_accion_manual()
+        => typeof(RecepcionController).GetMethod("CheckIn").Should().BeNull();
 
     [Theory]
     [InlineData(nameof(RolUsuario.Cliente), "Cliente", true)]
