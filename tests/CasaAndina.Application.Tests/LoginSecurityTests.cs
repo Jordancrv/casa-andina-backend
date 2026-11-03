@@ -16,7 +16,7 @@ public sealed class LoginSecurityTests
     {
         await using var context = CreateContext();
         var hasher = new TestPasswordHasher();
-        var handler = new LoginCommandHandler(context, hasher, new TestJwtService(), new TestRecaptchaVerifier());
+        var handler = new LoginCommandHandler(context, hasher, new TestJwtService());
 
         var action = () => handler.Handle(
             new LoginCommand("inexistente@example.test", "Password123!"), CancellationToken.None);
@@ -43,7 +43,7 @@ public sealed class LoginSecurityTests
             PasswordHash = "test-hash"
         });
         await context.SaveChangesAsync();
-        var handler = new LoginCommandHandler(context, new TestPasswordHasher(validPassword: true), new TestJwtService(), new TestRecaptchaVerifier());
+        var handler = new LoginCommandHandler(context, new TestPasswordHasher(validPassword: true), new TestJwtService());
 
         var action = () => handler.Handle(
             new LoginCommand("sin-rol@example.test", "Password123!"), CancellationToken.None);
@@ -77,7 +77,7 @@ public sealed class LoginSecurityTests
         });
         await context.SaveChangesAsync();
         var hasher = new TestPasswordHasher(validPassword: true);
-        var handler = new LoginCommandHandler(context, hasher, new TestJwtService(), new TestRecaptchaVerifier());
+        var handler = new LoginCommandHandler(context, hasher, new TestJwtService());
 
         var wrongIdentifier = () => handler.Handle(
             new LoginCommand("notificaciones@example.test", "Password123!"), CancellationToken.None);
@@ -89,21 +89,6 @@ public sealed class LoginSecurityTests
             new LoginCommand(" ACCESO@example.test ", "Password123!"), CancellationToken.None);
         response.Token.Should().Be("test-token");
         hasher.DummyVerificationCount.Should().Be(1);
-    }
-
-    [Fact]
-    public async Task Login_RechazaCaptchaInvalidoAntesDeVerificarCredenciales()
-    {
-        await using var context = CreateContext();
-        var hasher = new TestPasswordHasher();
-        var handler = new LoginCommandHandler(context, hasher, new TestJwtService(), new TestRecaptchaVerifier(valid: false));
-
-        var action = () => handler.Handle(
-            new LoginCommand("cliente@example.test", "Password123!", "token-invalido"), CancellationToken.None);
-
-        await action.Should().ThrowAsync<UnauthorizedAccessException>()
-            .WithMessage("Credenciales inválidas.");
-        hasher.DummyVerificationCount.Should().Be(0);
     }
 
     private static ApplicationDbContext CreateContext()
@@ -127,9 +112,4 @@ public sealed class LoginSecurityTests
         public string GenerarToken(Usuario usuario) => "test-token";
     }
 
-    private sealed class TestRecaptchaVerifier(bool valid = true) : IRecaptchaVerifier
-    {
-        public Task<bool> VerifyAsync(string? token, CancellationToken cancellationToken)
-            => Task.FromResult(valid);
-    }
 }

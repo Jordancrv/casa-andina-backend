@@ -48,9 +48,6 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(12));
         services.AddHttpClient<ITravelWeatherService, OpenMeteoWeatherService>(client =>
             client.Timeout = TimeSpan.FromSeconds(6));
-        services.Configure<GoogleRecaptchaOptions>(configuration.GetSection("GoogleRecaptcha"));
-        services.AddHttpClient<IRecaptchaVerifier, GoogleRecaptchaVerifier>(client =>
-            client.Timeout = TimeSpan.FromSeconds(5));
 
         return services;
     }
