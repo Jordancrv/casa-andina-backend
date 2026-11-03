@@ -44,13 +44,14 @@ public sealed class GoogleCalendarService(ApplicationDbContext db, GoogleCalenda
             ["code_challenge"] = WebEncoders.Base64UrlEncode(SHA256.HashData(Encoding.ASCII.GetBytes(verifier))) });
     }
 
-    public async Task<int> CompletarAutorizacionAsync(string state, string code, string correlacion, CancellationToken ct)
+    public async Task<int> CompletarAutorizacionAsync(string state, string code, string correlacion, int usuarioId, int clienteId, CancellationToken ct)
     {
         CheckConfig();
         await syncLock.Gate.WaitAsync(ct);
         try
         {
             if (!cache.TryGetValue<Pending>("calendar:" + state, out var pending) || pending is null
+                || pending.UsuarioId != usuarioId || pending.ClienteId != clienteId
                 || !CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(pending.CorrelationHash), Encoding.ASCII.GetBytes(Hash(correlacion))))
                 throw new ConflictException("La autorización expiró. Inicia nuevamente la conexión.");
             cache.Remove("calendar:" + state);

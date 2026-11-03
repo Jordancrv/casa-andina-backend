@@ -36,7 +36,7 @@ opcional y no cambia su forma de iniciar sesión en Casa Andina.
    la API con `dotnet run --project src/CasaAndina.Api`, abrir el frontend en
    **http://localhost:5173** y entrar a **Mi calendario → Conectar Google Calendar**.
    Utilizar `localhost` tanto en el frontend como en la API, sin mezclarlo con
-   `127.0.0.1`, para que llegue la cookie de correlación.
+   `127.0.0.1`, para mantener coherentes los orígenes configurados.
 
 Los nombres equivalentes de variables de entorno son:
 
@@ -53,7 +53,7 @@ Los nombres equivalentes de variables de entorno son:
   Se crea **Mis estadías · Casa Andina**, propiedad del cliente. No se consultan
   sus calendarios personales ni sus demás eventos.
 - OAuth usa código de autorización con PKCE, estado aleatorio de un solo uso
-  durante 10 minutos y una cookie HttpOnly de correlación. Reiniciar la API
+  durante 10 minutos y una clave de correlación en sessionStorage. El retorno entrega un identificador temporal y requiere la sesión del mismo cliente; no depende de cookies de terceros. Reiniciar la API
   durante la autorización obliga a iniciar la conexión otra vez.
 - El refresh token se cifra con ASP.NET Core Data Protection antes de guardarlo.
   El access token dura una operación y nunca llega al frontend. Conservar las
@@ -61,7 +61,7 @@ Los nombres equivalentes de variables de entorno son:
   usar almacenamiento persistente y protección de claves adecuada; la variable
   opcional `GoogleCalendar__DataProtectionKeysPath` permite indicar una carpeta
   privada del servidor (nunca dentro del repositorio).
-- Se sincronizan reservas **Confirmada** y **Completada**, como eventos privados
+- Se sincronizan reservas **Reservado** y **Completada**, como eventos privados
   del calendario dedicado, de día completo, desde entrada hasta salida exclusiva.
   El día de salida no cuenta como una noche adicional. Incluyen sede, ciudad,
   dirección y código de reserva; no incluyen documentos, pagos o datos de huéspedes.

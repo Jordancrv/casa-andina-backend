@@ -27,15 +27,19 @@ public sealed class GoogleCalendarTests
         query["code_challenge_method"].ToString().Should().Be("S256");
         query["code_challenge"].ToString().Length.Should().BeGreaterThan(30);
         var state = query["state"].ToString();
-        var wrongBrowser = () => fixture.Service.CompletarAutorizacionAsync(state, "code", "another-browser", default);
+        var wrongBrowser = () => fixture.Service.CompletarAutorizacionAsync(state, "code", "another-browser", 1, 10, default);
         await wrongBrowser.Should().ThrowAsync<ConflictException>();
+        var wrongUser = () => fixture.Service.CompletarAutorizacionAsync(state, "code", "browser", 2, 10, default);
+        await wrongUser.Should().ThrowAsync<ConflictException>();
+        var wrongClient = () => fixture.Service.CompletarAutorizacionAsync(state, "code", "browser", 1, 11, default);
+        await wrongClient.Should().ThrowAsync<ConflictException>();
         fixture.Http.Requests.Should().BeEmpty();
-        await fixture.Service.CompletarAutorizacionAsync(state, "code", "browser", default);
+        await fixture.Service.CompletarAutorizacionAsync(state, "code", "browser", 1, 10, default);
         var connection = await fixture.Db.Set<ConexionCalendario>().SingleAsync();
         connection.RefreshTokenProtegido.Should().NotContain("test-refresh-token");
         fixture.Protection.CreateProtector("CasaAndina.GoogleCalendar.RefreshToken.v1")
             .Unprotect(connection.RefreshTokenProtegido!).Should().Be("test-refresh-token");
-        var replay = () => fixture.Service.CompletarAutorizacionAsync(state, "code", "browser", default);
+        var replay = () => fixture.Service.CompletarAutorizacionAsync(state, "code", "browser", 1, 10, default);
         await replay.Should().ThrowAsync<ConflictException>();
     }
 
@@ -43,13 +47,13 @@ public sealed class GoogleCalendarTests
     public async Task OAuth_rejects_unknown_state_or_a_deactivated_account()
     {
         using var f = new Fixture();
-        var unknown = () => f.Service.CompletarAutorizacionAsync("missing", "code", "browser", default);
+        var unknown = () => f.Service.CompletarAutorizacionAsync("missing", "code", "browser", 1, 10, default);
         await unknown.Should().ThrowAsync<ConflictException>();
         var url = f.Service.CrearAutorizacion(1, 10, "browser");
         f.Db.Usuarios.Single().Activo = false;
         await f.Db.SaveChangesAsync();
         var state = QueryHelpers.ParseQuery(new Uri(url).Query)["state"].ToString();
-        var inactive = () => f.Service.CompletarAutorizacionAsync(state, "code", "browser", default);
+        var inactive = () => f.Service.CompletarAutorizacionAsync(state, "code", "browser", 1, 10, default);
         await inactive.Should().ThrowAsync<ConflictException>();
         f.Http.Requests.Should().BeEmpty();
     }
@@ -153,7 +157,7 @@ public sealed class GoogleCalendarTests
         public async Task Connect()
         {
             var url = Service.CrearAutorizacion(1, 10, "browser");
-            await Service.CompletarAutorizacionAsync(QueryHelpers.ParseQuery(new Uri(url).Query)["state"].ToString(), "code", "browser", default);
+            await Service.CompletarAutorizacionAsync(QueryHelpers.ParseQuery(new Uri(url).Query)["state"].ToString(), "code", "browser", 1, 10, default);
         }
         public void AddReservation(int id, int client, string state) => Db.Reservas.Add(new() { Id = id, ClienteId = client,
             CodigoReserva = $"CA-{id}", Estado = state, Canal = "Directo", Sede = new() { Id = id, Nombre = "Casa Andina", Ciudad = "Cusco", Codigo = $"T{id}", Region = "Sierra", Categoria = "Standard" },
