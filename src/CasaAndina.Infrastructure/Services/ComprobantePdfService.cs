@@ -39,8 +39,6 @@ public sealed class ComprobantePdfService : IComprobantePdfService
                         col.Item().AlignRight().Text(d.Tipo.ToUpperInvariant()).FontSize(27).SemiBold();
                         col.Item().PaddingTop(6).AlignRight().Text(d.Numero).FontSize(11);
                         col.Item().PaddingTop(10).AlignRight().Text($"EMISIÓN  {FechaUtc(d.FechaEmision)}").FontSize(8).FontColor(Gris);
-                        col.Item().PaddingTop(7).AlignRight().Background(Suave).PaddingHorizontal(10).PaddingVertical(5)
-                            .Text("PAGO SIMULADO APROBADO").FontSize(8).SemiBold();
                     });
                 });
                 header.Item().PaddingTop(17).LineHorizontal(1).LineColor(Verde);
@@ -123,11 +121,7 @@ public sealed class ComprobantePdfService : IComprobantePdfService
             });
             page.Footer().BorderTop(0.5f).BorderColor(Borde).PaddingTop(10).Row(row =>
             {
-                row.RelativeItem().Column(col =>
-                {
-                    col.Item().Text("PROYECTO ACADÉMICO - PAGO SIMULADO").FontSize(7).SemiBold().FontColor(Gris);
-                    col.Item().PaddingTop(3).Text("Este documento no acredita un cobro real.").FontSize(7).FontColor(Gris);
-                });
+                row.RelativeItem();
                 row.ConstantItem(80).AlignRight().AlignBottom().Text(t =>
                 { t.DefaultTextStyle(s => s.FontSize(8).FontColor(Gris)); t.Span("Página "); t.CurrentPageNumber(); t.Span(" de "); t.TotalPages(); });
             });
