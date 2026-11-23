@@ -1,4 +1,5 @@
 using CasaAndina.Application.Common.Interfaces;
+using CasaAndina.Application.Common.Exceptions;
 using CasaAndina.Application.Reservas.Queries;
 using CasaAndina.Domain.Entities;
 using CasaAndina.Domain.Enums;
@@ -47,6 +48,23 @@ public sealed class CalendarioReservasDataTests
         result[0].Reservas.Should().ContainSingle();
         result[0].Reservas[0].Estado.Should().Be("Pendiente");
         result[0].Reservas[0].NombreReservante.Should().Be(expectedName);
+        result[0].Reservas[0].ReservaId.Should().Be(booking.Id);
+        if (role == RolUsuario.Administrador)
+        {
+            var detalle = await new GetDetalleReservaCalendarioQueryHandler(context, new CurrentUserStub(hotel.Id, role))
+                .Handle(new GetDetalleReservaCalendarioQuery(booking.Id), CancellationToken.None);
+            detalle.Titular.Should().Be("Jordan Prueba");
+            detalle.Habitaciones.Should().ContainSingle().Which.Numero.Should().Be("201");
+            var otraSede = () => new GetDetalleReservaCalendarioQueryHandler(context, new CurrentUserStub(999, role))
+                .Handle(new GetDetalleReservaCalendarioQuery(booking.Id), CancellationToken.None);
+            await otraSede.Should().ThrowAsync<NotFoundException>();
+        }
+        else
+        {
+            var noAutorizado = () => new GetDetalleReservaCalendarioQueryHandler(context, new CurrentUserStub(hotel.Id, role))
+                .Handle(new GetDetalleReservaCalendarioQuery(booking.Id), CancellationToken.None);
+            await noAutorizado.Should().ThrowAsync<ForbiddenAccessException>();
+        }
     }
 
     private static ApplicationDbContext CreateContext()

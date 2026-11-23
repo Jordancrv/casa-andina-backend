@@ -46,6 +46,12 @@ public class HabitacionesController : ControllerBase
         => Ok(await _mediator.Send(
             new GetCalendarioReservasQuery(sedeId, fechaDesde, fechaHasta), cancellationToken));
 
+    [HttpGet("calendario-reservas/{id:int}/detalle")]
+    [Authorize(Policy = "calendario.ver")]
+    [Authorize(Policy = "Administrador")]
+    public async Task<IActionResult> DetalleReservaCalendario(int id, CancellationToken ct)
+        => Ok(await _mediator.Send(new GetDetalleReservaCalendarioQuery(id), ct));
+
     [HttpPost]
     [Authorize(Policy = "habitaciones.crear")]
     public async Task<IActionResult> Create(CreateHabitacionCommand command)

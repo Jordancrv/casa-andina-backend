@@ -89,7 +89,7 @@ public sealed class GetCalendarioReservasQueryHandler(
                                 ? ((rh.Reserva.Cliente.Persona.Natural!.Nombres + " ") + (rh.Reserva.Cliente.Persona.Natural.Apellidos ?? "")).Trim()
                                 : (rh.Reserva.Cliente.Persona.Juridica!.NombreComercial ?? rh.Reserva.Cliente.Persona.Juridica.RazonSocial)
                             : null,
-                        rh.Reserva.CodigoReserva, rh.Reserva.Canal))
+                        rh.Reserva.CodigoReserva, rh.Reserva.Canal, rh.ReservaId))
                     .ToArray(),
                 context.BloqueosHabitacion.Where(b => b.HabitacionId == h.Id && b.Activo && b.Inicio < hasta && b.FinExclusivo > desde)
                     .OrderBy(b => b.Inicio).Select(b => new BloqueoCalendarioDto(b.Id, b.Inicio, b.FinExclusivo, b.Motivo)).ToArray()))

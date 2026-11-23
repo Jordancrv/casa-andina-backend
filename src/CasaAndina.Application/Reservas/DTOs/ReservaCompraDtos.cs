@@ -31,7 +31,7 @@ public sealed record ReservaCalendarioDto(
     string Estado,
     string? NombreReservante,
     string? Codigo = null,
-    string? Canal = null);
+    string? Canal = null, int ReservaId = 0);
 
 public sealed record ServicioDisponibleDto(int Id, string Nombre, string? Descripcion, decimal Precio);
 
