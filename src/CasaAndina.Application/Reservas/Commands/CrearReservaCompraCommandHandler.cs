@@ -121,6 +121,8 @@ public sealed class CrearReservaCompraCommandHandler : IRequestHandler<CrearRese
             roomsRequested.Contains(rh.HabitacionId) && rh.FechaCheckIn < checkOut && rh.FechaCheckOut > checkIn &&
             rh.Reserva.Estado != "Cancelada", cancellationToken);
         if (alreadyReserved) throw new ConflictException("La disponibilidad cambió. Vuelve a buscar habitaciones antes de confirmar.");
+        if (await _context.BloqueosHabitacion.AnyAsync(b => roomsRequested.Contains(b.HabitacionId) && b.Activo && b.Inicio < checkOut && b.FinExclusivo > checkIn, cancellationToken))
+            throw new ConflictException("Una habitación tiene un bloqueo para las fechas seleccionadas. Vuelve a buscar disponibilidad.");
 
         var guestEmailSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var guestDniSet = new HashSet<string>(StringComparer.Ordinal);

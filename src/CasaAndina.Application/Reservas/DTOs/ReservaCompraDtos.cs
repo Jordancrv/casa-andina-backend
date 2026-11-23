@@ -20,13 +20,18 @@ public sealed record HabitacionCalendarioDto(
     int Piso,
     string TipoHabitacion,
     string EstadoHabitacion,
-    IReadOnlyList<ReservaCalendarioDto> Reservas);
+    IReadOnlyList<ReservaCalendarioDto> Reservas,
+    IReadOnlyList<BloqueoCalendarioDto>? Bloqueos = null);
+
+public sealed record BloqueoCalendarioDto(int Id, DateTime Inicio, DateTime FinExclusivo, string Motivo);
 
 public sealed record ReservaCalendarioDto(
     DateTime FechaCheckIn,
     DateTime FechaCheckOut,
     string Estado,
-    string? NombreReservante);
+    string? NombreReservante,
+    string? Codigo = null,
+    string? Canal = null);
 
 public sealed record ServicioDisponibleDto(int Id, string Nombre, string? Descripcion, decimal Precio);
 

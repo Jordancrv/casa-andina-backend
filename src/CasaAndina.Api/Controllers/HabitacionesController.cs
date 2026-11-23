@@ -16,6 +16,16 @@ public class HabitacionesController : ControllerBase
 
     public HabitacionesController(ISender mediator) => _mediator = mediator;
 
+    [HttpPost("bloqueos")]
+    [Authorize(Policy = "habitaciones.editar")]
+    public async Task<IActionResult> CrearBloqueo(CrearBloqueoCommand command, CancellationToken ct)
+        => Ok(new { id = await _mediator.Send(command, ct) });
+
+    [HttpDelete("bloqueos/{id:int}")]
+    [Authorize(Policy = "habitaciones.editar")]
+    public async Task<IActionResult> CancelarBloqueo(int id, CancellationToken ct)
+    { await _mediator.Send(new CancelarBloqueoCommand(id), ct); return NoContent(); }
+
     [HttpGet]
     [Authorize(Policy = "habitaciones.consultar")]
     public async Task<IActionResult> Get([FromQuery] GetHabitacionesQuery query)

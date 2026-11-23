@@ -29,6 +29,7 @@ public sealed class GetDisponibilidadQueryHandler(IApplicationDbContext context)
                 rh.HabitacionId == h.Id &&
                 rh.FechaCheckIn < checkOut && rh.FechaCheckOut > checkIn &&
                 rh.Reserva.Estado != "Cancelada"))
+            .Where(h => !context.BloqueosHabitacion.Any(b => b.HabitacionId == h.Id && b.Activo && b.Inicio < checkOut && b.FinExclusivo > checkIn))
             .OrderBy(h => h.TipoHabitacion.Nombre).ThenBy(h => h.PrecioNoche)
             .Select(h => new HabitacionDisponibleDto(
                 h.Id, h.SedeId, h.Sede.Nombre, h.Sede.Ciudad, h.Numero, h.Piso,
@@ -87,8 +88,11 @@ public sealed class GetCalendarioReservasQueryHandler(
                             ? rh.Reserva.Cliente.Persona.TipoPersona == "N"
                                 ? ((rh.Reserva.Cliente.Persona.Natural!.Nombres + " ") + (rh.Reserva.Cliente.Persona.Natural.Apellidos ?? "")).Trim()
                                 : (rh.Reserva.Cliente.Persona.Juridica!.NombreComercial ?? rh.Reserva.Cliente.Persona.Juridica.RazonSocial)
-                            : null))
-                    .ToArray()))
+                            : null,
+                        rh.Reserva.CodigoReserva, rh.Reserva.Canal))
+                    .ToArray(),
+                context.BloqueosHabitacion.Where(b => b.HabitacionId == h.Id && b.Activo && b.Inicio < hasta && b.FinExclusivo > desde)
+                    .OrderBy(b => b.Inicio).Select(b => new BloqueoCalendarioDto(b.Id, b.Inicio, b.FinExclusivo, b.Motivo)).ToArray()))
             .ToListAsync(cancellationToken);
     }
 

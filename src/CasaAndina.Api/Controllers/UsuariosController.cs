@@ -12,6 +12,16 @@ namespace CasaAndina.Api.Controllers;
 [Authorize]
 public sealed class UsuariosController(ISender sender) : ControllerBase
 {
+    public sealed record ContrasenaPersonalRequest(string Contrasena);
+
+    [HttpPut("{id:int}/contrasena")]
+    [Authorize(Policy = "Administrador")]
+    [Authorize(Policy = "usuarios.editar")]
+    public async Task<IActionResult> CambiarContrasena(int id, [FromBody] ContrasenaPersonalRequest request, CancellationToken ct)
+    {
+        await sender.Send(new CambiarContrasenaPersonalCommand(id, request.Contrasena), ct);
+        return NoContent();
+    }
     [HttpGet]
     [Authorize(Policy = "usuarios.ver")]
     public async Task<IActionResult> Get(

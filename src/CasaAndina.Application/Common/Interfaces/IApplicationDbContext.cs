@@ -18,10 +18,12 @@ public interface IApplicationDbContext
     DbSet<UsuarioRol> UsuarioRoles { get; }
     DbSet<TipoHabitacion> TiposHabitacion { get; }
     DbSet<Habitacion> Habitaciones { get; }
+    DbSet<BloqueoHabitacion> BloqueosHabitacion { get; }
     DbSet<Comodidad> Comodidades { get; }
     DbSet<Servicio> Servicios { get; }
     DbSet<Usuario> Usuarios { get; }
     DbSet<Cliente> Clientes { get; }
+    DbSet<ClienteObservacionSede> ClienteObservacionesSede { get; }
     DbSet<Persona> Personas { get; }
     DbSet<PersonaNatural> PersonasNaturales { get; }
     DbSet<PersonaJuridica> PersonasJuridicas { get; }

@@ -17,10 +17,12 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<UsuarioRol> UsuarioRoles => Set<UsuarioRol>();
     public DbSet<TipoHabitacion> TiposHabitacion => Set<TipoHabitacion>();
     public DbSet<Habitacion> Habitaciones => Set<Habitacion>();
+    public DbSet<BloqueoHabitacion> BloqueosHabitacion => Set<BloqueoHabitacion>();
     public DbSet<Comodidad> Comodidades => Set<Comodidad>();
     public DbSet<Servicio> Servicios => Set<Servicio>();
     public DbSet<Usuario> Usuarios => Set<Usuario>();
     public DbSet<Cliente> Clientes => Set<Cliente>();
+    public DbSet<ClienteObservacionSede> ClienteObservacionesSede => Set<ClienteObservacionSede>();
     public DbSet<Persona> Personas => Set<Persona>();
     public DbSet<PersonaNatural> PersonasNaturales => Set<PersonaNatural>();
     public DbSet<PersonaJuridica> PersonasJuridicas => Set<PersonaJuridica>();

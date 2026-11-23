@@ -2,6 +2,7 @@ using CasaAndina.Application.Common.Exceptions;
 using CasaAndina.Application.Common.Interfaces;
 using CasaAndina.Application.Common;
 using CasaAndina.Domain.Entities;
+using CasaAndina.Domain.Enums;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +13,7 @@ namespace CasaAndina.Application.Clientes.Commands;
 public sealed record ClienteCrmDatos(string TipoPersona, string Nombre, string? Apellidos,
     string? NombreComercial, int TipoDocumentoId, string NumeroDocumento,
     string? CorreoNotificacion, string? Telefono, string Estado = "Activo", int? SedeRegistroId = null,
-    DateTime? FechaNacimiento = null, string? Genero = null, string? Nacionalidad = null);
+    DateTime? FechaNacimiento = null, string? Genero = null, string? Nacionalidad = null, string? Observacion = null);
 public sealed record CrearClienteCommand(ClienteCrmDatos Datos) : IRequest<int>;
 public sealed record ActualizarClienteCommand(int ClienteId, ClienteCrmDatos Datos) : IRequest;
 
@@ -31,6 +32,7 @@ public sealed class ClienteCrmDatosValidator : AbstractValidator<ClienteCrmDatos
         RuleFor(d => d.Genero).Must(v => v is null or "M" or "F");
         RuleFor(d => d.Nacionalidad).MaximumLength(60).Matches(@"^[\p{L}\p{M}][\p{L}\p{M}\s.'’,()\-]*$").When(d => !string.IsNullOrWhiteSpace(d.Nacionalidad));
         RuleFor(d => d.NombreComercial).MaximumLength(150);
+        RuleFor(d => d.Observacion).MaximumLength(2000);
         RuleFor(d => d.TipoDocumentoId).GreaterThan(0);
         RuleFor(d => d.NumeroDocumento).NotEmpty().MaximumLength(20).Matches("^[A-Za-z0-9]+$");
         RuleFor(d => d.CorreoNotificacion).EmailAddress().MaximumLength(150).When(d => !string.IsNullOrWhiteSpace(d.CorreoNotificacion));
@@ -99,6 +101,21 @@ public sealed class GuardarClienteCommandHandler(IApplicationDbContext context, 
             throw new ConflictException("El tipo de persona no puede cambiarse desde la edición del perfil.");
         if (request.Datos.SedeRegistroId != cliente.SedeRegistroId)
             throw new ConflictException("La sede de registro es un dato de origen y no se modifica desde el perfil.");
+        if (request.Datos.Observacion != null)
+        {
+            if (user.Rol != RolUsuario.Administrador || !sede.HasValue)
+                throw new ForbiddenAccessException("Solo el administrador de la sede puede modificar las observaciones.");
+            var nota = await context.ClienteObservacionesSede.SingleOrDefaultAsync(x => x.ClienteId == cliente.Id && x.SedeId == sede.Value, ct);
+            var texto = request.Datos.Observacion.Trim();
+            if (texto.Length == 0) { if (nota != null) context.ClienteObservacionesSede.Remove(nota); }
+            else
+            {
+                if (nota == null) { nota = new ClienteObservacionSede { ClienteId = cliente.Id, SedeId = sede.Value }; context.ClienteObservacionesSede.Add(nota); }
+                nota.Observacion = texto;
+                nota.ActualizadoPorUsuarioId = user.UsuarioId;
+                nota.ActualizadoUtc = DateTime.UtcNow;
+            }
+        }
         var tipo = await ValidarDocumento(request.Datos, ct);
         await ValidarDuplicados(request.Datos, cliente.PersonaId, ct);
         Aplicar(cliente, request.Datos, tipo);

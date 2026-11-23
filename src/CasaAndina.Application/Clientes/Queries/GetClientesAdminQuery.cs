@@ -96,7 +96,8 @@ public sealed class GetClientesAdminQueryHandler(IApplicationDbContext context, 
                 x.Cliente.Persona.Documentos.OrderByDescending(d => d.EsPrincipal).ThenBy(d => d.Id).Select(d => (int?)d.TipoDocumentoId).FirstOrDefault(),
                 x.Cliente.Persona.Natural != null ? x.Cliente.Persona.Natural.FechaNacimiento : null,
                 x.Cliente.Persona.Natural != null ? x.Cliente.Persona.Natural.Genero : null,
-                x.Cliente.Persona.Natural != null ? x.Cliente.Persona.Natural.Nacionalidad : null))
+                x.Cliente.Persona.Natural != null ? x.Cliente.Persona.Natural.Nacionalidad : null,
+                sede.HasValue ? context.ClienteObservacionesSede.Where(o => o.ClienteId == x.Cliente.Id && o.SedeId == sede.Value).Select(o => o.Observacion).FirstOrDefault() : null))
             .ToListAsync(ct);
         return new(items, total, page, request.PageSize, new(total, activas, nuevos));
     }

@@ -212,6 +212,27 @@ public sealed class ClientesCrmTests
         new CrearClienteCommandValidator().Validate(new CrearClienteCommand(null!)).IsValid.Should().BeFalse();
     }
 
+    [Fact]
+    public async Task Observaciones_son_por_sede_y_solo_administrador_puede_modificarlas()
+    {
+        await using var db = Context(); await SeedCatalog(db);
+        var handler = new GuardarClienteCommandHandler(db, new User());
+        var id = await handler.Handle(new CrearClienteCommand(Datos), default);
+        var datos = Datos with { SedeRegistroId = 1, Observacion = "  Piso alto  " };
+        await handler.Handle(new ActualizarClienteCommand(id, datos), default);
+        (await Query(db).Handle(new(), default)).Items.Single().Observacion.Should().Be("Piso alto");
+        db.ClienteObservacionesSede.Add(new ClienteObservacionSede { ClienteId = id, SedeId = 2, Observacion = "Otra sede", ActualizadoUtc = DateTime.UtcNow });
+        await db.SaveChangesAsync();
+        (await Query(db).Handle(new(), default)).Items.Single().Observacion.Should().Be("Piso alto");
+        var sinPermiso = () => new GuardarClienteCommandHandler(db, new User(RolUsuario.Recepcion, 1))
+            .Handle(new ActualizarClienteCommand(id, datos with { Observacion = "Cambio" }), default);
+        await sinPermiso.Should().ThrowAsync<ForbiddenAccessException>();
+        await handler.Handle(new ActualizarClienteCommand(id, datos with { Observacion = "" }), default);
+        (await Query(db).Handle(new(), default)).Items.Single().Observacion.Should().BeNull();
+        db.ClienteObservacionesSede.Should().ContainSingle().Which.Observacion.Should().Be("Otra sede");
+        new ClienteCrmDatosValidator().Validate(datos with { Observacion = new string('a', 2001) }).IsValid.Should().BeFalse();
+    }
+
     private static readonly ClienteCrmDatos Datos = new("N", "Ana", "Torres", null, 1, "12345678", "ana@example.test", "+51987654321");
     private static ApplicationDbContext Context() => new(new DbContextOptionsBuilder<ApplicationDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
     private static GetClientesAdminQueryHandler Query(ApplicationDbContext db) => new(db, new User());

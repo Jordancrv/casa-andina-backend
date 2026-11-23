@@ -37,6 +37,7 @@ public sealed class GeminiRecommendationService(ApplicationDbContext context,
             .Where(h => string.IsNullOrEmpty(ciudad) || h.Sede.Ciudad == ciudad)
             .Where(h => !context.ReservaHabitaciones.Any(rh => rh.HabitacionId == h.Id &&
                 rh.Reserva.Estado != "Cancelada" && rh.FechaCheckIn < consulta.FechaSalida && rh.FechaCheckOut > consulta.FechaEntrada))
+            .Where(h => !context.BloqueosHabitacion.Any(b => b.HabitacionId == h.Id && b.Activo && b.Inicio < consulta.FechaSalida && b.FinExclusivo > consulta.FechaEntrada))
             .Select(h => new { h.Id, h.FotoUrl, h.SedeId, SedeNombre = h.Sede.Nombre, h.Sede.Ciudad, h.Sede.Categoria, h.PrecioNoche, Tipo = h.TipoHabitacion.Nombre })
             .ToListAsync(cancellationToken);
 
@@ -53,6 +54,7 @@ public sealed class GeminiRecommendationService(ApplicationDbContext context,
                 .Where(h => string.IsNullOrEmpty(ciudad) || h.Sede.Ciudad == ciudad)
                 .Where(h => !context.ReservaHabitaciones.Any(rh => rh.HabitacionId == h.Id && rh.Reserva.Estado != "Cancelada" &&
                     rh.FechaCheckIn < consulta.FechaSalida && rh.FechaCheckOut > consulta.FechaEntrada))
+                .Where(h => !context.BloqueosHabitacion.Any(b => b.HabitacionId == h.Id && b.Activo && b.Inicio < consulta.FechaSalida && b.FinExclusivo > consulta.FechaEntrada))
                 .Select(h => new { h.PrecioNoche, Capacidad = h.TipoHabitacion.CapacidadAdultos })
                 .ToListAsync(cancellationToken);
             var dentroPresupuesto = disponibles.Where(h => h.PrecioNoche <= consulta.PresupuestoPorNoche).ToList();
