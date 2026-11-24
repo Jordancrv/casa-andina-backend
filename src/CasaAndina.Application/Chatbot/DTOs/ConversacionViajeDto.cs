@@ -3,9 +3,9 @@ namespace CasaAndina.Application.Chatbot.DTOs;
 public sealed record PreferenciasConversacionDto(
     DateTime? FechaEntrada = null, DateTime? FechaSalida = null,
     decimal? PresupuestoPorNoche = null, int? Adultos = null,
-    string? Ciudad = null, bool DestinoFlexible = false, bool EvitarLluvia = false);
+    string? Ciudad = null, bool DestinoFlexible = false, bool EvitarLluvia = false, bool PrefierePlaya = false);
 
-public sealed record InterpretacionViajeDto(string Mensaje, PreferenciasConversacionDto Preferencias, bool BuscarOpciones);
+public sealed record InterpretacionViajeDto(string Mensaje, PreferenciasConversacionDto Preferencias, bool BuscarOpciones, string? DestinoNoDisponible = null);
 public sealed record ConversacionViajeDto(string Mensaje, bool UsaIa, PreferenciasConversacionDto Preferencias,
     PlanViajeDto? Plan, IReadOnlyList<string> Sugerencias, AtractivosCiudadDto? Atractivos = null,
     IReadOnlyList<AtractivosCiudadDto>? AtractivosAdicionales = null);

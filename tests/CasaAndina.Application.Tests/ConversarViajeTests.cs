@@ -18,6 +18,19 @@ namespace CasaAndina.Application.Tests;
 public sealed class ConversarViajeTests
 {
     [Fact]
+    public void Fechas_en_espanol_distinguen_dias_imposibles_y_rangos_corregidos()
+    {
+        var hoy = new DateTime(2026, 11, 24);
+        ConversacionViaje.FechasExplicitas("32 de noviembre al 35 de noviembre", hoy).Error.Should().Contain("no existe");
+        foreach (var texto in new[] { "Desde el 26 al 29 de noviembre", "llegar el 26 de noviembre y salir el 29 de noviembre" })
+        {
+            var fechas = ConversacionViaje.FechasExplicitas(texto, hoy);
+            fechas.Entrada.Should().Be(hoy.AddDays(2));
+            fechas.Salida.Should().Be(hoy.AddDays(5));
+        }
+    }
+
+    [Fact]
     public async Task Conserva_el_contexto_de_atractivos_y_compara_dos_ciudades_sin_ia()
     {
         await using var db = await Context();

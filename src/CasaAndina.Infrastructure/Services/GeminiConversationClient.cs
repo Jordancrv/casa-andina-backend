@@ -31,6 +31,8 @@ public sealed class GeminiConversationClient(HttpClient http, IOptions<GeminiOpt
             La fecha de hoy en Perú está en el JSON; úsala para entender mañana o fechas relativas claras.
             Si el mensaje da entrada y número de noches, calcula salida. Fechas: yyyy-MM-dd, sin hora.
             Las ciudades deben ser exactamente uno de los nombres de ciudadesDisponibles, o null.
+            Si pide un destino concreto sin sede en ciudadesDisponibles, copia su nombre en destinoNoDisponible.
+            Para los demás mensajes devuelve destinoNoDisponible=null. Una preferencia como playa no es una ciudad.
             Si desea que elijas el destino, usa ciudad=null y destinoFlexible=true.
             Un saludo o una pregunta general se puede responder sin buscar habitaciones.
             Limítate a ayudar a elegir sedes y habitaciones y comparar el clima. No recomiendes ropa,
@@ -52,6 +54,7 @@ public sealed class GeminiConversationClient(HttpClient http, IOptions<GeminiOpt
             type = "object", additionalProperties = false,
             properties = new
             {
+                destinoNoDisponible = new { type = new[] { "string", "null" } },
                 mensaje = new { type = "string" }, buscarOpciones = new { type = "boolean" },
                 preferencias = new
                 {
@@ -66,7 +69,7 @@ public sealed class GeminiConversationClient(HttpClient http, IOptions<GeminiOpt
                     },
                     required = new[] { "fechaEntrada", "fechaSalida", "presupuestoPorNoche", "adultos", "ciudad", "destinoFlexible" }
                 }
-            }, required = new[] { "mensaje", "buscarOpciones", "preferencias" }
+            }, required = new[] { "mensaje", "buscarOpciones", "preferencias", "destinoNoDisponible" }
         };
         try
         {

@@ -14,7 +14,7 @@ public static class ConversacionViaje
         var salida = entrada.HasValue && p.FechaSalida is { } s && s.TimeOfDay == TimeSpan.Zero && s > entrada && s <= entrada.Value.AddDays(30) ? p.FechaSalida : null;
         var ciudad = ciudades.FirstOrDefault(c => Normal(c) == Normal(p.Ciudad ?? ""));
         return new(entrada, salida, p.PresupuestoPorNoche is >= 1 and <= 10000 ? p.PresupuestoPorNoche : null,
-            p.Adultos is >= 1 and <= 8 ? p.Adultos : null, ciudad, ciudad is null && p.DestinoFlexible, p.EvitarLluvia);
+            p.Adultos is >= 1 and <= 8 ? p.Adultos : null, ciudad, ciudad is null && p.DestinoFlexible, p.EvitarLluvia, p.PrefierePlaya);
     }
     public static string? Faltante(PreferenciasConversacionDto p) => p.Ciudad is null && !p.DestinoFlexible ? "ciudad"
         : p.FechaEntrada is null || p.FechaSalida is null ? "fechas" : p.PresupuestoPorNoche is null ? "presupuesto"
@@ -47,6 +47,9 @@ public static class ConversacionViaje
         if (ciudad is not null) p = p with { Ciudad = ciudad, DestinoFlexible = false };
         if (Regex.IsMatch(text, "(ayudame a elegir|cualquier (ciudad|destino)|sin preferencia de (ciudad|destino))"))
             p = p with { Ciudad = null, DestinoFlexible = true };
+        if (Regex.IsMatch(text, @"\bplayas?\b"))
+            p = p with { PrefierePlaya = !Regex.IsMatch(text, @"\b(sin|evitar|no quiero) (?:la )?playas?\b") };
+        if (Regex.IsMatch(text, @"\bcon mis padres\b") && p.Adultos is null) p = p with { Adultos = 3 };
         var dates = Regex.Matches(text, @"\b\d{4}-\d{2}-\d{2}\b").Select(m =>
             DateTime.TryParseExact(m.Value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date) ? (DateTime?)date : null).ToArray();
         if (dates.Length > 0) p = p with { FechaEntrada = dates[0], FechaSalida = dates.Length > 1 ? dates[1] : null };
@@ -76,6 +79,30 @@ public static class ConversacionViaje
         }
         return p;
     }
+    public static (DateTime? Entrada, DateTime? Salida, string? Error) FechasExplicitas(string mensaje, DateTime hoy)
+    {
+        var texto = Normal(mensaje);
+        const string meses = "enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre";
+        texto = Regex.Replace(texto, $@"\b(\d{{1,2}})\s+(?:al|hasta el|a)\s+(\d{{1,2}}) de ({meses})\b", "$1 de $3 al $2 de $3");
+        var fechas = new List<DateTime>();
+        foreach (Match m in Regex.Matches(texto, $@"\b(?:\d{{4}}-\d{{2}}-\d{{2}}|\d{{1,2}}/\d{{1,2}}/\d{{4}}|\d{{1,2}} de (?:{meses})(?: (?:de |del )?\d{{4}})?)\b"))
+        {
+            var valor = m.Value.Replace("setiembre", "septiembre").Replace(" del ", " ").Replace(" de ", " ");
+            if (Regex.IsMatch(valor, @"\p{L}$"))
+            {
+                var mes = Array.IndexOf(meses.Replace("|setiembre", "").Split('|'), valor.Split(' ')[1]) + 1;
+                var referencia = fechas.Count == 0 ? hoy : fechas[0];
+                valor += " " + (referencia.Year + (mes < referencia.Month ? 1 : 0));
+            }
+            if (!DateTime.TryParseExact(valor, ["d MMMM yyyy", "yyyy-MM-dd", "d/M/yyyy"], CultureInfo.GetCultureInfo("es-ES"), DateTimeStyles.None, out var fecha))
+                return (null, null, $"La fecha «{m.Value}» no existe en el calendario. ¿Cuáles son tus fechas de entrada y salida?");
+            fechas.Add(fecha);
+        }
+        if (fechas.Count > 1 && fechas[1] <= fechas[0])
+            return (null, null, "La salida debe ser posterior a la entrada. ¿Qué fechas deseas usar?");
+        return (fechas.Count > 0 ? fechas[0] : null, fechas.Count > 1 ? fechas[1] : null, null);
+    }
+
     public static IReadOnlyList<string> CiudadesEnMensaje(string message, IReadOnlyList<string> ciudades)
     {
         var text = Normal(message);
