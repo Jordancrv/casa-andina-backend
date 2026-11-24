@@ -217,6 +217,25 @@ public sealed class ConversarViajeTests
         var result = await provider.GetRequiredService<ISender>().Send(new ConversarViajeQuery("Tienes un hotel en Ica ? con playa", new(PrefierePlaya: true)));
         result.Mensaje.Should().Contain("No tenemos sede en Ica");
     }
+    [Theory]
+    [InlineData("Nazca")]
+    [InlineData("Nasca")]
+    public async Task Consulta_regional_y_eleccion_de_Nasca_prevalecen_sobre_playa(string destino)
+    {
+        await using var db = await Context();
+        db.Sedes.Add(new Sede { Id = 2, Nombre = "Casa Andina Standard Nasca", Codigo = "NAZ", Ciudad = "Nazca (Ica)", Categoria = "Standard", Region = "Costa", Activo = true });
+        await db.SaveChangesAsync();
+        var planner = new Planner();
+        await using var provider = Provider(db, new Assistant(), planner);
+        var sender = provider.GetRequiredService<ISender>();
+        var region = await sender.Send(new ConversarViajeQuery("Mejor en Ica", Complete() with { PrefierePlaya = true, Adultos = null }));
+        region.Mensaje.Should().Contain("Casa Andina Standard Nasca");
+        var opcion = await sender.Send(new ConversarViajeQuery("¿Y en " + destino + "?", region.Preferencias));
+        var result = await sender.Send(new ConversarViajeQuery("2 adultos y 500 soles", opcion.Preferencias));
+        result.Plan.Should().NotBeNull();
+        planner.Last!.Ciudad.Should().Be("Nazca (Ica)");
+    }
+
     private static PreferenciasConversacionDto Complete() => new(PeruBusinessTime.Today.AddDays(1), PeruBusinessTime.Today.AddDays(3), 500, 2, "Cusco");
     private static async Task<ApplicationDbContext> Context()
     {

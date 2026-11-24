@@ -109,6 +109,6 @@ public static class ConversacionViaje
         return ciudades.Where(c => Regex.IsMatch(text, $@"\b{Regex.Escape(Normal(c.Split('(')[0].Trim()))}\b")
             && !Regex.IsMatch(text, $@"\b(no quiero|evitar|menos|excepto)\b.{{0,20}}\b{Regex.Escape(Normal(c.Split('(')[0].Trim()))}\b")).ToArray();
     }
-    private static string Normal(string text) => string.Concat(text.Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD)
+    private static string Normal(string text) => string.Concat(text.Trim().ToLowerInvariant().Replace("nazca", "nasca").Normalize(NormalizationForm.FormD)
         .Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark));
 }

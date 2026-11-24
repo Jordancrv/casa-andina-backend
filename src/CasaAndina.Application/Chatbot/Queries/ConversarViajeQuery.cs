@@ -29,8 +29,8 @@ public sealed class ConversarViajeQueryHandler(IApplicationDbContext db, ITravel
     public async Task<ConversacionViajeDto> Handle(ConversarViajeQuery request, CancellationToken cancellationToken)
     {
         var hoy = PeruBusinessTime.Today;
-        var ciudades = await db.Sedes.AsNoTracking().Where(s => s.Activo).Select(s => s.Ciudad)
-            .Distinct().OrderBy(c => c).ToListAsync(cancellationToken);
+        var sedes = await db.Sedes.AsNoTracking().Where(s => s.Activo).Select(s => new { s.Nombre, s.Ciudad }).ToListAsync(cancellationToken);
+        var ciudades = sedes.Select(s => s.Ciudad).Distinct().OrderBy(c => c).ToList();
         var known = ConversacionViaje.Normalizar(request.Preferencias ?? new(), ciudades, hoy);
         var fallbackInicial = ConversacionViaje.LeerMensaje(request.Mensaje, known, ciudades, hoy);
         var ciudadesMencionadas = ConversacionViaje.CiudadesEnMensaje(request.Mensaje, ciudades);
@@ -48,15 +48,20 @@ public sealed class ConversarViajeQueryHandler(IApplicationDbContext db, ITravel
             fallbackInicial = fallbackInicial with { FechaEntrada = fechas.Entrada, FechaSalida = fechas.Salida ?? (fechas.Entrada == known.FechaEntrada ? known.FechaSalida : null) };
         var playas = ciudades.Where(c => Regex.IsMatch(c, @"^(Chiclayo|Piura|Lima|Trujillo)\b", RegexOptions.IgnoreCase)).ToArray();
         var destinoExplicito = Regex.Match(request.Mensaje.Trim(),
-            @"\b(?:viajar a|irme a|hospedarme en|alojarme en|reservar en|habitaci[oó]n en|hotel(?:es)? en|sede en|ir a)\s+([\p{L}]+(?:\s+[\p{L}]+){0,4}?)(?=\s+(?:el|del|para|por|desde|con|en|dentro)\b|\s*[,.!?]|$)",
+            @"\b(?:viajar a|irme a|hospedarme en|alojarme en|reservar en|habitaci[oó]n en|hotel(?:es)? en|sede en|ir a|mejor en|y en)\s+([\p{L}]+(?:\s+[\p{L}]+){0,4}?)(?=\s+(?:el|del|para|por|desde|con|en|dentro)\b|\s*[,.!?]|$)",
             RegexOptions.IgnoreCase);
+        var regionSedes = sedes.Where(s => Regex.Match(s.Ciudad, @"\(([^)]+)\)") is { Success: true } region &&
+            Regex.IsMatch(request.Mensaje, $@"\b{Regex.Escape(region.Groups[1].Value)}\b", RegexOptions.IgnoreCase)).ToList();
+        if (ciudadesMencionadas.Count == 0 && regionSedes.Count > 0)
+            return new($"En esa región contamos con {string.Join(", ", regionSedes.Select(s => $"{s.Nombre} en {s.Ciudad}"))}. ¿Te gustaría alojarte allí?",
+                false, fallbackInicial with { Ciudad = null, DestinoFlexible = false }, null, regionSedes.Select(s => s.Ciudad).Distinct().ToArray());
         if (ciudadesMencionadas.Count == 0 && destinoExplicito.Success &&
             !Regex.IsMatch(destinoExplicito.Groups[1].Value, @"\b(playas?|costa|sierra|selva|alg[uú]n|una?|la|otra?|cualquier|per[uú])\b", RegexOptions.IgnoreCase))
             return new($"No tenemos sede en {destinoExplicito.Groups[1].Value}. Contamos con {string.Join(", ", ciudades)}. ¿Te ayudo a encontrar una alternativa similar?", false, fallbackInicial, null, ciudades);
         var pendienteCiudad = request.Historial?.LastOrDefault() is { Rol: "asistente", Texto: "¿En qué ciudad te gustaría conocer atractivos?" };
         var contextoAtractivos = request.Historial?.LastOrDefault() is { Rol: "asistente" } ultimo &&
             ultimo.Texto.StartsWith("Estos son algunos lugares para explorar", StringComparison.Ordinal);
-        if (fallbackInicial.PrefierePlaya && ciudadesMencionadas.Count == 0 && (fallbackInicial.Ciudad == null || !playas.Contains(fallbackInicial.Ciudad)))
+        if (fallbackInicial.PrefierePlaya && ciudadesMencionadas.Count == 0 && fallbackInicial.Ciudad == null)
         {
             var mensaje = playas.Length > 0
                 ? $"Para una escapada a la playa puedes alojarte en {string.Join(", ", playas)} y visitar playas de sus alrededores. ¿Qué ciudad prefieres?"
@@ -87,7 +92,7 @@ public sealed class ConversarViajeQueryHandler(IApplicationDbContext db, ITravel
         if (aceptaTarifa) fallbackInicial = fallbackInicial with { PresupuestoPorNoche = known.TarifaOfrecida, TarifaOfrecida = null };
         var safeRequest = request with { Preferencias = known };
         var interpreted = aceptaTarifa ? null : await assistant.InterpretarAsync(safeRequest, ciudades, hoy, cancellationToken);
-        if (!string.IsNullOrWhiteSpace(interpreted?.DestinoNoDisponible))
+        if (ciudadesMencionadas.Count == 0 && !string.IsNullOrWhiteSpace(interpreted?.DestinoNoDisponible) && request.Mensaje.Contains(interpreted.DestinoNoDisponible, StringComparison.OrdinalIgnoreCase))
             return new($"No tenemos sede en {interpreted.DestinoNoDisponible}. Contamos con {string.Join(", ", ciudades)}. ¿Te ayudo a elegir una opción similar?", false, fallbackInicial, null, ciudades);
         var fallback = fallbackInicial;
         var parsed = interpreted?.Preferencias;
@@ -97,7 +102,7 @@ public sealed class ConversarViajeQueryHandler(IApplicationDbContext db, ITravel
             FechaSalida = parsed.FechaSalida ?? fallback.FechaSalida,
             PresupuestoPorNoche = fallback.PresupuestoPorNoche != known.PresupuestoPorNoche ? fallback.PresupuestoPorNoche : parsed.PresupuestoPorNoche ?? fallback.PresupuestoPorNoche,
             Adultos = fallback.Adultos != known.Adultos ? fallback.Adultos : parsed.Adultos ?? fallback.Adultos,
-            Ciudad = ciudadesMencionadas.Count == 1 ? ciudadesMencionadas[0] : parsed.Ciudad ?? (parsed.DestinoFlexible ? null : fallback.Ciudad),
+            Ciudad = ciudadesMencionadas.Count == 1 ? ciudadesMencionadas[0] : fallback.Ciudad ?? parsed.Ciudad,
             DestinoFlexible = ciudadesMencionadas.Count == 1 ? false : parsed.DestinoFlexible || fallback.DestinoFlexible,
             MesReferencia = fallback.MesReferencia,
             TarifaOfrecida = null,
