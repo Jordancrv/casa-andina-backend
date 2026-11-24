@@ -9,6 +9,9 @@ public class Cliente
     public int PersonaId { get; set; }
     public Persona Persona { get; set; } = default!;
 
+    public bool RecordarPlaya { get; set; }
+    public bool RecordarEvitarLluvia { get; set; }
+
     public string Estado { get; set; } = "Activo";
     public DateTime FechaRegistro { get; set; }
 

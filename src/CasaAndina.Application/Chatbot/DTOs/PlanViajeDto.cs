@@ -6,7 +6,7 @@ public sealed record PlanViajeDto(
     DateTimeOffset GeneradoEn,
     IReadOnlyList<EstadiaRecomendadaDto> Recomendaciones,
     IReadOnlyList<string> Avisos,
-    bool FiltroLluvia = false);
+    bool FiltroLluvia = false, decimal? TarifaAlternativa = null);
 
 public sealed record EstadiaRecomendadaDto(
     int SedeId, string SedeNombre, string Ciudad, string Categoria,

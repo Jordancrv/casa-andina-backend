@@ -74,7 +74,7 @@ public sealed class GeminiRecommendationService(ApplicationDbContext context,
                 mensaje = $"Hay habitaciones disponibles para {consulta.Adultos} adultos, pero cuestan desde S/ {conCapacidad.Min(h => h.PrecioNoche):0.##} por noche y superan tu presupuesto de S/ {consulta.PresupuestoPorNoche:0.##}. Podemos cambiar el presupuesto, las fechas o el destino.";
             else
                 mensaje = $"Hay habitaciones disponibles, pero ninguna tiene capacidad para {consulta.Adultos} adultos en una sola habitación. Puedes revisar dos habitaciones o cambiar las fechas o el destino.";
-            return new(mensaje, false, DateTimeOffset.UtcNow, [], avisos);
+            return new(mensaje, false, DateTimeOffset.UtcNow, [], avisos, TarifaAlternativa: conCapacidad.Select(h => (decimal?)h.PrecioNoche).Min());
         }
 
         var desde = PeruBusinessTime.UtcStartOfDay(PeruBusinessTime.Today.AddDays(-90));

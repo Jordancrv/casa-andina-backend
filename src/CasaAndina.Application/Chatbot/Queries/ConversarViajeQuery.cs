@@ -34,14 +34,21 @@ public sealed class ConversarViajeQueryHandler(IApplicationDbContext db, ITravel
         var known = ConversacionViaje.Normalizar(request.Preferencias ?? new(), ciudades, hoy);
         var fallbackInicial = ConversacionViaje.LeerMensaje(request.Mensaje, known, ciudades, hoy);
         var ciudadesMencionadas = ConversacionViaje.CiudadesEnMensaje(request.Mensaje, ciudades);
-        var fechas = ConversacionViaje.FechasExplicitas(request.Mensaje, hoy);
+        const string meses = @"\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b";
+        var mes = Regex.Match(request.Mensaje, meses, RegexOptions.IgnoreCase);
+        var textoFecha = request.Mensaje;
+        if (mes.Success) fallbackInicial = fallbackInicial with { MesReferencia = mes.Value.ToLowerInvariant() };
+        else if (known.MesReferencia is { } referencia && Regex.IsMatch(referencia, "^" + meses + "$", RegexOptions.IgnoreCase)
+            && Regex.IsMatch(textoFecha, @"\b\d{1,2}\s+al\s+\d{1,2}\s*[.!?]?$"))
+            textoFecha = textoFecha.TrimEnd(' ', '.', '!', '?') + " de " + referencia;
+        var fechas = ConversacionViaje.FechasExplicitas(textoFecha, hoy);
         if (fechas.Error is not null)
             return new(fechas.Error, false, fallbackInicial with { FechaEntrada = null, FechaSalida = null }, null, []);
         if (fechas.Entrada.HasValue)
             fallbackInicial = fallbackInicial with { FechaEntrada = fechas.Entrada, FechaSalida = fechas.Salida ?? (fechas.Entrada == known.FechaEntrada ? known.FechaSalida : null) };
         var playas = ciudades.Where(c => Regex.IsMatch(c, @"^(Chiclayo|Piura|Lima|Trujillo)\b", RegexOptions.IgnoreCase)).ToArray();
         var destinoExplicito = Regex.Match(request.Mensaje.Trim(),
-            @"\b(?:viajar a|irme a|hospedarme en|alojarme en|reservar en|habitaci[oó]n en|ir a)\s+([\p{L}]+(?:\s+[\p{L}]+){0,4}?)(?=\s+(?:el|del|para|por|desde|con|en|dentro)\b|[,.!?]|$)",
+            @"\b(?:viajar a|irme a|hospedarme en|alojarme en|reservar en|habitaci[oó]n en|hotel(?:es)? en|sede en|ir a)\s+([\p{L}]+(?:\s+[\p{L}]+){0,4}?)(?=\s+(?:el|del|para|por|desde|con|en|dentro)\b|\s*[,.!?]|$)",
             RegexOptions.IgnoreCase);
         if (ciudadesMencionadas.Count == 0 && destinoExplicito.Success &&
             !Regex.IsMatch(destinoExplicito.Groups[1].Value, @"\b(playas?|costa|sierra|selva|alg[uú]n|una?|la|otra?|cualquier|per[uú])\b", RegexOptions.IgnoreCase))
@@ -74,8 +81,12 @@ public sealed class ConversarViajeQueryHandler(IApplicationDbContext db, ITravel
         if (ciudadesMencionadas.Count > 1)
             return new("Por ahora puedo buscar habitaciones en una ciudad a la vez o en todos los destinos. ¿Cuál prefieres? Conservaré las fechas, los adultos y el presupuesto que ya indicaste.", false, known, null,
                 ciudadesMencionadas.Select(c => $"Buscar habitaciones en {c}").Append("Buscar en cualquier destino").ToArray());
+        var confirmaOferta = request.Historial?.LastOrDefault() is { Rol: "asistente" } propuesta && propuesta.Texto.Contains("¿Te muestro las opciones desde S/", StringComparison.Ordinal);
+        var aceptaTarifa = known.TarifaOfrecida.HasValue && fallbackInicial.PresupuestoPorNoche == known.PresupuestoPorNoche &&
+            Regex.IsMatch(request.Mensaje.Trim(), @"^(?:ya\s+)?(?:me adapto a ese presupuesto|acepto(?: ese precio| esa tarifa)?|est[aá] bien(?: ese precio)?)[\s.!]*$", RegexOptions.IgnoreCase) || (known.TarifaOfrecida.HasValue && confirmaOferta && Regex.IsMatch(request.Mensaje.Trim(), @"^s[ií][.!]*$", RegexOptions.IgnoreCase));
+        if (aceptaTarifa) fallbackInicial = fallbackInicial with { PresupuestoPorNoche = known.TarifaOfrecida, TarifaOfrecida = null };
         var safeRequest = request with { Preferencias = known };
-        var interpreted = await assistant.InterpretarAsync(safeRequest, ciudades, hoy, cancellationToken);
+        var interpreted = aceptaTarifa ? null : await assistant.InterpretarAsync(safeRequest, ciudades, hoy, cancellationToken);
         if (!string.IsNullOrWhiteSpace(interpreted?.DestinoNoDisponible))
             return new($"No tenemos sede en {interpreted.DestinoNoDisponible}. Contamos con {string.Join(", ", ciudades)}. ¿Te ayudo a elegir una opción similar?", false, fallbackInicial, null, ciudades);
         var fallback = fallbackInicial;
@@ -88,6 +99,8 @@ public sealed class ConversarViajeQueryHandler(IApplicationDbContext db, ITravel
             Adultos = fallback.Adultos != known.Adultos ? fallback.Adultos : parsed.Adultos ?? fallback.Adultos,
             Ciudad = ciudadesMencionadas.Count == 1 ? ciudadesMencionadas[0] : parsed.Ciudad ?? (parsed.DestinoFlexible ? null : fallback.Ciudad),
             DestinoFlexible = ciudadesMencionadas.Count == 1 ? false : parsed.DestinoFlexible || fallback.DestinoFlexible,
+            MesReferencia = fallback.MesReferencia,
+            TarifaOfrecida = null,
             PrefierePlaya = fallback.PrefierePlaya,
             EvitarLluvia = fallback.EvitarLluvia
         };
@@ -100,7 +113,8 @@ public sealed class ConversarViajeQueryHandler(IApplicationDbContext db, ITravel
         var missing = ConversacionViaje.Faltante(preferences);
         if (missing is not null)
         {
-            var message = interpreted?.Preferencias == preferences ? interpreted.Mensaje : null;
+            var modelo = parsed is null ? null : parsed with { MesReferencia = preferences.MesReferencia, PrefierePlaya = preferences.PrefierePlaya, TarifaOfrecida = null };
+            var message = modelo == preferences ? interpreted?.Mensaje : null;
             return new(string.IsNullOrWhiteSpace(message) ? ConversacionViaje.Preguntar(missing) : message,
                 interpreted is not null, preferences, null, ConversacionViaje.Sugerencias(missing, ciudades));
         }
@@ -110,14 +124,17 @@ public sealed class ConversarViajeQueryHandler(IApplicationDbContext db, ITravel
             && Regex.IsMatch(request.Mensaje, @"\d");
         var solicitaBusqueda = Regex.IsMatch(request.Mensaje, @"\b(opciones|habitaciones|buscar|busca|mu[eé]strame|comparar)\b", RegexOptions.IgnoreCase);
         var cambiaCiudad = ciudadesMencionadas.Count == 1 && known.Ciudad != ciudadesMencionadas[0];
-        if ((!recienCompletado && !aclaraPresupuesto && !solicitaBusqueda && !cambiaCiudad && interpreted is { BuscarOpciones: false }) || (interpreted is null &&
+        if ((!recienCompletado && !aclaraPresupuesto && !solicitaBusqueda && !cambiaCiudad && !(ciudadesMencionadas.Count == 1 && Regex.IsMatch(request.Mensaje, @"^s[ií]\b", RegexOptions.IgnoreCase)) && interpreted is { BuscarOpciones: false }) || (interpreted is null &&
             Regex.IsMatch(request.Mensaje.Trim(), @"^[¡!¿?\s]*(hola|buenas|gracias|muchas gracias|buenos d[ií]as|buenas tardes|buenas noches)[!.?\s]*$", RegexOptions.IgnoreCase)))
             return new(interpreted?.Mensaje ?? "¡Qué gusto seguir conversando contigo! Ya tengo los datos de tu viaje. ¿Qué te gustaría saber?",
-                interpreted is not null, preferences, null, ["Muéstrame las opciones", "Comparemos el clima"]);
+                interpreted is not null, preferences, null, ["Muéstrame las opciones", "¿Qué atractivos puedo visitar?"]);
         var query = new PlanificarViajeQuery(request.Mensaje, preferences.FechaEntrada!.Value, preferences.FechaSalida!.Value,
             preferences.PresupuestoPorNoche!.Value, preferences.Adultos!.Value, preferences.Ciudad, request.Historial, preferences.EvitarLluvia);
         var plan = await sender.Send(query, cancellationToken);
-        return new(plan.Resumen, plan.UsaIa, preferences, plan,
+        if (plan.TarifaAlternativa is decimal tarifa && tarifa > preferences.PresupuestoPorNoche)
+            return new(plan.Resumen + $" ¿Te muestro las opciones desde S/ {tarifa:0.##} por noche?", plan.UsaIa,
+                preferences with { TarifaOfrecida = tarifa }, plan, ["Acepto esa tarifa", "Quiero cambiar las fechas"]);
+        return new(plan.Resumen, plan.UsaIa, preferences with { TarifaOfrecida = null }, plan,
             plan.FiltroLluvia && !plan.Recomendaciones.Any(o => o.ClimaFavorable)
                 ? ["Quiero cambiar las fechas", "Ayúdame a elegir el destino"]
                 : ["¿Qué atractivos puedo visitar?", "Ayúdame a comparar las opciones", "Quiero cambiar las fechas"]);

@@ -35,7 +35,7 @@ public sealed class GeminiConversationClient(HttpClient http, IOptions<GeminiOpt
             Para los demás mensajes devuelve destinoNoDisponible=null. Una preferencia como playa no es una ciudad.
             Si desea que elijas el destino, usa ciudad=null y destinoFlexible=true.
             Un saludo o una pregunta general se puede responder sin buscar habitaciones.
-            Limítate a ayudar a elegir sedes y habitaciones y comparar el clima. No recomiendes ropa,
+            Recomienda únicamente habitaciones, sedes del catálogo y atractivos cercanos de las guías disponibles. El clima solo sirve como criterio para elegir un alojamiento. Habla como personal de la sede. Resuelve las confirmaciones breves según la última propuesta y evita pedir permiso para buscar cuando ya tienes los datos. No recomiendes ropa,
             equipaje ni consejos generales; redirige amablemente al alcance del asistente.
             buscarOpciones=true si pide recomendaciones, comparar o continuar la búsqueda y hay datos suficientes.
             Si aclara el presupuesto o modifica un dato de una búsqueda completa, vuelve a buscar con las preferencias actualizadas.

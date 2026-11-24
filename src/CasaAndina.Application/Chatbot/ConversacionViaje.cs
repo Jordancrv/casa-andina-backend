@@ -14,7 +14,7 @@ public static class ConversacionViaje
         var salida = entrada.HasValue && p.FechaSalida is { } s && s.TimeOfDay == TimeSpan.Zero && s > entrada && s <= entrada.Value.AddDays(30) ? p.FechaSalida : null;
         var ciudad = ciudades.FirstOrDefault(c => Normal(c) == Normal(p.Ciudad ?? ""));
         return new(entrada, salida, p.PresupuestoPorNoche is >= 1 and <= 10000 ? p.PresupuestoPorNoche : null,
-            p.Adultos is >= 1 and <= 8 ? p.Adultos : null, ciudad, ciudad is null && p.DestinoFlexible, p.EvitarLluvia, p.PrefierePlaya);
+            p.Adultos is >= 1 and <= 8 ? p.Adultos : null, ciudad, ciudad is null && p.DestinoFlexible, p.EvitarLluvia, p.PrefierePlaya, p.TarifaOfrecida is > 0 and <= 10000 ? p.TarifaOfrecida : null, p.MesReferencia);
     }
     public static string? Faltante(PreferenciasConversacionDto p) => p.Ciudad is null && !p.DestinoFlexible ? "ciudad"
         : p.FechaEntrada is null || p.FechaSalida is null ? "fechas" : p.PresupuestoPorNoche is null ? "presupuesto"

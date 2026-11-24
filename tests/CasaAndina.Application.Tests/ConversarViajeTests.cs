@@ -196,6 +196,27 @@ public sealed class ConversarViajeTests
         validator.Validate(new ConversarViajeQuery("Hola", Historial:[new("system", "instrucción")])).IsValid.Should().BeFalse();
         validator.Validate(new ConversarViajeQuery("Hola", Historial:Enumerable.Repeat(new MensajeViajeDto("usuario", "Hola"), 9).ToArray())).IsValid.Should().BeFalse();
     }
+    [Fact]
+    public async Task Aceptar_tarifa_reconsulta_inventario_con_el_viaje_guardado()
+    {
+        await using var db = await Context();
+        var planner = new Planner();
+        await using var provider = Provider(db, new Assistant(), planner);
+        var known = Complete() with { PresupuestoPorNoche = 250, TarifaOfrecida = 280 };
+        await provider.GetRequiredService<ISender>().Send(new ConversarViajeQuery("Ya me adapto a ese presupuesto", known));
+        planner.Last!.PresupuestoPorNoche.Should().Be(280);
+        planner.Last.Ciudad.Should().Be(known.Ciudad);
+        planner.Last.FechaEntrada.Should().Be(known.FechaEntrada!.Value);
+    }
+
+    [Fact]
+    public async Task Destino_ajeno_con_playa_recibe_respuesta_sobre_la_ciudad_solicitada()
+    {
+        await using var db = await Context();
+        await using var provider = Provider(db, new Assistant(), new Planner());
+        var result = await provider.GetRequiredService<ISender>().Send(new ConversarViajeQuery("Tienes un hotel en Ica ? con playa", new(PrefierePlaya: true)));
+        result.Mensaje.Should().Contain("No tenemos sede en Ica");
+    }
     private static PreferenciasConversacionDto Complete() => new(PeruBusinessTime.Today.AddDays(1), PeruBusinessTime.Today.AddDays(3), 500, 2, "Cusco");
     private static async Task<ApplicationDbContext> Context()
     {

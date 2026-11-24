@@ -22,6 +22,7 @@ public interface IApplicationDbContext
     DbSet<Comodidad> Comodidades { get; }
     DbSet<Servicio> Servicios { get; }
     DbSet<Usuario> Usuarios { get; }
+    DbSet<ValoracionViaje> ValoracionesViaje { get; }
     DbSet<Cliente> Clientes { get; }
     DbSet<ClienteObservacionSede> ClienteObservacionesSede { get; }
     DbSet<Persona> Personas { get; }

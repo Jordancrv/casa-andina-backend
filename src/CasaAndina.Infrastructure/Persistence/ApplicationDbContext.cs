@@ -21,6 +21,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<Comodidad> Comodidades => Set<Comodidad>();
     public DbSet<Servicio> Servicios => Set<Servicio>();
     public DbSet<Usuario> Usuarios => Set<Usuario>();
+    public DbSet<ValoracionViaje> ValoracionesViaje => Set<ValoracionViaje>();
     public DbSet<Cliente> Clientes => Set<Cliente>();
     public DbSet<ClienteObservacionSede> ClienteObservacionesSede => Set<ClienteObservacionSede>();
     public DbSet<Persona> Personas => Set<Persona>();
